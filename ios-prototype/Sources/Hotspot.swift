@@ -188,40 +188,6 @@ extension Probe {
         tally.sorted { $0.value > $1.value }.map { "\($0.key.rawValue)=\($0.value)" }.joined(separator: " ")
     }
 
-    /// Launched with `--autorun [rounds]`: connect to the first card seen and run the batch, so
-    /// the #21 run needs no taps. Rounds default to 14.
-    @MainActor
-    func autoRunIfRequested() async {
-        let args = ProcessInfo.processInfo.arguments
-        guard let flag = args.firstIndex(of: "--autorun") else { return }
-        let rounds = Int(args.count > flag + 1 ? args[flag + 1] : "") ?? 14
-        log.add("autorun: requested rounds=\(rounds)")
-
-        // Bluetooth comes up a moment after launch.
-        for _ in 0..<40 where state != "poweredOn" { try? await Task.sleep(for: .milliseconds(500)) }
-        guard state == "poweredOn" else { log.add("autorun: bluetooth \(state), giving up"); return }
-
-        if connected == nil {
-            startScan()
-            for _ in 0..<120 where cards.isEmpty { try? await Task.sleep(for: .milliseconds(500)) }
-            guard let card = cards.first else {
-                log.add("autorun: no card in 60 s — is it awake? giving up")
-                return
-            }
-            do {
-                try await connect(card.peripheral)
-                try await deviceInfo()
-            } catch {
-                log.add("autorun: connect failed \(error.localizedDescription)")
-                return
-            }
-        } else {
-            log.add("autorun: reusing existing connection")
-        }
-
-        run("hotspot-batch") { try await self.hotspotRuns(count: rounds) }
-    }
-
     /// SSID iOS reports for the current Wi-Fi network. The same check @capgo/capacitor-wifi
     /// 8.5.x added to confirm a join; 8.3.1 (the version the official app ships) has none.
     /// nil means "could not read" — needs the HotspotConfiguration entitlement or a network
