@@ -9,7 +9,6 @@
 - `docs/backend-design.md` §6 改成门禁式阶段结构，§4.7、§5.1、§7.2、§8.2 同步（提交 7f1c7d0，已推送到 PR #3 分支）
 - 上轮 Next Actions 已全部挂到 issue：V1 → #4；`cmd_pair`、`SCAN_SECONDS`、BLE 速度勘误 → #5
 - 交接文件拆出 PR #3：#3 加删除提交（未 force-push），现只含 `docs/backend-design.md`；`HANDOFF.md` 与 `docs/.metrics/cochange.log` 移到 `chore/session-handoff`（PR #15）
-- 仓库外：Notion 接入 Claude Code（`~/.claude/CLAUDE.md` 加 Notion 段，原文件备份在 `/tmp/CLAUDE.md.bak-notion`）；本项目目标和推进方法已存成 Notion 记忆和方法论页面
 
 ## In Progress
 - 无。#4 等用户准备卡并唤醒后开始
