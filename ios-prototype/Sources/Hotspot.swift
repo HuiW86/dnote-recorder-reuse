@@ -1,6 +1,8 @@
+import CoreLocation
 import Foundation
 import Network
 import NetworkExtension
+import UIKit
 
 // FastUpload hotspot reachability, following the official app (FastTransferWifi / FAST_TRANSFER):
 // 0x88 {ap:1, ssid:"FastUpload", psk} -> wait 3 s -> join Wi-Fi -> TCP 192.168.88.1:6718
@@ -11,6 +13,40 @@ enum FastTransfer {
     static let host = "192.168.88.1"
     static let port: UInt16 = 6718
     static let tcpAttempts = 6
+}
+
+/// How one join attempt ended, so a batch of them can be tallied (#21).
+enum HotspotOutcome: String {
+    case pass = "PASS"
+    case joinedNoTCP = "joined/no-TCP"
+    case failNoSwitch = "A/no-switch"
+    case failNoRoute = "B/no-route"
+    case inconclusive = "inconclusive"
+    case error = "error"
+}
+
+/// NEHotspotNetwork.fetchCurrent reads the SSID only when the app either holds Location
+/// authorization or configured the current network itself. In the A failure the current network
+/// is *not* ours, which is exactly when the SSID matters, so ask for Location up front.
+final class LocationPermission: NSObject, CLLocationManagerDelegate {
+    static let shared = LocationPermission()
+    private let manager = CLLocationManager()
+    private var pending: CheckedContinuation<CLAuthorizationStatus, Never>?
+
+    func request() async -> CLAuthorizationStatus {
+        manager.delegate = self
+        guard manager.authorizationStatus == .notDetermined else { return manager.authorizationStatus }
+        return await withCheckedContinuation { c in
+            pending = c
+            manager.requestWhenInUseAuthorization()
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        guard manager.authorizationStatus != .notDetermined, let c = pending else { return }
+        pending = nil
+        c.resume(returning: manager.authorizationStatus)
+    }
 }
 
 /// Same shape as the official generateWifiPassword(12): letters and digits without look-alikes.
@@ -32,7 +68,8 @@ extension Probe {
 
     /// fixedPsk: reuse one password and let the AP settle 10 s, to separate AP restart timing
     /// from NEHotspotConfiguration behaviour.
-    func hotspotProbe(fixedPsk: Bool = false, joinOnce: Bool = true) async throws {
+    @discardableResult
+    func hotspotProbe(fixedPsk: Bool = false, joinOnce: Bool = false) async throws -> HotspotOutcome {
         let psk = fixedPsk ? "dnote1234" : generateWifiPassword()
         // Reset first: an AP left on from an earlier run may still use the old password.
         try sendRaw(buildFrame(Cmd.setWifiAp, json: ["ap": 0, "ssid": FastTransfer.ssid, "psk": psk]))
@@ -89,16 +126,20 @@ extension Probe {
             }
         }
         guard joined else {
+            let outcome: HotspotOutcome
             let why: String
             if !ssidReadable {
-                why = "inconclusive, SSID unreadable (entitlement or Location permission)"
+                outcome = .inconclusive
+                why = "SSID unreadable (entitlement or Location permission)"
             } else if sawCardSSID {
-                why = "B: associated with FastUpload but never got a 192.168.88.x address"
+                outcome = .failNoRoute
+                why = "associated with FastUpload but never got a 192.168.88.x address"
             } else {
-                why = "A: iOS never switched to FastUpload"
+                outcome = .failNoSwitch
+                why = "iOS never switched to FastUpload"
             }
-            log.add("hotspot: could not join FastUpload — \(why) [FAIL]")
-            return
+            log.add("hotspot: could not join FastUpload — \(outcome.rawValue): \(why) [FAIL]")
+            return outcome
         }
 
         for attempt in 1...FastTransfer.tcpAttempts {
@@ -107,7 +148,7 @@ extension Probe {
                 let banner = try await tcpConnect()
                 log.add("hotspot: TCP \(FastTransfer.host):\(FastTransfer.port) connected on attempt \(attempt) "
                         + "first bytes=\(banner.isEmpty ? "(none in 3s)" : banner.hex) [PASS]")
-                return
+                return .pass
             } catch {
                 log.add(String(format: "hotspot: TCP attempt %d failed after %.1fs: %@ | %@", attempt,
                                Date().timeIntervalSince(t), "\(error)", "en0=\(wifiIPv4())"))
@@ -115,6 +156,69 @@ extension Probe {
             try await Task.sleep(for: .seconds(2))
         }
         log.add("hotspot: TCP never connected [FAIL]")
+        return .joinedNoTCP
+    }
+
+    /// #21: run the join attempt `count` times and tally the outcomes, so the A/B split is
+    /// visible without reading every line. Keeps the screen awake for the whole batch.
+    func hotspotRuns(count: Int = 14, gapSeconds: Int = 10) async throws {
+        let auth = await LocationPermission.shared.request()
+        log.add("hotspot batch: location authorization=\(auth.rawValue) (2/3/4 = usable for fetchCurrent)")
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { UIApplication.shared.isIdleTimerDisabled = false }
+
+        var tally: [HotspotOutcome: Int] = [:]
+        for round in 1...count {
+            log.add("=== hotspot round \(round)/\(count) ===")
+            var outcome = HotspotOutcome.error
+            do {
+                outcome = try await hotspotProbe(joinOnce: false)
+            } catch {
+                log.add("hotspot: round \(round) threw \(error.localizedDescription)")
+            }
+            tally[outcome, default: 0] += 1
+            log.add("=== round \(round)/\(count) -> \(outcome.rawValue) | \(tallyText(tally)) ===")
+            if round < count { try await Task.sleep(for: .seconds(gapSeconds)) }
+        }
+        log.add("=== hotspot batch done (\(count) rounds): \(tallyText(tally)) [SUMMARY] ===")
+    }
+
+    private func tallyText(_ tally: [HotspotOutcome: Int]) -> String {
+        tally.sorted { $0.value > $1.value }.map { "\($0.key.rawValue)=\($0.value)" }.joined(separator: " ")
+    }
+
+    /// Launched with `--autorun [rounds]`: connect to the first card seen and run the batch, so
+    /// the #21 run needs no taps. Rounds default to 14.
+    @MainActor
+    func autoRunIfRequested() async {
+        let args = ProcessInfo.processInfo.arguments
+        guard let flag = args.firstIndex(of: "--autorun") else { return }
+        let rounds = Int(args.count > flag + 1 ? args[flag + 1] : "") ?? 14
+        log.add("autorun: requested rounds=\(rounds)")
+
+        // Bluetooth comes up a moment after launch.
+        for _ in 0..<40 where state != "poweredOn" { try? await Task.sleep(for: .milliseconds(500)) }
+        guard state == "poweredOn" else { log.add("autorun: bluetooth \(state), giving up"); return }
+
+        if connected == nil {
+            startScan()
+            for _ in 0..<120 where cards.isEmpty { try? await Task.sleep(for: .milliseconds(500)) }
+            guard let card = cards.first else {
+                log.add("autorun: no card in 60 s — is it awake? giving up")
+                return
+            }
+            do {
+                try await connect(card.peripheral)
+                try await deviceInfo()
+            } catch {
+                log.add("autorun: connect failed \(error.localizedDescription)")
+                return
+            }
+        } else {
+            log.add("autorun: reusing existing connection")
+        }
+
+        run("hotspot-batch") { try await self.hotspotRuns(count: rounds) }
     }
 
     /// SSID iOS reports for the current Wi-Fi network. The same check @capgo/capacitor-wifi
