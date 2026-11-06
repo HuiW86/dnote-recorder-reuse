@@ -1,0 +1,21 @@
+{
+  "seconds_requested": 10.0,
+  "disconnected_at": null,
+  "notify_counts": {
+    "0x80": 1,
+    "0x56": 2,
+    "0x50": 1
+  },
+  "live_notifications": 0,
+  "live_notify_len_hist": {},
+  "audio_bytes": 0,
+  "frames_40B": 0,
+  "remainder_bytes": 0,
+  "live_span_s": 0.0,
+  "expected_frames_by_span": 0,
+  "frame_deviation_pct": null,
+  "toc_byte_hist_top5": {},
+  "distinct_toc_bytes": 0,
+  "header_samples": [],
+  "replies_54_sent": 0
+}

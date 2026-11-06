@@ -1,0 +1,133 @@
+{"t": 0.001, "event": "connected", "address": "853BE462-3927-35DC-A23E-F592DFD35491", "method": "51", "seconds": 10.0}
+{"t": 0.056, "event": "send", "label": "0x80 device info", "hex": "a08000"}
+{"t": 0.119, "event": "notify", "cmd": "0x80", "len": 183, "hex": "a080b47b22736e223a22683773706162396d316e6f766e7a30343135222c2276223a22312e3530222c2274696d65223a22323032362d31312d30362030333a34343a3533222c22726563223a312c227265636d6f6465223a302c22757362223a302c22626174223a34372c226466223a373637302c22746f74616c5f6466223a373637312c226274223a2244c2b74e4f5445222c22627461646472223a22336135316633633431363266222c22776966696170223a307d"}
+{"t": 0.119, "event": "reply", "label": "0x80 device info", "payload": {"sn": "h7spab9m1novnz0415", "v": "1.50", "time": "2026-11-06 03:44:53", "rec": 1, "recmode": 0, "usb": 0, "bat": 47, "df": 7670, "total_df": 7671, "bt": "D·NOTE", "btaddr": "3a51f3c4162f", "wifiap": 0}}
+{"t": 0.119, "event": "send", "label": "0x56 rec status (before)", "hex": "a05600"}
+{"t": 0.165, "event": "notify", "cmd": "0x56", "len": 80, "hex": "a0564d7b226e616d65223a2232303236313130363033343331312e6f707573222c2273697a65223a3230323030302c2272656364223a3130313030302c22726563223a312c2275706c6f6164223a307d"}
+{"t": 0.165, "event": "reply", "label": "0x56 rec status (before)", "payload": {"name": "20261106034311.opus", "size": 202000, "recd": 101000, "rec": 1, "upload": 0}}
+{"t": 0.165, "event": "send", "label": "0x51[1]", "hex": "a0510101"}
+{"t": 0.24, "event": "notify", "cmd": "0x56", "len": 51, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 0.599, "event": "notify", "cmd": "0x51", "len": 33, "hex": "a0511e7b226e616d65223a2232303236313130363033343435342e6f707573227d"}
+{"t": 1.035, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a50000000000", "audio_len": 160, "audio_sha256": "535893def94d68a7"}
+{"t": 1.155, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a511000000a0", "audio_len": 160, "audio_sha256": "c5412831bbbb8c8d"}
+{"t": 1.215, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200000140", "audio_len": 160, "audio_sha256": "1e32554cba181c1a"}
+{"t": 1.274, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a513000001e0", "audio_len": 160, "audio_sha256": "4cddf39a4c515455"}
+{"t": 1.349, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51400000280", "audio_len": 160, "audio_sha256": "414bbc2fbd81e389"}
+{"t": 1.444, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51500000320", "audio_len": 160, "audio_sha256": "b9bfd401bedb4cd4"}
+{"t": 1.515, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a516000003c0", "audio_len": 160, "audio_sha256": "a046d18db7a21b08"}
+{"t": 1.59, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51700000460", "audio_len": 160, "audio_sha256": "3e7258847b393214"}
+{"t": 1.694, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51800000500", "audio_len": 160, "audio_sha256": "f20d3359f8fda4dd"}
+{"t": 1.754, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a519000005a0", "audio_len": 160, "audio_sha256": "b3a2d1f3013c583a"}
+{"t": 1.829, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51a00000640", "audio_len": 160, "audio_sha256": "63f04afd62535ff4"}
+{"t": 1.921, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51b000006e0", "audio_len": 160, "audio_sha256": "87973d6a5b14ade7"}
+{"t": 1.995, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51c00000780", "audio_len": 160, "audio_sha256": "66a03591c8affa69"}
+{"t": 2.07, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51d00000820", "audio_len": 160, "audio_sha256": "d87ce2f9d2ea5bad"}
+{"t": 2.16, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51e000008c0", "audio_len": 160, "audio_sha256": "b1bbfd85fa34f06b"}
+{"t": 2.235, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51f00000960", "audio_len": 160, "audio_sha256": "b3e7164f93ffa673"}
+{"t": 2.31, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51000000a00", "audio_len": 160, "audio_sha256": "e764cbbb38cc21e9"}
+{"t": 2.399, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51100000aa0", "audio_len": 160, "audio_sha256": "bb14b688a45eaf9e"}
+{"t": 2.474, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200000b40", "audio_len": 160, "audio_sha256": "5a2d50db78b5035e"}
+{"t": 2.55, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51300000be0", "audio_len": 160, "audio_sha256": "da4434e20e430d75"}
+{"t": 2.64, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51400000c80", "audio_len": 160, "audio_sha256": "583202f3997d45ed"}
+{"t": 2.714, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51500000d20", "audio_len": 160, "audio_sha256": "3c0cedf2bf78cffa"}
+{"t": 2.79, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51600000dc0", "audio_len": 160, "audio_sha256": "4b41e5459dd65cb9"}
+{"t": 2.881, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51700000e60", "audio_len": 160, "audio_sha256": "25eac442d9ae7cd6"}
+{"t": 2.955, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51800000f00", "audio_len": 160, "audio_sha256": "3975d68a5e1ef6b2"}
+{"t": 3.031, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51900000fa0", "audio_len": 160, "audio_sha256": "922ea1f25adda15c"}
+{"t": 3.121, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51a00001040", "audio_len": 160, "audio_sha256": "b0190af240c1482d"}
+{"t": 3.194, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51b000010e0", "audio_len": 160, "audio_sha256": "a0d59386600d3884"}
+{"t": 3.271, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51c00001180", "audio_len": 160, "audio_sha256": "a5a0e003896429b7"}
+{"t": 3.359, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51d00001220", "audio_len": 160, "audio_sha256": "963f8e4c804a3ee6"}
+{"t": 3.435, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51e000012c0", "audio_len": 160, "audio_sha256": "e6fea1a12eeca532"}
+{"t": 3.51, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51f00001360", "audio_len": 160, "audio_sha256": "e11a2312eb468d42"}
+{"t": 3.599, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51000001400", "audio_len": 160, "audio_sha256": "ea1775153c9be1b6"}
+{"t": 3.674, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a511000014a0", "audio_len": 160, "audio_sha256": "37c6184859affc73"}
+{"t": 3.749, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200001540", "audio_len": 160, "audio_sha256": "36a3212b71b894ac"}
+{"t": 3.839, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a513000015e0", "audio_len": 160, "audio_sha256": "ec1f55c4a054a42c"}
+{"t": 3.915, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51400001680", "audio_len": 160, "audio_sha256": "ee4fd02852728597"}
+{"t": 3.99, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51500001720", "audio_len": 160, "audio_sha256": "e1695458074aa53b"}
+{"t": 4.08, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a516000017c0", "audio_len": 160, "audio_sha256": "b577a1d35ccd59f3"}
+{"t": 4.158, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51700001860", "audio_len": 160, "audio_sha256": "e8b9a95cdd5c8d84"}
+{"t": 4.232, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51800001900", "audio_len": 160, "audio_sha256": "fedcab969d0940a0"}
+{"t": 4.335, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a519000019a0", "audio_len": 160, "audio_sha256": "17877421843ae45a"}
+{"t": 4.395, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51a00001a40", "audio_len": 160, "audio_sha256": "1eddde0a5134ecf6"}
+{"t": 4.5, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51b00001ae0", "audio_len": 160, "audio_sha256": "931e9fb06270784e"}
+{"t": 4.559, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51c00001b80", "audio_len": 160, "audio_sha256": "3929e7dbe2247f09"}
+{"t": 4.649, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51d00001c20", "audio_len": 160, "audio_sha256": "8442708adfeeec1c"}
+{"t": 4.71, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51e00001cc0", "audio_len": 160, "audio_sha256": "bbb490ecd025377e"}
+{"t": 4.814, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51f00001d60", "audio_len": 160, "audio_sha256": "4403ba0c1b569976"}
+{"t": 4.89, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51000001e00", "audio_len": 160, "audio_sha256": "30ff517d26171899"}
+{"t": 4.949, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51100001ea0", "audio_len": 160, "audio_sha256": "a81d9735e9c9c23e"}
+{"t": 5.039, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200001f40", "audio_len": 160, "audio_sha256": "1542128d2ae48890"}
+{"t": 5.13, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51300001fe0", "audio_len": 160, "audio_sha256": "782f8ebf79deaa33"}
+{"t": 5.19, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51400002080", "audio_len": 160, "audio_sha256": "b7aeafc5f8fa4ab6"}
+{"t": 5.28, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51500002120", "audio_len": 160, "audio_sha256": "ae30dbb328a13790"}
+{"t": 5.355, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a516000021c0", "audio_len": 160, "audio_sha256": "1fc2b898676edb41"}
+{"t": 5.429, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51700002260", "audio_len": 160, "audio_sha256": "2b765145ff3e15f1"}
+{"t": 5.52, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51800002300", "audio_len": 160, "audio_sha256": "5897b7dc46a7628b"}
+{"t": 5.594, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a519000023a0", "audio_len": 160, "audio_sha256": "42d9a0d7e33f58fb"}
+{"t": 5.67, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51a00002440", "audio_len": 160, "audio_sha256": "0ac495751995d13a"}
+{"t": 5.759, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51b000024e0", "audio_len": 160, "audio_sha256": "b7ef4a31e4d6ed7d"}
+{"t": 5.836, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51c00002580", "audio_len": 160, "audio_sha256": "274569758d47f907"}
+{"t": 5.91, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51d00002620", "audio_len": 160, "audio_sha256": "94d44da2d7e9a8fa"}
+{"t": 6.0, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51e000026c0", "audio_len": 160, "audio_sha256": "eb58169dc77d9bdb"}
+{"t": 6.076, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51f00002760", "audio_len": 160, "audio_sha256": "d1ad02027a250383"}
+{"t": 6.15, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51000002800", "audio_len": 160, "audio_sha256": "bdc73b02b92d8148"}
+{"t": 6.24, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a511000028a0", "audio_len": 160, "audio_sha256": "c0e046d0b6c55f5e"}
+{"t": 6.314, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200002940", "audio_len": 160, "audio_sha256": "fedfe00bd986636d"}
+{"t": 6.39, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a513000029e0", "audio_len": 160, "audio_sha256": "a61f4f1d3dd28f6e"}
+{"t": 6.48, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51400002a80", "audio_len": 160, "audio_sha256": "dc6f959e49df1bf9"}
+{"t": 6.555, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51500002b20", "audio_len": 160, "audio_sha256": "27d793956ff2bda3"}
+{"t": 6.629, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51600002bc0", "audio_len": 160, "audio_sha256": "381f578855fbad9a"}
+{"t": 6.72, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51700002c60", "audio_len": 160, "audio_sha256": "dccbab3c43b01800"}
+{"t": 6.795, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51800002d00", "audio_len": 160, "audio_sha256": "177b714b460f404e"}
+{"t": 6.87, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51900002da0", "audio_len": 160, "audio_sha256": "104039ae2ff61160"}
+{"t": 6.974, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51a00002e40", "audio_len": 160, "audio_sha256": "fc5baeddb32e963b"}
+{"t": 7.036, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51b00002ee0", "audio_len": 160, "audio_sha256": "66920041de2504f6"}
+{"t": 7.109, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51c00002f80", "audio_len": 160, "audio_sha256": "f827b572fb669d48"}
+{"t": 7.199, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51d00003020", "audio_len": 160, "audio_sha256": "a3b63006040e691c"}
+{"t": 7.289, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51e000030c0", "audio_len": 160, "audio_sha256": "e34d3e8be3cfaf9b"}
+{"t": 7.35, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51f00003160", "audio_len": 160, "audio_sha256": "3199e40a91751f1d"}
+{"t": 7.44, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51000003200", "audio_len": 160, "audio_sha256": "4d64922dd4bfd2a5"}
+{"t": 7.515, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a511000032a0", "audio_len": 160, "audio_sha256": "603137eb99a2357a"}
+{"t": 7.59, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200003340", "audio_len": 160, "audio_sha256": "4fd356ecb11bd3ec"}
+{"t": 7.679, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a513000033e0", "audio_len": 160, "audio_sha256": "dd43404a683f6ff6"}
+{"t": 7.755, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51400003480", "audio_len": 160, "audio_sha256": "02391875298763fc"}
+{"t": 7.83, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51500003520", "audio_len": 160, "audio_sha256": "5a0da9e4f3a67c96"}
+{"t": 7.92, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a516000035c0", "audio_len": 160, "audio_sha256": "d9f2564d66890810"}
+{"t": 7.994, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51700003660", "audio_len": 160, "audio_sha256": "f7a374238362aab1"}
+{"t": 8.07, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51800003700", "audio_len": 160, "audio_sha256": "c598ae7f8f2679d1"}
+{"t": 8.16, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a519000037a0", "audio_len": 160, "audio_sha256": "a03f6a4450a0cad4"}
+{"t": 8.25, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51a00003840", "audio_len": 160, "audio_sha256": "510d128701012b4e"}
+{"t": 8.31, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51b000038e0", "audio_len": 160, "audio_sha256": "006cd945a36549df"}
+{"t": 8.4, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51c00003980", "audio_len": 160, "audio_sha256": "aeba128abc18c58f"}
+{"t": 8.475, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51d00003a20", "audio_len": 160, "audio_sha256": "5071cb24574e289c"}
+{"t": 8.55, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51e00003ac0", "audio_len": 160, "audio_sha256": "4c99ff0d788c3aa2"}
+{"t": 8.64, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51f00003b60", "audio_len": 160, "audio_sha256": "8a0dd83d3ea864f1"}
+{"t": 8.715, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51000003c00", "audio_len": 160, "audio_sha256": "9d792dba1ccec838"}
+{"t": 8.82, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51100003ca0", "audio_len": 160, "audio_sha256": "b8c815946616ae4c"}
+{"t": 8.88, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200003d40", "audio_len": 160, "audio_sha256": "da7870ff9322e45d"}
+{"t": 8.955, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51300003de0", "audio_len": 160, "audio_sha256": "e58a5c017cb7533a"}
+{"t": 9.03, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51400003e80", "audio_len": 160, "audio_sha256": "1870d187aa1ab8ca"}
+{"t": 9.136, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51500003f20", "audio_len": 160, "audio_sha256": "5f1e92d0d64921c5"}
+{"t": 9.21, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51600003fc0", "audio_len": 160, "audio_sha256": "58f0a21bfbf20814"}
+{"t": 9.27, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51700004060", "audio_len": 160, "audio_sha256": "d5921b19546a4a38"}
+{"t": 9.375, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51800004100", "audio_len": 160, "audio_sha256": "8670f9adbe516722"}
+{"t": 9.435, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a519000041a0", "audio_len": 160, "audio_sha256": "7afba0830782f6f6"}
+{"t": 9.51, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51a00004240", "audio_len": 160, "audio_sha256": "10ef3677df0eae25"}
+{"t": 9.602, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51b000042e0", "audio_len": 160, "audio_sha256": "051588b3b5d30092"}
+{"t": 9.674, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51c00004380", "audio_len": 160, "audio_sha256": "b04ac515110e39b4"}
+{"t": 9.75, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51d00004420", "audio_len": 160, "audio_sha256": "430b4989c9b6792f"}
+{"t": 9.84, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51e000044c0", "audio_len": 160, "audio_sha256": "993813b4e00b28f2"}
+{"t": 9.915, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51f00004560", "audio_len": 160, "audio_sha256": "d8f7a31173a9d6cd"}
+{"t": 9.99, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51000004600", "audio_len": 160, "audio_sha256": "f93cc1d2ebc24b6c"}
+{"t": 10.08, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a511000046a0", "audio_len": 160, "audio_sha256": "9b147a0930b9fae7"}
+{"t": 10.155, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a51200004740", "audio_len": 160, "audio_sha256": "60d57634959c46a4"}
+{"t": 10.23, "event": "notify", "cmd": "0x68", "len": 168, "head": "a068a513000047e0", "audio_len": 160, "audio_sha256": "1386a8a4bfa9aa90"}
+{"t": 10.263, "event": "send", "label": "0x50 stop", "hex": "a05000"}
+{"t": 10.305, "event": "notify", "cmd": "0x56", "len": 51, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 10.379, "event": "notify", "cmd": "0x50", "len": 4, "hex": "a0500101"}
+{"t": 12.291, "event": "send", "label": "0x56 rec status (after)", "hex": "a05600"}
+{"t": 12.314, "event": "notify", "cmd": "0x56", "len": 51, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 12.315, "event": "reply", "label": "0x56 rec status (after)", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}}
+{"t": 12.315, "event": "done"}
