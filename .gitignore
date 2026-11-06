@@ -7,3 +7,4 @@ recordings/
 *.raw
 *.img
 .DS_Store
+.bond.json

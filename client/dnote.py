@@ -11,6 +11,8 @@ dnote.py — 追觅 D·NOTE (DNOTE001B) 录音卡 离线客户端 (命令行)
   list      列出设备上的录音文件
   pull      下载全部(或指定)录音到本地, 自动解密并封装为 .ogg
   usb       开/关 USB 存储模式
+  pair      绑定录音卡 (bondId 持久化到本地 .bond.json; 重复执行结果不变)
+  unpair    解绑录音卡并清除本地 bondId
   synctime  校准设备时间
 
 依赖:  pip install bleak cryptography
@@ -27,6 +29,7 @@ dnote.py — 追觅 D·NOTE (DNOTE001B) 录音卡 离线客户端 (命令行)
 from __future__ import annotations
 import argparse
 import asyncio
+import json
 import os
 import sys
 import time
@@ -42,7 +45,8 @@ except ImportError:
     print("需要安装 bleak:  pip install bleak cryptography", file=sys.stderr)
     sys.exit(2)
 
-SCAN_SECONDS = 8.0
+SCAN_SECONDS = 15.0
+BOND_STORE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".bond.json")
 
 
 # ----------------------------------------------------------- 扫描 / 识别
@@ -318,6 +322,96 @@ async def cmd_synctime(args):
         print("已校准设备时间。")
 
 
+# ----------------------------------------------------------- 绑定 (0xA0 / 0xA1)
+
+def _load_bonds() -> dict:
+    try:
+        with open(BOND_STORE) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+
+def _save_bonds(bonds: dict):
+    with open(BOND_STORE, "w") as f:
+        json.dump(bonds, f, indent=2)
+
+
+def _fmt_bond(b) -> str:
+    if not isinstance(b, dict):
+        return repr(b)
+    bid = b.get("bondId")
+    return f"isBonded={b.get('isBonded')} bondId={bid.hex() if bid else None}"
+
+
+async def _bond_write(s: Session, frame: bytes):
+    """Send 0xA0 and report the device's 0xA0 reply, if any (not documented)."""
+    try:
+        ack = await s.request(frame, P.Cmd.BOND, timeout=2.0)
+        print(f"  0xA0 响应: {ack.hex() if isinstance(ack, (bytes, bytearray)) else ack}")
+    except asyncio.TimeoutError:
+        print("  0xA0 无响应 (2s)")
+
+
+async def _bond_state(s: Session) -> dict:
+    b = await s.bond_info()
+    return b if isinstance(b, dict) else {}
+
+
+async def _query_bond_fresh(addr):
+    async with BleakClient(addr) as client:
+        s = Session(client); await s.start()
+        return await _bond_state(s)
+
+
+async def cmd_pair(args):
+    addr = await _pick_device(args.address)
+    bonds = _load_bonds()
+    local = bytes.fromhex(bonds[addr]) if addr in bonds else None
+    async with BleakClient(addr) as client:
+        s = Session(client); await s.start()
+        cur = await _bond_state(s)
+        print("当前:", _fmt_bond(cur))
+        if cur.get("isBonded") and local and cur.get("bondId") == local:
+            print("已绑定本地 bondId, 跳过。")
+            return
+        if cur.get("isBonded") and not args.force:
+            raise SystemExit("设备已绑定其它 bondId。确认要覆盖请先 `unpair` 或加 --force。")
+        bond_id = local or os.urandom(16)
+        print(f"写入 bondId={bond_id.hex()}")
+        await _bond_write(s, P.frame_bond(bond_id))
+        same = await _bond_state(s)
+        print("同连接查询:", _fmt_bond(same))
+    # H1: does the bond take effect without reconnecting? Compare with a fresh connection.
+    fresh = await _query_bond_fresh(addr)
+    print("重连后查询:", _fmt_bond(fresh))
+    ok_same = bool(same.get("isBonded")) and same.get("bondId") == bond_id
+    ok_fresh = bool(fresh.get("isBonded")) and fresh.get("bondId") == bond_id
+    print(f"结果: 不重连生效={ok_same}  重连后生效={ok_fresh}")
+    if not ok_fresh:
+        raise SystemExit("绑定未生效, 未保存 bondId。")
+    bonds[addr] = bond_id.hex()
+    _save_bonds(bonds)
+    print(f"已保存到 {BOND_STORE}")
+
+
+async def cmd_unpair(args):
+    addr = await _pick_device(args.address)
+    async with BleakClient(addr) as client:
+        s = Session(client); await s.start()
+        print("当前:", _fmt_bond(await _bond_state(s)))
+        await _bond_write(s, P.frame_unbond())
+        same = await _bond_state(s)
+        print("同连接查询:", _fmt_bond(same))
+    fresh = await _query_bond_fresh(addr)
+    print("重连后查询:", _fmt_bond(fresh))
+    print(f"结果: 不重连生效={not same.get('isBonded')}  重连后生效={not fresh.get('isBonded')}")
+    bonds = _load_bonds()
+    if bonds.pop(addr, None):
+        _save_bonds(bonds)
+        print("已清除本地 bondId。")
+
+
 async def cmd_scan(args):
     await scan(args.timeout)
 
@@ -339,12 +433,16 @@ def main():
     sp.add_argument("--delete", action="store_true", help="下载后删除设备上的文件(默认不删)")
     sp = sub.add_parser("usb"); sp.add_argument("on", choices=["on", "off"])
     sub.add_parser("synctime")
+    sp = sub.add_parser("pair")
+    sp.add_argument("--force", action="store_true", help="设备已绑定其它 bondId 时仍覆盖")
+    sub.add_parser("unpair")
 
     args = ap.parse_args()
     fn = {
         "scan": cmd_scan, "info": cmd_info, "status": cmd_status,
         "record": cmd_record, "stop": cmd_stop, "list": cmd_list,
         "pull": cmd_pull, "usb": cmd_usb, "synctime": cmd_synctime,
+        "pair": cmd_pair, "unpair": cmd_unpair,
     }[args.cmd]
     asyncio.run(fn(args))
 
