@@ -9,7 +9,6 @@
 - `docs/backend-design.md` §6 改成门禁式阶段结构，§4.7、§5.1、§7.2、§8.2 同步（提交 7f1c7d0，已推送到 PR #3 分支）
 - 上轮 Next Actions 已全部挂到 issue：V1 → #4；`cmd_pair`、`SCAN_SECONDS`、BLE 速度勘误 → #5
 - 交接文件拆出 PR #3：#3 加删除提交（未 force-push），现只含 `docs/backend-design.md`；`HANDOFF.md` 与 `docs/.metrics/cochange.log` 移到 `chore/session-handoff`（PR #15）
-- 从本机记忆 `ast-ppt-project.md`、`harness-research.md`、`vps-tencent.md` 删除 bp.759705.cc 明文密码
 - 仓库外：Notion 接入 Claude Code（`~/.claude/CLAUDE.md` 加 Notion 段，原文件备份在 `/tmp/CLAUDE.md.bak-notion`）；本项目目标和推进方法已存成 Notion 记忆和方法论页面
 
 ## In Progress
@@ -32,7 +31,6 @@
 - 整体否决条件：iOS 上配对或蓝牙下载做不通（#7）
 - 四个 PR 未合并（#1、#2、#3、#15）；#3 base 是 #2 分支，合并 #2 时删分支让 #3 自动改指 main。交接文件已拆出 #3，放在 `chore/session-handoff` 分支（独立 PR），以后 /checkpoint 提交到该分支
 - 用户已有付费苹果开发者账号；卡数量很多（#8 不阻塞）
-- 已从 3 个本机记忆文件删除 bp.759705.cc 明文密码；`~/Vault/_exports/claude-code-2026-09-10/2026-09-10-DeepSeek-harness-安装位置-b8cf18f3.md` 第 240 行仍有，待用户决定；建议用户在服务器上更换 htpasswd 密码
 
 ## Verify
 - `cd client && .venv/bin/python dnote.py scan --timeout 15`（先按卡上按键唤醒）
