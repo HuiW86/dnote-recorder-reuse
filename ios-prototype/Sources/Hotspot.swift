@@ -50,7 +50,12 @@ extension Probe {
 
         // apply() can report success even when iOS fails to join and falls back to the previous
         // network, so verify the Wi-Fi address is on the card's subnet and retry the join.
+        // The SSID is checked alongside it to tell the two failures apart (#21):
+        //   A: iOS never switched network        -> SSID is not FastUpload
+        //   B: switched but no route to the card -> SSID matches, no 192.168.88.x address
         var joined = false
+        var sawCardSSID = false
+        var ssidReadable = false
         for join in 1...3 where !joined {
             let config = NEHotspotConfiguration(ssid: FastTransfer.ssid, passphrase: psk, isWEP: false)
             // joinOnce=false like a manual join; joinOnce=true failed repeatedly in V7.
@@ -65,18 +70,36 @@ extension Probe {
                 log.add("hotspot: join \(join) apply error \(error)")
             }
             // Give DHCP up to 8 s to hand out a 192.168.88.x address.
+            var lastSSID: String?
             for _ in 0..<16 where !joined {
+                lastSSID = await currentSSID()
+                if let ssid = lastSSID {
+                    ssidReadable = true
+                    if ssid == FastTransfer.ssid { sawCardSSID = true }
+                }
                 joined = wifiIPv4().contains { $0.hasPrefix("192.168.88.") }
                 if !joined { try await Task.sleep(for: .milliseconds(500)) }
             }
-            log.add(String(format: "hotspot: join %d %@ after %.1fs en0=%@", join, joined ? "OK" : "NOT on card subnet",
-                           Date().timeIntervalSince(t0), "\(wifiIPv4())"))
+            log.add(String(format: "hotspot: join %d %@ after %.1fs ssid=%@ en0=%@", join,
+                           joined ? "OK" : "NOT on card subnet", Date().timeIntervalSince(t0),
+                           lastSSID ?? "unavailable", "\(wifiIPv4())"))
             if !joined {
                 NEHotspotConfigurationManager.shared.removeConfiguration(forSSID: FastTransfer.ssid)
                 try await Task.sleep(for: .seconds(2))
             }
         }
-        guard joined else { log.add("hotspot: could not join FastUpload [FAIL]"); return }
+        guard joined else {
+            let why: String
+            if !ssidReadable {
+                why = "inconclusive, SSID unreadable (entitlement or Location permission)"
+            } else if sawCardSSID {
+                why = "B: associated with FastUpload but never got a 192.168.88.x address"
+            } else {
+                why = "A: iOS never switched to FastUpload"
+            }
+            log.add("hotspot: could not join FastUpload — \(why) [FAIL]")
+            return
+        }
 
         for attempt in 1...FastTransfer.tcpAttempts {
             let t = Date()
@@ -92,6 +115,16 @@ extension Probe {
             try await Task.sleep(for: .seconds(2))
         }
         log.add("hotspot: TCP never connected [FAIL]")
+    }
+
+    /// SSID iOS reports for the current Wi-Fi network. The same check @capgo/capacitor-wifi
+    /// 8.5.x added to confirm a join; 8.3.1 (the version the official app ships) has none.
+    /// nil means "could not read" — needs the HotspotConfiguration entitlement or a network
+    /// this app configured — not "not connected".
+    private func currentSSID() async -> String? {
+        await withCheckedContinuation { c in
+            NEHotspotNetwork.fetchCurrent { c.resume(returning: $0?.ssid) }
+        }
     }
 
     /// IPv4 addresses currently on the Wi-Fi interface (en0).
