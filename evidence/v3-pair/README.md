@@ -20,3 +20,23 @@ list; pull --name 20261106035009.opus        # 05: decrypt still works after re-
 - After unbind, `0xA1` returns `isBonded=0` with no bondId.
 - Re-running `pair` with the stored bondId is a no-op.
 - Post re-pair download is byte-identical to the backup (sha256 `0c0813…a9bf`).
+
+# V3 button recording (H5) and BLE throughput — 2026-11-06
+
+## Commands
+```
+status; list                                          # 06: list empty while recording; file appears after stop
+pull --name 20261106040350.opus --out /tmp/v3tp/runN   # 07: x3, sequential
+ffprobe / ffmpeg -f null / volumedetect on run1 output
+```
+
+## Criteria
+- H5 holds iff the button-recorded file is listed by `0x90`, downloads, decrypts, and decodes without error with non-silent audio.
+- Throughput = file size / download wall time reported by `pull`, ≥ 1 MB, ≥ 3 runs.
+
+## Result
+- H5 holds: 15,180,060 B, Opus 48 kHz mono, 7590 s, full decode OK, mean volume −24.2 dB (first 600 s).
+- While recording, `0x90` returns an empty list (`0x56` shows rec=1); after stop, all 10 files are listed.
+- Throughput: 640.7 / 645.8 / 643.3 s → 23.69 / 23.51 / 23.60 KB/s, mean 23.60 KB/s (±0.4%).
+- All 3 downloads are byte-identical after decode (`07-throughput.sha256`).
+- Audio itself is not committed.

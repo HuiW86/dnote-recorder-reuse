@@ -168,8 +168,11 @@ class Session:
             pass
         return list(self._list_items)
 
-    async def download(self, name: str, size_hint=0, timeout=120.0):
+    async def download(self, name: str, size_hint=0, timeout=None):
         """下载单个文件, 返回拼接后的原始字节(可能是 'encryt' 密文或裸 opus)。"""
+        if timeout is None:
+            # Measured BLE throughput is ~23 KB/s; allow down to 5 KB/s.
+            timeout = max(120.0, size_hint / 5000)
         chunks = []
         done = asyncio.get_event_loop().create_future()
         def cb(payload):
