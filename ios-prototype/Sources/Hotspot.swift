@@ -163,7 +163,8 @@ extension Probe {
     /// visible without reading every line. Keeps the screen awake for the whole batch.
     func hotspotRuns(count: Int = 14, gapSeconds: Int = 10) async throws {
         let auth = await LocationPermission.shared.request()
-        log.add("hotspot batch: location authorization=\(auth.rawValue) (2/3/4 = usable for fetchCurrent)")
+        let authUsable = auth == .authorizedWhenInUse || auth == .authorizedAlways
+        log.add("hotspot batch: location \(auth.rawValue) \(authUsable ? "granted" : "DENIED — SSID unreadable, A/B split unavailable")")
         UIApplication.shared.isIdleTimerDisabled = true
         defer { UIApplication.shared.isIdleTimerDisabled = false }
 
