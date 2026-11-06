@@ -48,6 +48,17 @@
 
 ## 3. 逆向方法（可复现）
 
+### 3.0 APK 来源
+
+- 官方安卓分发页（App 内「软件下载」指向此处）：
+  `https://a.122.city/app/installSuccess/6a1ff640b2eb467f6f1dfb18?lang=en&shortcutUrl=a52uej3b`
+- App 代码内硬编码的下载直链常量：`ANDROID_DOWNLOAD_URL = https://fir.xcxwo.com/a52uej3b`
+  （`fir.xcxwo.com` 为 fir.im 式的应用分发平台；短码 `a52uej3b` 与上面分发页的 `shortcutUrl` 一致，可互相印证）
+- 分析所用样本：`app-release.apk`，`com.dnote.dreame`，约 50MB，Capacitor 应用。
+- 注：上述为第三方分发地址，链接含时效性 token，可能失效；失效后从官网 `dreamenote.cn/app` 重新获取。请核对包名 `com.dnote.dreame` 以确认是同一 App。
+
+### 3.1 步骤
+
 1. 取得 APK（`com.dnote.dreame`，`app-release.apk`，~50MB）。
 2. `unzip` 解包，确认为 Capacitor 应用（`assets/capacitor.config.json`、`assets/public/`）。
 3. BLE 协议在 `assets/public/assets/index-*.js`（主 bundle）。用 `js-beautify` 美化后检索：
