@@ -1,0 +1,2 @@
+当前: isBonded=True bondId=169b4119193cb65d7e2dac1baef12c1c
+设备已绑定其它 bondId。确认要覆盖请先 `unpair` 或加 --force。

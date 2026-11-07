@@ -113,6 +113,8 @@ PAYLOAD 编码分三类：多数命令为 UTF-8 JSON；开关类为单字节 `0x
 | 0xA2 | 设置 ChaCha20 密钥 | `[enable]` + 32 字节 key |
 | 0xA3 | 查询加密状态 | — |
 
+实测（固件 v1.50，#5）：`0xA0` 绑定与解绑均回 1 字节 `0x01`；写入后同一连接内 `0xA1` 即反映新状态，无需断开重连。解绑后 `0xA1` 返回 `isBonded=0`、不带 bondId。录音进行中 `0x90` 文件列表返回空，停止后恢复。证据 `evidence/v3-pair/`。
+
 ### 4.5 固件升级
 
 | CMD | 名称 | PAYLOAD |
@@ -195,7 +197,7 @@ key = HMAC-SHA256(DEVICE_KEY_SECRET, sn)      # sn 为设备序列号
 
 ## 7. WiFi 高速传输通道
 
-BLE 实测约 24 KB/s（#5，Mac 23.60 KB/s；V7，iPhone 25.55 KB/s），15 MB 的两小时录音要 10 分钟左右。设备另提供 WiFi 快传，实测约 **780 KB/s**，同一文件约 19 s。
+BLE 实测约 24 KB/s（#5，Mac 23.60 KB/s，15.18 MB 文件下载 3 次 23.51～23.69 KB/s；V7，iPhone 25.55 KB/s），远低于此前记载的“约 1 MB/s”。录音码率约 2 KB/s，蓝牙下载约为 11.8 倍实时，15 MB 的两小时录音要 10 分钟左右。设备另提供 WiFi 快传，实测约 **780 KB/s**，同一文件约 19 s。
 
 **来源**：命令集取自固件 `strings`（`recpen_file_server`，见 `docs/craft-anything-evaluation.md` §5.1）；线格式、帧结构与吞吐为真机实测（#6，证据 `evidence/v2-fasttransfer/`）。官方 App 的 JS 未用到。
 

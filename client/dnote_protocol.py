@@ -238,6 +238,11 @@ def frame_start_recording(flag=False):
 def frame_stop_recording():      return build_frame(Cmd.STOP_RECORDING)
 def frame_query_rec_status():    return build_frame(Cmd.QUERY_REC_STATUS)
 def frame_query_bond():          return build_frame(Cmd.QUERY_BOND)
+def frame_bond(bond_id):
+    if len(bond_id) != 16:
+        raise ValueError("bondId must be 16 bytes")
+    return build_frame(Cmd.BOND, bytes([1]) + bytes(bond_id))
+def frame_unbond():              return build_frame(Cmd.BOND, bytes([0]))
 def frame_set_chacha20(enable, key32):
     if len(key32) != 32:
         raise ValueError("key must be 32 bytes")

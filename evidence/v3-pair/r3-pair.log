@@ -1,0 +1,7 @@
+当前: isBonded=False bondId=None
+写入 bondId=411803f6de4241962769906f5f97c799
+  0xA0 响应: 01
+同连接查询: isBonded=True bondId=411803f6de4241962769906f5f97c799
+重连后查询: isBonded=True bondId=411803f6de4241962769906f5f97c799
+结果: 不重连生效=True  重连后生效=True
+已保存到 /Users/apple/WeChatProjects/dnote-recorder-reuse/client/.bond.json

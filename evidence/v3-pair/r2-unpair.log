@@ -1,0 +1,6 @@
+当前: isBonded=True bondId=92895ab95caeac509886ce9dc4f44272
+  0xA0 响应: 01
+同连接查询: isBonded=False bondId=None
+重连后查询: isBonded=False bondId=None
+结果: 不重连生效=True  重连后生效=True
+已清除本地 bondId。
