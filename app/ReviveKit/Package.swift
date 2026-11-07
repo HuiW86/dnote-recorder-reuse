@@ -29,7 +29,16 @@ let package = Package(
         // Playback and export of stored OGG files.
         .target(name: "Player", dependencies: ["Library"]),
 
-        .testTarget(name: "CardProtocolTests", dependencies: ["CardProtocol"]),
+        // Fake card and evidence replay for integration tests (test-spec.md §2). Lives under
+        // Tests/ and is not part of the product, so it never ships in the app.
+        .target(name: "CardTestSupport", dependencies: ["CardProtocol", "CardLink"], path: "Tests/CardTestSupport"),
+
+        .testTarget(
+            name: "CardProtocolTests",
+            dependencies: ["CardProtocol", "CardTestSupport"],
+            resources: [.copy("Fixtures")]
+        ),
+        .testTarget(name: "CardLinkTests", dependencies: ["CardProtocol", "CardLink", "CardTestSupport"]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
         .testTarget(name: "ArchitectureTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player",

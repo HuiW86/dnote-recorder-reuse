@@ -42,7 +42,7 @@
 |---|---|
 | `scan()` → 发现流 | 按厂商数据公司 ID `0x22A3` 识别设备（`PROTOCOL.md` §2.2），解析广播得到固件版本、电量、SID |
 | `connect(peripheral)` | 连接、发现服务 `6001`、订阅通知 `6003`；超时 10 s |
-| `connectWhenSeen(peripheralId)` | 挂起连接：设备再次广播时由系统自动连上。断线后必须调用，因为 iOS 后台扫描发现不了这张卡（H6） |
+| `connectWhenSeen(peripheralId)` | 挂起连接：设备再次广播时由系统自动连上。断线后必须调用，因为 iOS 后台扫描发现不了这张卡（H6）。意外断开时由 CardLink 自动登记（#37） |
 | `disconnect()` | 主动断开，不触发挂起连接 |
 | `state` | `poweredOff / unauthorized / idle / connecting / connected / disconnected(reason)` |
 | `write(frame)` / `notifications` | 带响应写；通知按到达顺序投递 |
@@ -63,6 +63,8 @@
 | 文件 | `0x90` 列表、`0x70` 下载、`0x91` 删除 | M1 |
 | 配对 | `0xA0` 绑定 / 解绑、`0xA2` 设置密钥 | M1 |
 | 快传 | `0x88` 热点开关 | M3 |
+
+M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M1 行）。
 
 **永不定义**：`0x93` 恢复出厂、`0x94` 格式化、`0xB0`/`0xB1` 固件升级、`0x89` 卡 WiFi 直传（暂缓，#9）。
 验证方法：代码审查 + 单元测试断言白名单之外的命令字无法构造帧（见 `test-spec.md`）。
