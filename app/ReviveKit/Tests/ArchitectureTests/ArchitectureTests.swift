@@ -12,7 +12,7 @@ struct ArchitectureTests {
     @Test func allModulesLink() {
         let names = [
             String(describing: Command.self), String(describing: LinkState.self), String(describing: CardService.self),
-            String(describing: SyncEngine.self), PlayerModule.name,
+            String(describing: SyncEngine.self), String(describing: RecordingPlayer.self),
         ]
         #expect(names.count == Set(names).count)
     }

@@ -22,7 +22,7 @@ struct OggOpusTests {
     /// encoder (16 kHz mono, 20 ms, like the card) and the muxed file is opened with
     /// AVAudioPlayer. No audio is committed to the repo.
     @Test func systemPlayerReadsDuration() throws {
-        let packets = try encodeSineAsOpus(seconds: 2)
+        let packets = try SyntheticOpus.sine(seconds: 2)
         #expect(packets.count >= 99, "packets \(packets.count)")
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).ogg")
         defer { try? FileManager.default.removeItem(at: url) }
@@ -32,42 +32,4 @@ struct OggOpusTests {
         let expected = Double(packets.count) * 0.02 - 312.0 / 48000
         #expect(abs(player.duration - expected) < 0.002, "duration \(player.duration), expected \(expected)")
     }
-}
-
-private func encodeSineAsOpus(seconds: Int) throws -> [Data] {
-    let rate = 16000.0
-    let pcmFormat = try #require(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, channels: 1,
-                                               interleaved: false))
-    var asbd = AudioStreamBasicDescription(
-        mSampleRate: rate, mFormatID: kAudioFormatOpus, mFormatFlags: 0, mBytesPerPacket: 0,
-        mFramesPerPacket: 320, mBytesPerFrame: 0, mChannelsPerFrame: 1, mBitsPerChannel: 0, mReserved: 0)
-    let opusFormat = try #require(AVAudioFormat(streamDescription: &asbd))
-    let converter = try #require(AVAudioConverter(from: pcmFormat, to: opusFormat))
-
-    let frameCount = AVAudioFrameCount(rate) * AVAudioFrameCount(seconds)
-    let pcm = try #require(AVAudioPCMBuffer(pcmFormat: pcmFormat, frameCapacity: frameCount))
-    pcm.frameLength = frameCount
-    for i in 0..<Int(frameCount) {
-        pcm.floatChannelData![0][i] = 0.3 * sin(2 * .pi * 440 * Float(i) / Float(rate))
-    }
-
-    var packets: [Data] = []
-    var fed = false
-    while true {
-        let out = AVAudioCompressedBuffer(format: opusFormat, packetCapacity: 64, maximumPacketSize: 1500)
-        var error: NSError?
-        let status = converter.convert(to: out, error: &error) { _, inStatus in
-            if fed { inStatus.pointee = .endOfStream; return nil }
-            fed = true
-            inStatus.pointee = .haveData
-            return pcm
-        }
-        if let error { throw error }
-        for i in 0..<Int(out.packetCount) {
-            let d = out.packetDescriptions![i]
-            packets.append(Data(bytes: out.data + Int(d.mStartOffset), count: Int(d.mDataByteSize)))
-        }
-        if status == .endOfStream || status == .error || out.packetCount == 0 { break }
-    }
-    return packets
 }

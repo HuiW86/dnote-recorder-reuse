@@ -48,7 +48,7 @@
 | T-M1-01 | 白名单之外的命令字（含 `0x93`、`0x94`、`0xB0`、`0xB1`、`0x89`）无法构造帧 | 编译期不存在对应常量；遍历 0x00～0xFF 只有白名单内的能构造 |
 | T-M1-02 | 帧编解码：长度边界 0、255；PID 错误；长度字段大于实际 | 与 `client/dnote_protocol.py` 输出逐字节一致；非法帧返回空 |
 | T-M1-03 | 解密：加密样本解出与期望一致；篡改 1 字节后校验失败 | 解出 `plain.bin`；篡改后报 `decryptFailed` |
-| T-M1-04 | OGG 封装：输出与 `expected_ogg.bin` 一致，且能被系统播放器解码 | 逐字节一致；`AVAudioPlayer` 能读出时长 |
+| T-M1-04 | OGG 封装：输出与 `expected_ogg.bin` 一致，且能被系统播放器解码 | 逐字节一致；`AVAudioPlayer` 能读出时长。播放器与导出见 `Tests/PlayerTests/`，ffprobe 检查见 `evidence/v40-player/`（#40） |
 | T-M1-05 | 广播解析：公司 ID 不符的被忽略；固件版本、电量解析正确 | 与原型单元测试一致 |
 | T-M1-06 | 固件版本：`1.50` 无警告；其他版本发出 `firmwareUnverified` 且不阻断 | — |
 | T-M1-07 | 设置命令：每项 M1 设置生成的帧与 `PROTOCOL.md` §4.1 一致；增益和降噪档位超出 1～9 时拒绝 | — |
