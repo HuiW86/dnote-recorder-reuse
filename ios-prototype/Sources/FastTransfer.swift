@@ -8,9 +8,10 @@ import UIKit
 // aa | type | status | len (u16 BE) | body.
 
 enum FastTransferError: LocalizedError {
-    case closed, timeout(String), badFrame(String), status(UInt8, UInt8)
+    case closed, timeout(String), badFrame(String), status(UInt8, UInt8), notOnCard(String)
     var errorDescription: String? {
         switch self {
+        case .notOnCard(let name): return "fast transfer: \(name) not on card"
         case .badFrame(let what): return "fast transfer: bad frame (\(what))"
         case .status(let type, let s): return String(format: "fast transfer: type 0x%02x failed, status 0x%02x", type, s)
         case .closed: return "fast transfer: connection closed by card"
@@ -218,6 +219,8 @@ extension Probe {
 
         let outcome = try await withHotspot { first in
             var link = first
+            // A reconnected link is not the one withHotspot closes, so close whichever is current.
+            defer { link.close() }
             let banner = await link.read(idle: 3)
             log.add("ft-probe: banner \(banner.count)B \(banner.preview())")
             var getDone = false
@@ -243,7 +246,6 @@ extension Probe {
                 // Once one get variant returns the file, skip the other variant.
                 if isGet, reply.count > 1024 { getDone = true }
             }
-            link.close()
         }
         log.add("ft-probe: done, hotspot outcome \(outcome.rawValue)")
     }
@@ -320,7 +322,7 @@ extension Probe {
             let entries = try await fastTransferList(link)
             guard let entry = entries.first(where: { $0.name == name }) else {
                 log.add("ft-runs: \(name) not on card [FAIL]")
-                return
+                throw FastTransferError.notOnCard(name)
             }
             var rates: [Double] = []
             for run in 1...runs {
