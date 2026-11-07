@@ -26,6 +26,8 @@
 	<string>连接 D·NOTE 录音卡以读取录音</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>连接录音卡的 FastUpload 热点进行快传</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>读取当前 Wi-Fi 名称，确认是否已连上录音卡热点</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

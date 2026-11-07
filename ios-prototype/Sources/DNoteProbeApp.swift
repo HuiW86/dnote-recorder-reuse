@@ -6,7 +6,11 @@ struct DNoteProbeApp: App {
     @StateObject private var probe = Probe()
 
     var body: some Scene {
-        WindowGroup { ContentView().environmentObject(probe) }
+        WindowGroup {
+            ContentView()
+                .environmentObject(probe)
+                .task { await probe.autoRunIfRequested() }
+        }
     }
 }
 
@@ -54,6 +58,7 @@ struct ContentView: View {
                             Button("断开") { probe.disconnect() }
                         }.buttonStyle(.borderless)
                         Button("热点测试（FastUpload）") { probe.run("hotspot") { try await probe.hotspotProbe() } }
+                        Button("自动跑 14 轮（#21 A/B 分布）") { probe.run("hotspot-batch") { try await probe.hotspotRuns() } }
                         Button("热点测试（固定密码，保存网络）") { probe.run("hotspot") { try await probe.hotspotProbe(fixedPsk: true, joinOnce: false) } }
                         HStack {
                             Button("开热点（保持）") { try? probe.hotspotHold(true) }

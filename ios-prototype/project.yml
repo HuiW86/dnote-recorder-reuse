@@ -23,6 +23,7 @@ targets:
         UIBackgroundModes: [bluetooth-central]
         UIFileSharingEnabled: true
         NSLocalNetworkUsageDescription: 连接录音卡的 FastUpload 热点进行快传
+        NSLocationWhenInUseUsageDescription: 读取当前 Wi-Fi 名称，确认是否已连上录音卡热点
         LSSupportsOpeningDocumentsInPlace: true
     entitlements:
       path: Sources/DNoteProbe.entitlements

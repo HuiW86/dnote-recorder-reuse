@@ -1,6 +1,8 @@
+import CoreLocation
 import Foundation
 import Network
 import NetworkExtension
+import UIKit
 
 // FastUpload hotspot reachability, following the official app (FastTransferWifi / FAST_TRANSFER):
 // 0x88 {ap:1, ssid:"FastUpload", psk} -> wait 3 s -> join Wi-Fi -> TCP 192.168.88.1:6718
@@ -11,6 +13,40 @@ enum FastTransfer {
     static let host = "192.168.88.1"
     static let port: UInt16 = 6718
     static let tcpAttempts = 6
+}
+
+/// How one join attempt ended, so a batch of them can be tallied (#21).
+enum HotspotOutcome: String {
+    case pass = "PASS"
+    case joinedNoTCP = "joined/no-TCP"
+    case failNoSwitch = "A/no-switch"
+    case failNoRoute = "B/no-route"
+    case inconclusive = "inconclusive"
+    case error = "error"
+}
+
+/// NEHotspotNetwork.fetchCurrent reads the SSID only when the app either holds Location
+/// authorization or configured the current network itself. In the A failure the current network
+/// is *not* ours, which is exactly when the SSID matters, so ask for Location up front.
+final class LocationPermission: NSObject, CLLocationManagerDelegate {
+    static let shared = LocationPermission()
+    private let manager = CLLocationManager()
+    private var pending: CheckedContinuation<CLAuthorizationStatus, Never>?
+
+    func request() async -> CLAuthorizationStatus {
+        manager.delegate = self
+        guard manager.authorizationStatus == .notDetermined else { return manager.authorizationStatus }
+        return await withCheckedContinuation { c in
+            pending = c
+            manager.requestWhenInUseAuthorization()
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        guard manager.authorizationStatus != .notDetermined, let c = pending else { return }
+        pending = nil
+        c.resume(returning: manager.authorizationStatus)
+    }
 }
 
 /// Same shape as the official generateWifiPassword(12): letters and digits without look-alikes.
@@ -32,7 +68,8 @@ extension Probe {
 
     /// fixedPsk: reuse one password and let the AP settle 10 s, to separate AP restart timing
     /// from NEHotspotConfiguration behaviour.
-    func hotspotProbe(fixedPsk: Bool = false, joinOnce: Bool = true) async throws {
+    @discardableResult
+    func hotspotProbe(fixedPsk: Bool = false, joinOnce: Bool = false) async throws -> HotspotOutcome {
         let psk = fixedPsk ? "dnote1234" : generateWifiPassword()
         // Reset first: an AP left on from an earlier run may still use the old password.
         try sendRaw(buildFrame(Cmd.setWifiAp, json: ["ap": 0, "ssid": FastTransfer.ssid, "psk": psk]))
@@ -50,7 +87,12 @@ extension Probe {
 
         // apply() can report success even when iOS fails to join and falls back to the previous
         // network, so verify the Wi-Fi address is on the card's subnet and retry the join.
+        // The SSID is checked alongside it to tell the two failures apart (#21):
+        //   A: iOS never switched network        -> SSID is not FastUpload
+        //   B: switched but no route to the card -> SSID matches, no 192.168.88.x address
         var joined = false
+        var sawCardSSID = false
+        var ssidReadable = false
         for join in 1...3 where !joined {
             let config = NEHotspotConfiguration(ssid: FastTransfer.ssid, passphrase: psk, isWEP: false)
             // joinOnce=false like a manual join; joinOnce=true failed repeatedly in V7.
@@ -65,18 +107,40 @@ extension Probe {
                 log.add("hotspot: join \(join) apply error \(error)")
             }
             // Give DHCP up to 8 s to hand out a 192.168.88.x address.
+            var lastSSID: String?
             for _ in 0..<16 where !joined {
+                lastSSID = await currentSSID()
+                if let ssid = lastSSID {
+                    ssidReadable = true
+                    if ssid == FastTransfer.ssid { sawCardSSID = true }
+                }
                 joined = wifiIPv4().contains { $0.hasPrefix("192.168.88.") }
                 if !joined { try await Task.sleep(for: .milliseconds(500)) }
             }
-            log.add(String(format: "hotspot: join %d %@ after %.1fs en0=%@", join, joined ? "OK" : "NOT on card subnet",
-                           Date().timeIntervalSince(t0), "\(wifiIPv4())"))
+            log.add(String(format: "hotspot: join %d %@ after %.1fs ssid=%@ en0=%@", join,
+                           joined ? "OK" : "NOT on card subnet", Date().timeIntervalSince(t0),
+                           lastSSID ?? "unavailable", "\(wifiIPv4())"))
             if !joined {
                 NEHotspotConfigurationManager.shared.removeConfiguration(forSSID: FastTransfer.ssid)
                 try await Task.sleep(for: .seconds(2))
             }
         }
-        guard joined else { log.add("hotspot: could not join FastUpload [FAIL]"); return }
+        guard joined else {
+            let outcome: HotspotOutcome
+            let why: String
+            if !ssidReadable {
+                outcome = .inconclusive
+                why = "SSID unreadable (entitlement or Location permission)"
+            } else if sawCardSSID {
+                outcome = .failNoRoute
+                why = "associated with FastUpload but never got a 192.168.88.x address"
+            } else {
+                outcome = .failNoSwitch
+                why = "iOS never switched to FastUpload"
+            }
+            log.add("hotspot: could not join FastUpload — \(outcome.rawValue): \(why) [FAIL]")
+            return outcome
+        }
 
         for attempt in 1...FastTransfer.tcpAttempts {
             let t = Date()
@@ -84,7 +148,7 @@ extension Probe {
                 let banner = try await tcpConnect()
                 log.add("hotspot: TCP \(FastTransfer.host):\(FastTransfer.port) connected on attempt \(attempt) "
                         + "first bytes=\(banner.isEmpty ? "(none in 3s)" : banner.hex) [PASS]")
-                return
+                return .pass
             } catch {
                 log.add(String(format: "hotspot: TCP attempt %d failed after %.1fs: %@ | %@", attempt,
                                Date().timeIntervalSince(t), "\(error)", "en0=\(wifiIPv4())"))
@@ -92,6 +156,46 @@ extension Probe {
             try await Task.sleep(for: .seconds(2))
         }
         log.add("hotspot: TCP never connected [FAIL]")
+        return .joinedNoTCP
+    }
+
+    /// #21: run the join attempt `count` times and tally the outcomes, so the A/B split is
+    /// visible without reading every line. Keeps the screen awake for the whole batch.
+    func hotspotRuns(count: Int = 14, gapSeconds: Int = 10) async throws {
+        let auth = await LocationPermission.shared.request()
+        let authUsable = auth == .authorizedWhenInUse || auth == .authorizedAlways
+        log.add("hotspot batch: location \(auth.rawValue) \(authUsable ? "granted" : "DENIED — SSID unreadable, A/B split unavailable")")
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { UIApplication.shared.isIdleTimerDisabled = false }
+
+        var tally: [HotspotOutcome: Int] = [:]
+        for round in 1...count {
+            log.add("=== hotspot round \(round)/\(count) ===")
+            var outcome = HotspotOutcome.error
+            do {
+                outcome = try await hotspotProbe(joinOnce: false)
+            } catch {
+                log.add("hotspot: round \(round) threw \(error.localizedDescription)")
+            }
+            tally[outcome, default: 0] += 1
+            log.add("=== round \(round)/\(count) -> \(outcome.rawValue) | \(tallyText(tally)) ===")
+            if round < count { try await Task.sleep(for: .seconds(gapSeconds)) }
+        }
+        log.add("=== hotspot batch done (\(count) rounds): \(tallyText(tally)) [SUMMARY] ===")
+    }
+
+    private func tallyText(_ tally: [HotspotOutcome: Int]) -> String {
+        tally.sorted { $0.value > $1.value }.map { "\($0.key.rawValue)=\($0.value)" }.joined(separator: " ")
+    }
+
+    /// SSID iOS reports for the current Wi-Fi network. The same check @capgo/capacitor-wifi
+    /// 8.5.x added to confirm a join; 8.3.1 (the version the official app ships) has none.
+    /// nil means "could not read" — needs the HotspotConfiguration entitlement or a network
+    /// this app configured — not "not connected".
+    private func currentSSID() async -> String? {
+        await withCheckedContinuation { c in
+            NEHotspotNetwork.fetchCurrent { c.resume(returning: $0?.ssid) }
+        }
     }
 
     /// IPv4 addresses currently on the Wi-Fi interface (en0).
