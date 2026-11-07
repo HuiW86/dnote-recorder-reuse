@@ -34,6 +34,10 @@ public final class FakeCard: CardLink {
         case reorderNotifications
         /// Ack `0xA0` writes without changing the bond, so `0xA1` disagrees.
         case ignoreBondWrites
+        /// Carry out the next request with this command, then drop the link (once).
+        case disconnectAfter(Command)
+        /// Drop the link on the next request with this command without carrying it out (once).
+        case disconnectInsteadOf(Command)
     }
 
     // MARK: Configuration and observable state
@@ -109,7 +113,16 @@ public final class FakeCard: CardLink {
         sentRequests.append(request)
         writtenFrames.append(frame)
         if faults.contains(.noResponse(request.command)) { return }
+        if let i = faults.firstIndex(of: .disconnectInsteadOf(request.command)) {
+            faults.remove(at: i)
+            dropLink()
+            return
+        }
         var replies = reply(to: request)
+        if let i = faults.firstIndex(of: .disconnectAfter(request.command)) {
+            faults.remove(at: i)
+            replies.append(.drop)
+        }
         if faults.contains(.reorderNotifications) {
             for i in stride(from: 0, to: replies.count - 1, by: 2) { replies.swapAt(i, i + 1) }
         }
