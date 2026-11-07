@@ -1,6 +1,8 @@
 // Playback and OGG export of stored recordings (features.md E1a).
 //
-// AVAudioPlayer reads the OGG Opus files directly (T-M1-04), so there is no decode step.
+// AVAudioPlayer reads the OGG Opus files directly on iOS 27 / macOS 27 (T-M1-04). Where it
+// cannot (older systems, unverified), the file is decoded once to a PCM CAF under the library
+// (`decoded/`, removed with the recording) and that copy is played instead (OggOpusDecoder).
 
 import AVFoundation
 import Foundation
@@ -31,6 +33,10 @@ public final class RecordingPlayer: NSObject {
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// Bumped by every load and stop, so a decode that finishes late does not take over.
+    @ObservationIgnored private var loadToken = 0
+    /// Tests turn this off to exercise the decode fallback on systems that open OGG directly.
+    @ObservationIgnored var opensOggDirectly = true
 
     public init(library: RecordingLibrary) {
         self.library = library
@@ -39,9 +45,11 @@ public final class RecordingPlayer: NSObject {
     }
 
     /// Plays `recording` from the start, or resumes it if it is already loaded.
-    public func play(_ recording: Recording) throws {
+    /// The first play may decode the file off the main thread (see the file header). Throws
+    /// `CancellationError` if `stop` or another `play` comes in while that decode is running.
+    public func play(_ recording: Recording) async throws {
         if recordingId != recording.id || player == nil {
-            try load(recording)
+            try await load(recording)
         }
         try activateSession()
         player?.play()
@@ -59,6 +67,7 @@ public final class RecordingPlayer: NSObject {
     }
 
     public func stop() {
+        loadToken += 1
         player?.stop()
         player = nil
         recordingId = nil
@@ -72,12 +81,35 @@ public final class RecordingPlayer: NSObject {
         set { player?.volume = newValue }
     }
 
-    private func load(_ recording: Recording) throws {
+    private func load(_ recording: Recording) async throws {
         stop()
+        let token = loadToken
         let url = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: url.path) else { throw PlayerError.audioMissing }
         let p: AVAudioPlayer
-        do { p = try AVAudioPlayer(contentsOf: url) } catch { throw PlayerError.cannotOpen }
+        if opensOggDirectly, let direct = try? AVAudioPlayer(contentsOf: url), direct.duration > 0 {
+            p = direct
+        } else {
+            let decoded = library.store.decodedURL(for: recording.id)
+            if !FileManager.default.fileExists(atPath: decoded.path) {
+                do {
+                    try await Task.detached(priority: .userInitiated) {
+                        try OggOpusDecoder.decode(url, to: decoded)
+                    }.value
+                } catch {
+                    throw PlayerError.cannotOpen
+                }
+                // Another play or a stop came in while decoding.
+                guard token == loadToken else { throw CancellationError() }
+            }
+            do {
+                p = try AVAudioPlayer(contentsOf: decoded)
+            } catch {
+                // Do not keep a bad copy around; the next play decodes again.
+                try? FileManager.default.removeItem(at: decoded)
+                throw PlayerError.cannotOpen
+            }
+        }
         p.delegate = self
         p.prepareToPlay()
         player = p

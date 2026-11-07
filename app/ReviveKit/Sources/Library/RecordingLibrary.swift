@@ -25,6 +25,7 @@ public final class RecordingLibrary: Sendable {
         for id in store.storedAudioIds() where !known.contains(id) {
             store.removeAudio("audio/\(id.uuidString).ogg")
         }
+        store.removeDecoded(except: known)
     }
 
     // MARK: Devices
@@ -88,7 +89,7 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Recording.order(Column("started_at")).fetchAll($0) }
     }
 
-    /// Deletes a recording and its audio. The SyncItem stays `stored`, so the file is not
+    /// Deletes a recording, its audio and any decoded copy. The SyncItem stays `stored`, so the file is not
     /// synced again, and nothing is sent to the card (prd.md §4.3, T-M1-32).
     public func deleteRecording(id: UUID) throws {
         guard let recording = try database.writer.write({ db -> Recording? in
@@ -98,5 +99,6 @@ public final class RecordingLibrary: Sendable {
         }) else { return }
         // Row first: a crash before the file is removed leaves an orphan that recovery deletes.
         store.removeAudio(recording.audioPath)
+        store.removeDecoded(id)
     }
 }

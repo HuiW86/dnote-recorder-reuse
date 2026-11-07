@@ -2,13 +2,14 @@ import Foundation
 
 /// Audio files under the library root in Application Support (prd.md §5):
 /// `audio/<recording id>.ogg`, `tmp/` for downloads in progress, `staging/` for OGG files
-/// before their atomic move, `diagnostics/` for raw bytes that failed to decrypt.
+/// before their atomic move, `diagnostics/` for raw bytes that failed to decrypt, `decoded/`
+/// for PCM copies made by the player on systems that cannot play OGG directly.
 public struct AudioStore: Sendable {
     public let root: URL
 
     public init(root: URL) throws {
         self.root = root
-        for dir in [audioDir, tmpDir, stagingDir, diagnosticsDir] {
+        for dir in [audioDir, tmpDir, stagingDir, diagnosticsDir, decodedDir] {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         }
     }
@@ -17,6 +18,7 @@ public struct AudioStore: Sendable {
     var tmpDir: URL { root.appendingPathComponent("tmp", isDirectory: true) }
     var stagingDir: URL { root.appendingPathComponent("staging", isDirectory: true) }
     public var diagnosticsDir: URL { root.appendingPathComponent("diagnostics", isDirectory: true) }
+    var decodedDir: URL { root.appendingPathComponent("decoded", isDirectory: true) }
 
     public func url(forAudioPath path: String) -> URL { root.appendingPathComponent(path) }
 
@@ -75,6 +77,21 @@ public struct AudioStore: Sendable {
     }
 
     public func removeAudio(_ path: String) { try? FileManager.default.removeItem(at: url(forAudioPath: path)) }
+
+    // MARK: Decoded copies (Player)
+
+    /// Where the player keeps a recording's decoded PCM copy.
+    public func decodedURL(for id: UUID) -> URL { decodedDir.appendingPathComponent("\(id.uuidString).caf") }
+
+    public func removeDecoded(_ id: UUID) { try? FileManager.default.removeItem(at: decodedURL(for: id)) }
+
+    /// Removes decoded copies of deleted recordings and unfinished decodes.
+    func removeDecoded(except keep: Set<UUID>) {
+        for url in (try? FileManager.default.contentsOfDirectory(at: decodedDir, includingPropertiesForKeys: nil)) ?? [] {
+            let id = url.pathExtension == "caf" ? UUID(uuidString: url.deletingPathExtension().lastPathComponent) : nil
+            if id.map(keep.contains) != true { try? FileManager.default.removeItem(at: url) }
+        }
+    }
 
     /// Ids of the OGG files in `audio/`.
     public func storedAudioIds() -> [UUID] {

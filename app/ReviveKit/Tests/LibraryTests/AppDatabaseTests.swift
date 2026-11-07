@@ -59,8 +59,10 @@ struct RecordingLibraryTests {
         let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
         let stored = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
         #expect(stored.state == .stored && stored.recordingId == id)
+        try Data("pcm".utf8).write(to: lib.store.decodedURL(for: id))
 
         try lib.deleteRecording(id: id)
+        #expect(!FileManager.default.fileExists(atPath: lib.store.decodedURL(for: id).path))
         #expect(try lib.recordings().isEmpty)
         #expect(!FileManager.default.fileExists(atPath: lib.store.url(forAudioPath: path).path))
         let after = try #require(try lib.syncItems(deviceId: device.id).first)
@@ -82,8 +84,16 @@ struct RecordingLibraryTests {
         let item2 = try lib.syncItem(deviceId: device.id, name: "b.opus", size: 4)
         _ = try lib.commitStored(recording(kept, device: device.id, path: keptPath), item: item2, deleteAfterSync: false)
         let orphan = try lib.store.storeAudio(Data("orphan".utf8), id: UUID())
+        // Decoded copies: one kept, one for a deleted recording, one unfinished decode.
+        let keptDecoded = lib.store.decodedURL(for: kept)
+        let orphanDecoded = lib.store.decodedURL(for: UUID())
+        let unfinished = keptDecoded.deletingLastPathComponent().appendingPathComponent("\(UUID().uuidString).part")
+        for url in [keptDecoded, orphanDecoded, unfinished] { try Data("pcm".utf8).write(to: url) }
 
         try lib.recoverAfterLaunch()
+        #expect(FileManager.default.fileExists(atPath: keptDecoded.path))
+        #expect(!FileManager.default.fileExists(atPath: orphanDecoded.path))
+        #expect(!FileManager.default.fileExists(atPath: unfinished.path))
         #expect(try lib.syncItems(deviceId: device.id).first { $0.cardFileName == "a.opus" }?.state == .discovered)
         #expect(lib.store.partLength(item.id!) == 0)
         #expect(!FileManager.default.fileExists(atPath: lib.store.url(forAudioPath: orphan).path))
