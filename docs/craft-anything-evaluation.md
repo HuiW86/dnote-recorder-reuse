@@ -136,12 +136,12 @@ craft-anything 每条结果都自带 `limitations` 字段，签名校验那条�
 | `start tcp file server` / `TCP File Server started on port %d` | 服务端由 BLE 侧命令拉起 |
 | `wait cmd` → `recv_len = %d` | 连接后等待明文命令 |
 | `list_files` | 列目录，范围是 `/sdcard/record`，过滤 `.opus` |
-| `pull ` / `pull_file %s` / `pull:%d` | 拉取文件（`%d` 疑为 offset） |
-| `send_file %s` / `send offset:%d,size:%d,total:%d` | 分片发送与进度 |
+| `pull ` / `pull_file %s` / `pull:%d` | ~~拉取文件（`%d` 疑为 offset）~~ **实测更正：卡从客户端接收文件，即上传到卡** |
+| `send_file %s` / `send offset:%d,size:%d,total:%d` | 分片发送与进度（**实测更正：由 `get <name>` 触发，这才是下载**） |
 | `delete ` / `delete %s` | 删除 |
 | `unknown %s,len=%d` | 未知命令的回复，**可用来探测命令边界** |
 
-返回体 JSON 形态（与 BLE 侧 0x90 的 `{index, name, size, end}` 不同，字段更多）：
+~~返回体 JSON 形态（与 BLE 侧 0x90 的 `{index, name, size, end}` 不同，字段更多）：~~ **实测更正：快传回包是二进制帧，下面两个 JSON 模板不属于快传服务**
 
 ```
 {"name":"%s","size":%d,"recd":%d,"rec":%d,"upload":%d}      // 列表项
@@ -151,6 +151,14 @@ craft-anything 每条结果都自带 `limitations` 字段，签名校验那条�
 
 **这把 #6 从"协议未知、要靠抓包猜"降级为"按已知命令集逐条验证"。** 建议把 §5.1 写进 #6 的方法部分。
 注意：以上是静态字符串推断，命令的确切分隔符、大小写、是否带换行、`pull` 后参数格式都**没有实测**，必须在 #6 里用真机验证。
+
+> **#6 实测更正（2026-11-07，PR #23）**：
+> - 下载命令是 `get <name>`，固件对应日志 `send_file`；`pull` 是上传到卡。之前把 `pull` 读成下载，是因为只看了字符串字面意思，没有按字符串表的顺序（`11cd40`–`11ce8c`：`list` → `get` → `send_*` → `pull` → `pull_*` → `delete` → `quit`）把命令和它后面的日志对应起来
+> - 回包是二进制帧 `aa | type | status | len(u16 BE) | body`，不是 JSON；上面两个 JSON 模板属于固件里的别的模块
+> - 请求是纯文本，不需要换行
+> - 实测吞吐 777.75 KB/s，约为蓝牙的 33 倍
+>
+> 完整线格式见 `docs/PROTOCOL.md` §7。
 
 ### 5.2 热点自动加入（#7 遗留问题）
 
@@ -169,7 +177,7 @@ craft-anything 每条结果都自带 `limitations` 字段，签名校验那条�
 
 ### 5.3 协议文档可补的字段
 
-固件里的 JSON 模板比我们 `PROTOCOL.md` 记的更完整，可以补：
+固件里的 JSON 模板比我们 `PROTOCOL.md` 记的更完整，可以补（0x80 那一行已被 #6 的真机日志证实，字段与顺序一致）：
 
 | 位置 | 固件里的完整形态 | 我们现在记的 |
 |---|---|---|
