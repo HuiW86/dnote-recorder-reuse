@@ -1,0 +1,41 @@
+name: app-ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", "scripts/check-m1-rules.sh", ".github/workflows/app-ci.yml"]
+  pull_request:
+    paths: ["app/**", "scripts/check-m1-rules.sh", ".github/workflows/app-ci.yml"]
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # test-spec.md §3.5 gate 1: forbidden device commands, no networking in M1 modules.
+      - name: M1 static rules
+        run: scripts/check-m1-rules.sh
+
+      - name: Toolchain
+        run: xcodebuild -version && swift --version
+
+      - uses: actions/cache@v4
+        with:
+          # Cache only the dependency clones; build products depend on the runner's Xcode version.
+          path: app/ReviveKit/.build/repositories
+          key: spm-${{ runner.os }}-${{ hashFiles('app/ReviveKit/Package.resolved') }}
+
+      # Unit and fake-card integration tests run on macOS, no simulator needed.
+      - name: ReviveKit tests
+        working-directory: app/ReviveKit
+        run: swift test --disable-xctest
+
+      - name: Build iOS app
+        working-directory: app
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild build -project Revive.xcodeproj -scheme Revive \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO

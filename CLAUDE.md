@@ -39,9 +39,14 @@ python dnote.py scan | info | record --seconds 20 | list | pull --out ./recordin
 # iOS 原型
 cd ios-prototype && xcodegen generate
 xcodebuild test -project DNoteProbe.xcodeproj -scheme DNoteProbe -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+
+# 正式 App（app/）：模块在本地 Swift Package ReviveKit，App 目标只是壳
+cd app/ReviveKit && swift test --disable-xctest   # 单元 + 模拟卡集成测试，在 macOS 上跑，不需要模拟器
+cd app && xcodegen generate && xcodebuild build -project Revive.xcodeproj -scheme Revive -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+scripts/check-m1-rules.sh                         # 禁发命令字与 M1 模块不联网的静态检查（CI 同样会跑）
 ```
 
-正式 App 和后端的命令在工程搭起来后补上。
+`swift test` 必须带 `--disable-xctest`：测试只用 Swift Testing，不带这个参数时 XCTest 运行器找不到测试包，命令会以失败退出。`Revive.xcodeproj` 由 XcodeGen 生成，不入库。后端命令在 M2 工程搭起来后补上。
 
 ## 文档地图
 
