@@ -23,7 +23,7 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>连接 D·NOTE 录音卡，控制录音并把录音同步到手机</string>
+	<string>连接录音卡，控制录音并把录音同步到手机</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

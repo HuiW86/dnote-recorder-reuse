@@ -1,4 +1,5 @@
 #if DEBUG
+import AppModel
 import AVFoundation
 import CardLink
 import CardProtocol
@@ -15,7 +16,7 @@ import Player
 @MainActor
 @Observable
 final class CardDebugModel {
-    let log = DebugLog()
+    let log: DebugLog
     private(set) var cards: [DiscoveredCard] = []
     private(set) var state: LinkState = .idle
     private(set) var files: [CardFile] = []
@@ -28,13 +29,13 @@ final class CardDebugModel {
     @ObservationIgnored private var rebindAnswer: CheckedContinuation<Bool, Never>?
     private static let lastPeripheralKey = "debug.lastPeripheral"
 
-    init() {
-        let link = TappedLink(BluetoothCardLink(), log: log)
-        service = CardService(link: link, bondStore: KeychainBondStore())
-        let events = service.events
-        Task { [weak self] in
-            for await event in events { self?.handle(event) }
-        }
+    /// Shares the app's Bluetooth stack: a second CBCentralManager with the same restore
+    /// identifier would fight over the card.
+    init(session: CardSession, log: DebugLog) {
+        self.log = log
+        service = session.service
+        state = session.linkState
+        session.addListener { [weak self] event in self?.handle(event) }
         setUpPlayback()
     }
 

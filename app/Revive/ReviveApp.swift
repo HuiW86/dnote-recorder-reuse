@@ -1,39 +1,35 @@
-// App shell. Screens are built in #41; device, sync and library logic lives in ReviveKit.
+// App shell. Screen state lives in ReviveKit's AppModel; device, sync and library logic in
+// the other ReviveKit modules.
 
 import SwiftUI
-// ReviveKit is a multi-target product; import individual modules (CardService, Library, ...).
-import Library
+import UIKit
 
 @main
 struct ReviveApp: App {
-    #if DEBUG
-    @UIApplicationDelegateAdaptor private var delegate: DebugAppDelegate
-    #endif
+    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
 
     var body: some Scene {
         WindowGroup {
-            #if DEBUG
-            CardDebugView(model: delegate.model)
-            #else
-            Text("Revive")
-            #endif
+            RootView(env: delegate.env)
         }
     }
 }
 
-#if DEBUG
-/// Creates the Bluetooth stack in `didFinishLaunching`, as state restoration requires, and
-/// logs whether iOS relaunched the app for a Bluetooth event (#38 restoration check).
-final class DebugAppDelegate: NSObject, UIApplicationDelegate {
-    @MainActor private(set) lazy var model = CardDebugModel()
+/// Builds the environment in `didFinishLaunching`, as Bluetooth state restoration requires.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    @MainActor private(set) lazy var env = AppEnvironment()
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         let centrals = options?[.bluetoothCentrals] as? [String] ?? []
         MainActor.assumeIsolated {
-            model.log.add("launch: bluetoothCentrals=\(centrals) state=\(application.applicationState.rawValue)")
+            #if DEBUG
+            env.debugLog.add("launch: bluetoothCentrals=\(centrals) state=\(application.applicationState.rawValue)")
+            #endif
+            // With a paired card, or when iOS relaunched us for one, the stack must exist now so
+            // pending connects and restoration work. First use waits for P01 instead.
+            if env.hasPairedDevice || !centrals.isEmpty { env.startBluetooth() }
         }
         return true
     }
 }
-#endif
