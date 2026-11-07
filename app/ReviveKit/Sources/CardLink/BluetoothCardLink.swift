@@ -25,6 +25,8 @@ public final class BluetoothCardLink: NSObject, CardLink {
     private var connectAttempt = 0
     private var pendingWrites: [CheckedContinuation<Void, Error>] = []
     private var disconnectRequested = false
+    /// A scan asked for before Bluetooth was on; started once it is (CoreBluetooth drops it otherwise).
+    private var scanRequested = false
     /// Peripheral handed over by state restoration; adopted once Bluetooth is powered on,
     /// because CoreBluetooth ignores commands issued before that.
     private var restoredPeripheral: CBPeripheral?
@@ -44,12 +46,14 @@ public final class BluetoothCardLink: NSObject, CardLink {
     // MARK: - CardLink
 
     public func startScan() {
+        scanRequested = true
         guard central.state == .poweredOn else { return }
         // No service filter: the card advertises only manufacturer data (PROTOCOL.md §2.2).
         central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
     }
 
     public func stopScan() {
+        scanRequested = false
         central.stopScan()
     }
 
@@ -225,6 +229,9 @@ extension BluetoothCardLink: CBCentralManagerDelegate {
             } else {
                 state = .idle
             }
+            // The first power-on report does not change `state` (it starts as `.idle`), so a scan
+            // requested earlier is started here rather than on a state event.
+            if scanRequested, state != .connected { startScan() }
         }
     }
 

@@ -9,7 +9,7 @@ let package = Package(
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "ReviveKit", targets: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player",
+            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "AppModel",
         ]),
     ],
     dependencies: [
@@ -28,6 +28,9 @@ let package = Package(
         .target(name: "SyncEngine", dependencies: ["CardService", "Library"]),
         // Playback and export of stored OGG files.
         .target(name: "Player", dependencies: ["Library"]),
+        // Screen state for the SwiftUI app (no views): one session over the device stack,
+        // onboarding and pairing flows (product-spec.md). Tested against the fake card.
+        .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine"]),
 
         // Fake card and evidence replay for integration tests (test-spec.md §2). Lives under
         // Tests/ and is not part of the product, so it never ships in the app.
@@ -47,8 +50,11 @@ let package = Package(
         .testTarget(name: "SyncEngineTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "CardTestSupport",
         ]),
+        .testTarget(name: "AppModelTests", dependencies: [
+            "AppModel", "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "CardTestSupport",
+        ]),
         .testTarget(name: "ArchitectureTests", dependencies: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player",
+            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "AppModel",
         ]),
     ]
 )

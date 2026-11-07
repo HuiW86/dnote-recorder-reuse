@@ -53,6 +53,8 @@ public final class FakeCard: CardLink {
     public private(set) var recording: (name: String, state: RecordingState)?
     public var faults: [Fault] = []
     public var chunkSize = 200
+    /// False: the card is asleep and scans do not find it.
+    public var advertising = true
 
     /// Every request written, in order, and its encoded bytes (test-spec.md §3.5 gate 2).
     public private(set) var sentRequests: [CardRequest] = []
@@ -82,16 +84,27 @@ public final class FakeCard: CardLink {
     }
 
     public func startScan() {
-        guard state != .connected else { return }  // a connected card does not advertise
+        guard state != .connected, advertising else { return }  // a connected card does not advertise
         continuation.yield(.discovered(DiscoveredCard(id: id, name: "D·NOTE", advertisement: advertisement, rssi: -50)))
     }
 
     public func stopScan() {}
 
     public func connect(_ id: UUID) async throws {
+        switch state {
+        case .poweredOff: throw LinkError.bluetoothOff
+        case .unauthorized: throw LinkError.bluetoothUnauthorized
+        case .unsupported: throw LinkError.bluetoothUnsupported
+        default: break
+        }
         guard id == self.id else { throw LinkError.unknownPeripheral }
         peripheralId = id
         state = .connecting
+        // An asleep card never answers the connect; BluetoothCardLink gives up after 10 s.
+        guard advertising else {
+            state = .disconnected(.requested)
+            throw LinkError.connectTimeout
+        }
         state = .connected
     }
 
@@ -141,6 +154,13 @@ public final class FakeCard: CardLink {
         guard pendingConnect else { return }
         pendingConnect = false
         state = .connected
+    }
+
+    /// Bluetooth on the phone changes: `.poweredOff`, `.unauthorized`, `.unsupported`, or `.idle`
+    /// when it is back. Like CoreBluetooth, losing Bluetooth drops any link.
+    public func setPhoneBluetooth(_ newState: LinkState) {
+        if newState != .idle { pendingConnect = false }
+        state = newState
     }
 
     /// Unexpected link loss; registers a pending connect like `BluetoothCardLink`.
