@@ -218,4 +218,4 @@ craft-anything 每条结果都自带 `limitations` 字段，签名校验那条�
 
 - [x] #6：按 §5.1 的命令集实测快传 TCP 协议（PR #23）
 - [x] 热点 issue（#21）：按 §5.2 第 2 点加入 `NEHotspotNetwork.fetchCurrent()` 判定（PR #22）
-- [ ] `PROTOCOL.md`：按 §5.3 补全 JSON 字段（本 PR 不改，避免与 #17 / #18 的改动冲突）
+- [x] `PROTOCOL.md`：按 §5.3 补全 JSON 字段
