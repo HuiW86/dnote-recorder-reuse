@@ -263,26 +263,33 @@ async def cmd_live(args):
             stats["lost_bytes"] = pl["offset"] - len(audio)
         audio.extend(pl["data"])
         stats["packets"] += 1
-    async with BleakClient(addr) as client:
-        s = Session(client); await s.start()
-        s._live_cb = cb
-        name = await s.request(P.frame_start_recording(True), P.Cmd.START_RECORDING)
-        print(f"实时录音开始, 卡上文件: {name.get('name') if isinstance(name, dict) else name}")
-        try:
-            await asyncio.sleep(args.seconds)
-        finally:
-            if client.is_connected:
-                await s.write(P.frame_stop_recording())
-                await asyncio.sleep(1.0)
-            s._live_cb = None
-    frames, remainder = P.split_opus_frames(bytes(audio), 40)
-    if not frames:
+    saved = False
+    try:
+        async with BleakClient(addr) as client:
+            s = Session(client); await s.start()
+            s._live_cb = cb
+            try:
+                # 0x51 inside try: if its reply is lost the card may still be recording, so 0x50 must go out
+                name = await s.request(P.frame_start_recording(True), P.Cmd.START_RECORDING)
+                print(f"实时录音开始, 卡上文件: {name.get('name') if isinstance(name, dict) else name}")
+                await asyncio.sleep(args.seconds)
+            finally:
+                if client.is_connected:
+                    await s.write(P.frame_stop_recording())
+                    await asyncio.sleep(1.0)
+                s._live_cb = None
+    finally:
+        # keep whatever arrived, also on timeout / disconnect / Ctrl+C
+        frames, remainder = P.split_opus_frames(bytes(audio), 40)
+        if frames:
+            with open(args.out, "wb") as f:
+                f.write(wrap_opus_frames_as_ogg(frames))
+            saved = True
+            print(f"已保存 {args.out}: {stats['packets']} 包, {len(frames)} 帧 ≈ {len(frames) * 0.02:.1f}s"
+                  + (f", 丢包 {stats['gaps']} 处/{stats['lost_bytes']}B" if stats["gaps"] else "")
+                  + (f", 余{len(remainder)}B" if remainder else ""))
+    if not saved:
         raise SystemExit("未收到实时音频 (0x68)。")
-    with open(args.out, "wb") as f:
-        f.write(wrap_opus_frames_as_ogg(frames))
-    print(f"已保存 {args.out}: {stats['packets']} 包, {len(frames)} 帧 ≈ {len(frames) * 0.02:.1f}s"
-          + (f", 丢包 {stats['gaps']} 处/{stats['lost_bytes']}B" if stats["gaps"] else "")
-          + (f", 余{len(remainder)}B" if remainder else ""))
 
 
 async def cmd_stop(args):
