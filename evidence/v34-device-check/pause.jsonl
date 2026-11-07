@@ -1,0 +1,24 @@
+{"t": 0.055, "kind": "write", "hex": "a05600"}
+{"t": 0.116, "kind": "notify", "cmd": "0x56", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 0.116, "kind": "write", "hex": "a0510100"}
+{"t": 0.415, "kind": "notify", "cmd": "0x51", "payload": {"name": "20261106215528.opus"}, "hex": "a0511e7b226e616d65223a2232303236313130363231353532382e6f707573227d"}
+{"t": 0.415, "kind": "phase", "phase": "recording", "name": "20261106215528.opus"}
+{"t": 10.416, "kind": "write", "hex": "a05200"}
+{"t": 10.467, "kind": "notify", "cmd": "0x52", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0520101"}
+{"t": 10.467, "kind": "phase", "phase": "paused", "ack": {"len": 1, "sha256": "4bf5122f344554c5"}}
+{"t": 11.469, "kind": "write", "hex": "a05600"}
+{"t": 11.517, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261106215528.opus", "size": 18000, "recd": 9000, "rec": 2, "upload": 0}, "hex": "a0564a7b226e616d65223a2232303236313130363231353532382e6f707573222c2273697a65223a31383030302c2272656364223a393030302c22726563223a322c2275706c6f6164223a307d"}
+{"t": 11.517, "kind": "status-during-pause", "status": {"name": "20261106215528.opus", "size": 18000, "recd": 9000, "rec": 2, "upload": 0}}
+{"t": 20.519, "kind": "write", "hex": "a05300"}
+{"t": 20.578, "kind": "notify", "cmd": "0x53", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0530101"}
+{"t": 20.578, "kind": "phase", "phase": "resumed", "ack": {"len": 1, "sha256": "4bf5122f344554c5"}}
+{"t": 21.58, "kind": "write", "hex": "a05600"}
+{"t": 21.626, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261106215528.opus", "size": 20000, "recd": 10000, "rec": 1, "upload": 0}, "hex": "a0564b7b226e616d65223a2232303236313130363231353532382e6f707573222c2273697a65223a32303030302c2272656364223a31303030302c22726563223a312c2275706c6f6164223a307d"}
+{"t": 21.627, "kind": "status-after-resume", "status": {"name": "20261106215528.opus", "size": 20000, "recd": 10000, "rec": 1, "upload": 0}}
+{"t": 30.628, "kind": "write", "hex": "a05000"}
+{"t": 30.687, "kind": "notify", "cmd": "0x56", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 30.746, "kind": "notify", "cmd": "0x50", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0500101"}
+{"t": 30.746, "kind": "phase", "phase": "stopped"}
+{"t": 32.748, "kind": "write", "hex": "a09000"}
+{"t": 33.118, "kind": "write", "hex": "a070317b22636d64223a312c226e616d65223a2232303236313130363231353532382e6f707573222c226f6666736574223a307d"}
+{"t": 36.652, "kind": "result", "name": "20261106215528.opus", "size": 38060, "got": 38060, "status": "eof", "frames": 950, "remainder": 0, "duration_s": 19.0, "expected_if_paused": 20.0, "expected_if_not_paused": 30.0, "audio_sha256": "0611f0523dbc5c6f"}
