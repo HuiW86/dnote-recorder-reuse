@@ -53,9 +53,28 @@ public final class SyncEngine {
         public init() {}
     }
 
+    /// Position in the current pass, for "第 2 / 5 条" (product-spec.md §2.4).
+    public struct Progress: Equatable, Sendable {
+        /// 1-based number of the file being downloaded.
+        public var index: Int
+        public var total: Int
+
+        public init(index: Int, total: Int) {
+            self.index = index
+            self.total = total
+        }
+    }
+
     public var options: Options
     public var hooks = Hooks()
     public private(set) var status: SyncStatus = .idle
+    /// Set while a pass downloads files; nil otherwise.
+    public private(set) var progress: Progress?
+    /// Files on the current card that are not in the library yet, as of the last list.
+    /// Files that failed to decrypt are not counted: they are never retried.
+    public private(set) var pendingCount = 0
+    /// End of the last pass that ran to completion; on launch, the newest stored card recording.
+    public private(set) var lastCompletedAt: Date?
 
     private let service: CardService
     private let library: RecordingLibrary
@@ -78,6 +97,7 @@ public final class SyncEngine {
         self.freeSpace = freeSpace ?? { library.store.availableCapacity() }
         self.now = now
         try library.recoverAfterLaunch()
+        lastCompletedAt = try library.lastStoredAt()
     }
 
     // MARK: - Triggers (prd.md §4.4)
@@ -132,6 +152,7 @@ public final class SyncEngine {
 
     private func runPass() async {
         guard service.linkState == .connected else { return }
+        defer { progress = nil }
         do {
             let device = try await currentDevice()
             guard try await cardIsIdle() else { return }
@@ -167,14 +188,18 @@ public final class SyncEngine {
                 }
             }
 
+            pendingCount = queue.count
             for (index, item) in queue.enumerated() {
                 // Recording started mid-sync: stop after the current file (prd.md §4.4).
                 if index > 0, try await !cardIsIdle() { return }
-                try await sync(item, device: device)
+                progress = Progress(index: index + 1, total: queue.count)
+                if try await sync(item, device: device) { pendingCount -= 1 }
             }
+            progress = nil
 
             if options.deleteAfterSync { try await deletePending(device) }
             status = .idle
+            lastCompletedAt = now()
             if relistAfterNotFound {
                 relistAfterNotFound = false
                 rerunRequested = true
@@ -215,9 +240,10 @@ public final class SyncEngine {
 
     /// Downloads, converts and commits one file. Errors that concern only this file are
     /// recorded on the item; errors that end the pass (link lost, phone full) are thrown.
-    private func sync(_ item: SyncItem, device: Device) async throws {
+    /// Returns true when the recording was committed.
+    private func sync(_ item: SyncItem, device: Device) async throws -> Bool {
         var item = item
-        guard let id = item.id else { return }
+        guard let id = item.id else { return false }
         let file = CardFile(name: item.cardFileName, size: item.cardFileSize)
         let store = library.store
 
@@ -255,15 +281,15 @@ public final class SyncEngine {
                 store.removePart(id)
                 fail(&item, .fileNotFound, countsAsAttempt: false)
                 relistAfterNotFound = true
-                return
+                return false
             case .transferFailed:
                 // Offsets are checked per chunk, but a bad length at EOF leaves a full, wrong part.
                 store.removePart(id)
                 fail(&item, .transferFailed, countsAsAttempt: true)
-                return
+                return false
             case .requestTimeout:
                 fail(&item, .transferFailed, countsAsAttempt: true)
-                return
+                return false
             default:
                 // Link lost and the like: keep the part for resuming after reconnect (prd.md §4.3).
                 fail(&item, SyncFailure(error), countsAsAttempt: false)
@@ -281,7 +307,7 @@ public final class SyncEngine {
         guard raw.count == file.size else {
             store.removePart(id)
             fail(&item, .transferFailed, countsAsAttempt: true)
-            return
+            return false
         }
         let audio: ConvertedAudio
         do {
@@ -291,7 +317,7 @@ public final class SyncEngine {
             try? store.saveDiagnostic(raw, name: "\(device.id.uuidString)-\(file.name)")
             store.removePart(id)
             fail(&item, .decryptFailed, countsAsAttempt: false)
-            return
+            return false
         }
 
         let recordingId = UUID()
@@ -316,10 +342,11 @@ public final class SyncEngine {
             store.removeAudio(path)
             store.removePart(id)
             fail(&item, .storeFailed, countsAsAttempt: true)
-            return
+            return false
         }
         store.removePart(id)
         hooks.afterCommit?(item)
+        return true
     }
 
     private func fail(_ item: inout SyncItem, _ failure: SyncFailure, countsAsAttempt: Bool) {

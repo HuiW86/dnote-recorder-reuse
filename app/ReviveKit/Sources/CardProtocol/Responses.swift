@@ -136,22 +136,29 @@ public struct RecordingStatus: Equatable, Sendable {
     public var name: String
     public var size: Int
     public var state: RecordingState
+    /// Recorded time in ms (`recd`), as counted by the card; nil when the field is absent.
+    /// Size and `recd` grow 2:1 on v1.50 (evidence/v34-device-check); whether `recd` stops
+    /// while paused is still to be checked on a real card.
+    public var recordedMs: Int?
 
-    public init(name: String, size: Int, state: RecordingState) {
+    public init(name: String, size: Int, state: RecordingState, recordedMs: Int? = nil) {
         self.name = name
         self.size = size
         self.state = state
+        self.recordedMs = recordedMs
     }
 
     public static func parse(_ frame: Frame) -> RecordingStatus? {
         guard frame.cmd == Command.recordingStatus.rawValue, let r = frame.decode(Raw.self) else { return nil }
-        return RecordingStatus(name: r.name ?? "", size: r.size ?? 0, state: RecordingState(code: r.rec))
+        return RecordingStatus(name: r.name ?? "", size: r.size ?? 0, state: RecordingState(code: r.rec),
+                               recordedMs: r.recd)
     }
 
     private struct Raw: Decodable {
         let name: String?
         let size: Int?
         let rec: Int
+        let recd: Int?
     }
 }
 

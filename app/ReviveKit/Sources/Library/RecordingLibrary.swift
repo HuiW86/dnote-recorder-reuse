@@ -89,6 +89,28 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Recording.order(Column("started_at")).fetchAll($0) }
     }
 
+    /// When the newest card recording was stored; nil when none was.
+    public func lastStoredAt() throws -> Date? {
+        try database.writer.read { db in
+            try Date.fetchOne(db, sql: "SELECT MAX(created_at) FROM recording WHERE source = ?",
+                              arguments: [Recording.Source.card.rawValue])
+        }
+    }
+
+    // MARK: Devices for the UI
+
+    /// Devices paired from this phone, oldest first. A row without `pairedAt` was only seen
+    /// by a sync and does not count as paired (product-spec.md §5.1 `noDevice`).
+    public func pairedDevices() throws -> [Device] {
+        try database.writer.read { db in
+            try Device.filter(Column("paired_at") != nil).order(Column("paired_at")).fetchAll(db)
+        }
+    }
+
+    public func device(id: UUID) throws -> Device? {
+        try database.writer.read { try Device.fetchOne($0, key: id) }
+    }
+
     /// Deletes a recording, its audio and any decoded copy. The SyncItem stays `stored`, so the file is not
     /// synced again, and nothing is sent to the card (prd.md §4.3, T-M1-32).
     public func deleteRecording(id: UUID) throws {

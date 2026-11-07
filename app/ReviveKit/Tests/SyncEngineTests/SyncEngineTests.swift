@@ -135,6 +135,50 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    /// SyncStatusCard data (product-spec.md §2.4): pending count, "n of total", last completed pass.
+    @Test func reportsProgressAndLastCompletedPass() async throws {
+        var seen: [SyncEngine.Progress?] = []
+        var pendingSeen: [Int] = []
+        var hooks = SyncEngine.Hooks()
+        var engineRef: SyncEngine?
+        hooks.beforeDownload = { _ in
+            seen.append(engineRef?.progress)
+            pendingSeen.append(engineRef?.pendingCount ?? -1)
+        }
+        let h = try await Harness(files: [
+            .init(name: "a.opus", content: plainOpus(frames: 10, seed: 1)),
+            .init(name: "b.opus", content: plainOpus(frames: 10, seed: 2)),
+        ], waitForFirstPass: false)
+        #expect(h.engine.lastCompletedAt == nil)
+        engineRef = h.engine
+        h.engine.hooks = hooks
+        await h.engine.idle()
+        // The first pass may have started before the hook was set; run one more with new files.
+        h.card.files += [.init(name: "c.opus", content: plainOpus(frames: 10, seed: 3)),
+                         .init(name: "d.opus", content: plainOpus(frames: 10, seed: 4))]
+        seen = []
+        pendingSeen = []
+        await h.engine.syncNow()
+        #expect(seen == [.init(index: 1, total: 2), .init(index: 2, total: 2)])
+        #expect(pendingSeen == [2, 1])
+        #expect(h.engine.progress == nil)
+        #expect(h.engine.pendingCount == 0)
+        #expect(h.engine.lastCompletedAt != nil)
+
+        // A new engine on the same library starts from the newest stored recording.
+        try h.restart()
+        #expect(h.engine.lastCompletedAt != nil)
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func failedFileStaysPending() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)],
+                                  faults: [.chunkStatus(index: 1, status: 0x40)])
+        #expect(try h.items.first?.state == .failed)
+        #expect(h.engine.pendingCount == 1)
+        h.checkNoForbiddenWrites()
+    }
+
     /// T-M1-21
     @Test func resumesAfterDrop() async throws {
         let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)],

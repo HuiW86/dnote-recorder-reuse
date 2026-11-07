@@ -151,6 +151,16 @@ struct ResponseParsingTests {
         #expect(StartRecordingReply.parse(Frame(cmd: 0x51, body: Data("NULL".utf8))) == .notPaired)
     }
 
+    /// Body captured in evidence/v34-device-check/pause.jsonl at 11.5 s.
+    @Test func recordingStatusCarriesRecordedTime() {
+        let paused = Frame(cmd: 0x56, body: Data(
+            #"{"name":"20261106215528.opus","size":18000,"recd":9000,"rec":2,"upload":0}"#.utf8))
+        #expect(RecordingStatus.parse(paused) == RecordingStatus(
+            name: "20261106215528.opus", size: 18000, state: .paused, recordedMs: 9000))
+        let noRecd = Frame(cmd: 0x56, body: Data(#"{"name":"","size":0,"rec":0}"#.utf8))
+        #expect(RecordingStatus.parse(noRecd)?.recordedMs == nil)
+    }
+
     @Test func fileList() {
         let item = Frame(cmd: 0x90, body: Data(#"{"index":0,"name":"a.opus","size":18060,"end":0}"#.utf8))
         #expect(FileListMessage.parse(item) == .file(CardFile(name: "a.opus", size: 18060)))
