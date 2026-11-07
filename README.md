@@ -33,6 +33,7 @@ python dnote.py pull --out ./recordings   # 下载并解密为 .ogg
 
 | 路径 | 内容 |
 |---|---|
+| `app/` | 正式 iOS App（代号 Revive）：`ReviveKit/` 是各模块所在的 Swift Package，`project.yml` 用 XcodeGen 生成工程 |
 | `client/` | Python 命令行客户端：协议库 + OGG 封装，真机验证用 |
 | `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用 |
 | `evidence/` | 真机验证证据（按验证编号分目录） |
