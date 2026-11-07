@@ -174,7 +174,64 @@ key = HMAC-SHA256(DEVICE_KEY_SECRET, sn)      # sn 为设备序列号
 
 ## 7. WiFi 高速传输通道
 
-BLE 全速约 1 MB/s。设备另提供 WiFi 快传：开启后广播热点 `FastUpload`，设备地址 `192.168.88.1`，TCP 端口 `6718`。大文件批量回传时优于 BLE。本规格的离线客户端当前实现 BLE 通道，WiFi 通道为后续扩展项。
+BLE 实测约 24 KB/s（#5，Mac 23.60 KB/s；V7，iPhone 25.55 KB/s），15 MB 的两小时录音要 10 分钟左右。设备另提供 WiFi 快传，实测约 **780 KB/s**，同一文件约 19 s。
+
+**来源**：命令集取自固件 `strings`（`recpen_file_server`，见 `docs/craft-anything-evaluation.md` §5.1）；线格式、帧结构与吞吐为真机实测（#6，证据 `evidence/v2-fasttransfer/`）。官方 App 的 JS 未用到。
+
+### 7.1 建立通道
+
+1. BLE 发 `0x88 {"ap":1,"ssid":"FastUpload","psk":<随机>}`，卡开热点（`0x80` 推送中 `wifiap` 变为 1）
+2. 手机加入 `FastUpload`，拿到 `192.168.88.x` 地址；卡在 `192.168.88.1`
+3. TCP 连 `192.168.88.1:6718`。连上后卡不主动发任何数据
+4. 用完后 BLE 发 `0x88 {"ap":0,...}` 关热点
+
+iOS 上首次加入会弹系统确认框，须人工批准一次（#21）。实测加入要 45–80 s，比传输本身还长。
+
+### 7.2 请求
+
+纯文本命令，不需要结束符（`list_files`、`list_files\n`、`list_files\r\n` 回包相同）。一条连接上可以连发多条。
+
+| 命令 | 作用 | 状态 |
+|---|---|---|
+| `list_files`（固件也认 `list`） | 列出 `/sdcard/record` 下的 `.opus` | 已验证 |
+| `get <文件名>` | 卡把文件发给手机（**下载**） | 已验证 |
+| `pull <文件名>` | 卡从手机接收文件（**上传**到卡） | 未验证；对 `pull <已有文件>` 卡回 `status=01` |
+| `delete <文件名>` | 删除 | 未验证（会写卡） |
+| `quit` | 结束会话 | 未验证 |
+
+注意 `pull` 是上传，不是下载（固件日志 `pull_file %s` → `pull start` → `pull:%d`；下载侧的日志是 `send_file %s` → `send offset:%d,size:%d,total:%d`）。
+
+### 7.3 回包帧
+
+```
+[0xAA] [TYPE] [STATUS] [LEN u16 大端] [BODY ...]
+```
+
+| TYPE | 含义 |
+|---|---|
+| `0x00` | 列表项 |
+| `0x01` | 文件块 |
+| `0x04` | `pull` 的回复 |
+| `0x05` | 未知命令（`STATUS=01`，无 BODY） |
+
+`STATUS=00` 为成功，`01` 为失败。多字节整数除 `LEN` 外都是小端。
+
+### 7.4 列表（TYPE `0x00`）
+
+每个文件一帧，BODY 为 `index u32 | total u32 | size u32 | name（NUL 结尾）`，`index` 从 1 起。
+最后一帧是结束哨兵：`name="0"`、`size=0`。内容与 BLE `0x90` 列表一致。
+
+### 7.5 下载（TYPE `0x01`）
+
+每块一帧，BODY 为：
+
+```
+total u32 | offset u32 | chunk u32 | tag 2B | data[chunk]
+```
+
+- `chunk` 实测为 8192，最后一块为余数；`offset + chunk == total` 即结束
+- `data` 拼起来就是卡上的原文件，与 BLE `0x70` 下载的字节完全相同（加密文件仍需按 §6.2 解密）
+- `tag` 每块不同，像校验值，但不是常见的 CRC16，算法未知。完整性靠 TCP 和整文件 sha256 保证
 
 ## 8. 认证模型结论
 
