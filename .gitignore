@@ -7,3 +7,6 @@ recordings/
 *.raw
 *.img
 .DS_Store
+
+# realtime audio captured in the room; keep local, checksums in SHA256SUMS
+evidence/**/live.bin

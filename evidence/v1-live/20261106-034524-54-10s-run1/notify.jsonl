@@ -1,0 +1,14 @@
+{"t": 0.001, "event": "connected", "address": "853BE462-3927-35DC-A23E-F592DFD35491", "method": "54", "seconds": 10.0}
+{"t": 0.056, "event": "send", "label": "0x80 device info", "hex": "a08000"}
+{"t": 0.118, "event": "notify", "cmd": "0x80", "len": 183, "hex": "a080b47b22736e223a22683773706162396d316e6f766e7a30343135222c2276223a22312e3530222c2274696d65223a22323032362d31312d30362030333a34353a3333222c22726563223a302c227265636d6f6465223a302c22757362223a302c22626174223a34372c226466223a373637302c22746f74616c5f6466223a373637312c226274223a2244c2b74e4f5445222c22627461646472223a22336135316633633431363266222c22776966696170223a307d"}
+{"t": 0.119, "event": "reply", "label": "0x80 device info", "payload": {"sn": "h7spab9m1novnz0415", "v": "1.50", "time": "2026-11-06 03:45:33", "rec": 0, "recmode": 0, "usb": 0, "bat": 47, "df": 7670, "total_df": 7671, "bt": "D·NOTE", "btaddr": "3a51f3c4162f", "wifiap": 0}}
+{"t": 0.119, "event": "send", "label": "0x56 rec status (before)", "hex": "a05600"}
+{"t": 0.177, "event": "notify", "cmd": "0x56", "len": 51, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 0.177, "event": "reply", "label": "0x56 rec status (before)", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}}
+{"t": 0.177, "event": "send", "label": "0x54[1]", "hex": "a0540101"}
+{"t": 10.291, "event": "send", "label": "0x50 stop", "hex": "a05000"}
+{"t": 10.349, "event": "notify", "cmd": "0x50", "len": 4, "hex": "a0500101"}
+{"t": 12.349, "event": "send", "label": "0x56 rec status (after)", "hex": "a05600"}
+{"t": 12.387, "event": "notify", "cmd": "0x56", "len": 51, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 12.387, "event": "reply", "label": "0x56 rec status (after)", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}}
+{"t": 12.387, "event": "done"}
