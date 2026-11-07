@@ -25,6 +25,9 @@ public final class BluetoothCardLink: NSObject, CardLink {
     private var connectAttempt = 0
     private var pendingWrites: [CheckedContinuation<Void, Error>] = []
     private var disconnectRequested = false
+    /// Peripheral handed over by state restoration; adopted once Bluetooth is powered on,
+    /// because CoreBluetooth ignores commands issued before that.
+    private var restoredPeripheral: CBPeripheral?
 
     private static let service = CBUUID(string: CardGATT.service)
     private static let writeUUID = CBUUID(string: CardGATT.writeCharacteristic)
@@ -63,8 +66,11 @@ public final class BluetoothCardLink: NSObject, CardLink {
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: CardLinkTiming.connectTimeout)
                 guard let self, self.connectAttempt == attempt, self.connectWaiter != nil else { return }
+                // A timeout is final: mark it requested so the cancel does not register a pending connect.
+                self.disconnectRequested = true
                 self.central.cancelPeripheralConnection(p)
                 self.failConnectWaiter(LinkError.connectTimeout)
+                if self.state == .connecting { self.state = .disconnected(.requested) }
             }
         }
     }
@@ -111,6 +117,12 @@ public final class BluetoothCardLink: NSObject, CardLink {
     }
 
     private func begin(_ p: CBPeripheral) {
+        // Only one card at a time: drop the previous one so its callbacks cannot touch this link.
+        if let old = peripheral, old.identifier != p.identifier {
+            old.delegate = nil
+            central.cancelPeripheralConnection(old)
+            writeCharacteristic = nil
+        }
         disconnectRequested = false
         peripheral = p
         peripheralId = p.identifier
@@ -132,8 +144,22 @@ public final class BluetoothCardLink: NSObject, CardLink {
         case .connecting:
             state = .connecting
         default:
-            break
+            // Restored without a live connection: register the pending connect again.
+            begin(p)
         }
+    }
+
+    /// GATT setup failed on a connected card. Treated as final, like a timeout, so a card
+    /// with a broken GATT table does not loop through reconnects; CardService may retry.
+    private func setupFailed(_ p: CBPeripheral) {
+        disconnectRequested = true
+        failConnectWaiter(LinkError.connectFailed)
+        central.cancelPeripheralConnection(p)
+    }
+
+    /// Callbacks for a peripheral other than the current one (e.g. after switching cards) are ignored.
+    private func isCurrent(_ p: CBPeripheral) -> Bool {
+        p.identifier == peripheral?.identifier
     }
 
     private func failConnectWaiter(_ error: Error) {
@@ -185,9 +211,13 @@ extension BluetoothCardLink: CBCentralManagerDelegate {
                 state = s
                 return
             }
-            if case .connecting = state { return }
-            // A connection iOS kept stops the card advertising; adopt it instead of scanning.
-            if let p = central.retrieveConnectedPeripherals(withServices: [Self.service]).first(where: { $0.state == .connected }) {
+            if let p = restoredPeripheral {
+                restoredPeripheral = nil
+                adopt(p)
+            } else if !disconnectRequested,
+                      let p = central.retrieveConnectedPeripherals(withServices: [Self.service])
+                          .first(where: { $0.state == .connected && (peripheral == nil || isCurrent($0)) }) {
+                // A connection iOS kept stops the card advertising; adopt it instead of scanning.
                 adopt(p)
             } else if let p = peripheral, !disconnectRequested {
                 // Bluetooth was toggled: the system dropped our pending connect, so register it again.
@@ -202,7 +232,12 @@ extension BluetoothCardLink: CBCentralManagerDelegate {
         // Delegate callbacks arrive on the main queue (see init), so this never crosses threads.
         nonisolated(unsafe) let restored = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.first
         MainActor.assumeIsolated {
-            if let p = restored { adopt(p) }
+            if let p = restored {
+                restoredPeripheral = p
+                peripheral = p
+                peripheralId = p.identifier
+                p.delegate = self
+            }
         }
     }
 
@@ -219,18 +254,25 @@ extension BluetoothCardLink: CBCentralManagerDelegate {
 
     nonisolated public func centralManager(_ central: CBCentralManager, didConnect p: CBPeripheral) {
         MainActor.assumeIsolated {
+            guard isCurrent(p) else { return }
             p.delegate = self
             p.discoverServices([Self.service])
         }
     }
 
     nonisolated public func centralManager(_ central: CBCentralManager, didFailToConnect p: CBPeripheral, error: Error?) {
-        MainActor.assumeIsolated { linkDropped() }
+        MainActor.assumeIsolated {
+            guard isCurrent(p) else { return }
+            linkDropped()
+        }
     }
 
     nonisolated public func centralManager(_ central: CBCentralManager, didDisconnectPeripheral p: CBPeripheral,
                                            error: Error?) {
-        MainActor.assumeIsolated { linkDropped() }
+        MainActor.assumeIsolated {
+            guard isCurrent(p) else { return }
+            linkDropped()
+        }
     }
 }
 
@@ -239,8 +281,9 @@ extension BluetoothCardLink: CBCentralManagerDelegate {
 extension BluetoothCardLink: CBPeripheralDelegate {
     nonisolated public func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
         MainActor.assumeIsolated {
-            guard let s = p.services?.first(where: { $0.uuid == Self.service }) else {
-                central.cancelPeripheralConnection(p)
+            guard isCurrent(p) else { return }
+            guard error == nil, let s = p.services?.first(where: { $0.uuid == Self.service }) else {
+                setupFailed(p)
                 return
             }
             p.discoverCharacteristics([Self.writeUUID, Self.notifyUUID], for: s)
@@ -249,17 +292,27 @@ extension BluetoothCardLink: CBPeripheralDelegate {
 
     nonisolated public func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
         MainActor.assumeIsolated {
-            for ch in s.characteristics ?? [] {
-                if ch.uuid == Self.writeUUID { writeCharacteristic = ch }
-                if ch.uuid == Self.notifyUUID { p.setNotifyValue(true, for: ch) }
+            guard isCurrent(p) else { return }
+            let chars = s.characteristics ?? []
+            guard error == nil,
+                  let write = chars.first(where: { $0.uuid == Self.writeUUID }),
+                  let notify = chars.first(where: { $0.uuid == Self.notifyUUID }) else {
+                setupFailed(p)
+                return
             }
+            writeCharacteristic = write
+            p.setNotifyValue(true, for: notify)
         }
     }
 
     nonisolated public func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor ch: CBCharacteristic,
                                        error: Error?) {
         MainActor.assumeIsolated {
-            guard ch.uuid == Self.notifyUUID, ch.isNotifying, writeCharacteristic != nil else { return }
+            guard isCurrent(p), ch.uuid == Self.notifyUUID else { return }
+            guard error == nil, ch.isNotifying, writeCharacteristic != nil else {
+                setupFailed(p)
+                return
+            }
             state = .connected
             connectWaiter?.resume()
             connectWaiter = nil
@@ -268,7 +321,7 @@ extension BluetoothCardLink: CBPeripheralDelegate {
 
     nonisolated public func peripheral(_ p: CBPeripheral, didWriteValueFor ch: CBCharacteristic, error: Error?) {
         MainActor.assumeIsolated {
-            guard !pendingWrites.isEmpty else { return }
+            guard isCurrent(p), !pendingWrites.isEmpty else { return }
             let w = pendingWrites.removeFirst()
             if error != nil { w.resume(throwing: LinkError.writeFailed) } else { w.resume() }
         }
@@ -276,7 +329,7 @@ extension BluetoothCardLink: CBPeripheralDelegate {
 
     nonisolated public func peripheral(_ p: CBPeripheral, didUpdateValueFor ch: CBCharacteristic, error: Error?) {
         MainActor.assumeIsolated {
-            guard ch.uuid == Self.notifyUUID, let data = ch.value else { return }
+            guard isCurrent(p), ch.uuid == Self.notifyUUID, let data = ch.value else { return }
             continuation.yield(.notification(data))
         }
     }
