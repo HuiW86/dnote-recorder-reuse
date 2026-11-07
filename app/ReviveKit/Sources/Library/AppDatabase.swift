@@ -13,12 +13,10 @@ public final class AppDatabase: Sendable {
     }
 
     static var migrator: DatabaseMigrator {
-        var migrator = DatabaseMigrator()
-        #if DEBUG
-        // Surface schema mistakes during development instead of migrating around them.
-        migrator.eraseDatabaseOnSchemaChange = true
-        #endif
-        return migrator
+        // Never enable eraseDatabaseOnSchemaChange, not even in DEBUG: debug builds are
+        // used with real cards, and wiping the library after delete-after-sync would
+        // lose recordings whose only other copy is already gone (CLAUDE.md rule 2).
+        DatabaseMigrator()
     }
 
     /// On-disk database in Application Support (not Documents: prd.md §5).

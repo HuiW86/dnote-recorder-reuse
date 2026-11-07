@@ -23,7 +23,7 @@ m1_modules=(CardProtocol CardLink CardService Library SyncEngine Player)
 for m in "${m1_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue
-  net=$(grep -rnE '\bimport (Network|FoundationNetworking)\b|URLSession|URLRequest|NWConnection' \
+  net=$(grep -rnE '\bimport (Network|FoundationNetworking)\b|URLSession|URLRequest|NWConnection|NSURLConnection|CFNetwork' \
     "$dir" --include='*.swift' || true)
   if [[ -n "$net" ]]; then
     echo "FAIL: networking API in M1 module $m (CLAUDE.md rule 3):"

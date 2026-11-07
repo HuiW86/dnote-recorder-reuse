@@ -27,6 +27,9 @@ targets:
       path: Revive/Info.plist
       properties:
         CFBundleDisplayName: Revive
+        # Take versions from build settings so TestFlight build numbers can be bumped in one place.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         NSBluetoothAlwaysUsageDescription: 连接 D·NOTE 录音卡，控制录音并把录音同步到手机
         UIBackgroundModes: [bluetooth-central, audio]

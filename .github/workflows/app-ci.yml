@@ -23,7 +23,8 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: app/ReviveKit/.build
+          # Cache only the dependency clones; build products depend on the runner's Xcode version.
+          path: app/ReviveKit/.build/repositories
           key: spm-${{ runner.os }}-${{ hashFiles('app/ReviveKit/Package.resolved') }}
 
       # Unit and fake-card integration tests run on macOS, no simulator needed.
