@@ -385,17 +385,20 @@ async def cmd_pair(args):
         await _bond_write(s, P.frame_bond(bond_id))
         same = await _bond_state(s)
         print("同连接查询:", _fmt_bond(same))
-    # H1: does the bond take effect without reconnecting? Compare with a fresh connection.
-    fresh = await _query_bond_fresh(addr)
-    print("重连后查询:", _fmt_bond(fresh))
-    ok_same = bool(same.get("isBonded")) and same.get("bondId") == bond_id
-    ok_fresh = bool(fresh.get("isBonded")) and fresh.get("bondId") == bond_id
-    print(f"结果: 不重连生效={ok_same}  重连后生效={ok_fresh}")
-    if not ok_fresh:
-        raise SystemExit("绑定未生效, 未保存 bondId。")
-    bonds[addr] = bond_id.hex()
-    _save_bonds(bonds)
-    print(f"已保存到 {BOND_STORE}")
+        # H1 holds: the same-connection 0xA1 is authoritative. Save now so a failed
+        # reconnect below cannot lose a bondId that is already on the card.
+        if not (same.get("isBonded") and same.get("bondId") == bond_id):
+            raise SystemExit("绑定未生效, 未保存 bondId。")
+        bonds[addr] = bond_id.hex()
+        _save_bonds(bonds)
+        print(f"已保存到 {BOND_STORE}")
+    # Reconnect check is informational only.
+    try:
+        fresh = await _query_bond_fresh(addr)
+        ok_fresh = bool(fresh.get("isBonded")) and fresh.get("bondId") == bond_id
+        print("重连后查询:", _fmt_bond(fresh), f"(一致={ok_fresh})")
+    except Exception as e:
+        print(f"重连复查失败 (不影响已保存的 bondId): {e!r}")
 
 
 async def cmd_unpair(args):

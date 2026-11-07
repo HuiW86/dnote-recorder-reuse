@@ -40,7 +40,7 @@
 4. **bondId 来自云端**（`postRecorderActive` 返回 `code` 的前 16 字节），离线场景不需要。
 5. **加密可离线破解**：若设备启用 ChaCha20，密钥 = `HMAC-SHA256(DEVICE_KEY_SECRET, 序列号)`，`DEVICE_KEY_SECRET` 为 App 硬编码 32 字节常量（已提取，见 `client/dnote_protocol.py`）。
 6. **音频格式**：裸 Opus 帧，16kHz / 单声道 / 20ms / **定长 40 字节/帧**；封装为标准 OGG 即可播放。
-7. **额外发现 — WiFi 高速通道**：设备可开热点 `FastUpload`（`192.168.88.1:6718` TCP），大文件回传远快于 BLE（~1MB/s）。本项目未实现，列为扩展项。
+7. **额外发现 — WiFi 高速通道**：设备可开热点 `FastUpload`（`192.168.88.1:6718` TCP），大文件回传远快于 BLE（BLE 实测约 23.6 KB/s，见 §5.3）。本项目未实现，列为扩展项。
 
 完整细节见 `docs/PROTOCOL.md`。
 
