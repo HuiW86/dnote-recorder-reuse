@@ -54,5 +54,5 @@ xcodebuild test -project DNoteProbe.xcodeproj -scheme DNoteProbe -destination 'p
 | 官方 App 有哪些功能和接口 | `docs/official-app-analysis.md` |
 | 设备背景、逆向方法 | `docs/HANDOFF.md` |
 | 数据模型、接口契约、状态机 | `docs/prd.md` |
-| 测试策略 | `docs/test-spec.md`（#28，待写） |
+| 测试策略、用例、真机证据格式 | `docs/test-spec.md` |
 | 当前进度 | GitHub milestone 与 issue |
