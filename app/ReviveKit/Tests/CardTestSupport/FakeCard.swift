@@ -340,16 +340,16 @@ public final class FakeCard: CardLink {
 
     // MARK: Frame builders (card -> phone; any CMD byte, unlike CardRequest)
 
-    public static func frame(_ cmd: UInt8, _ body: Data) -> Data {
+    nonisolated public static func frame(_ cmd: UInt8, _ body: Data) -> Data {
         precondition(body.count <= 255)
         return Data([Frame.pid, cmd, UInt8(body.count)]) + body
     }
 
-    static func frame(_ cmd: UInt8, json: [String: Any]) -> Data {
+    nonisolated static func frame(_ cmd: UInt8, json: [String: Any]) -> Data {
         frame(cmd, try! JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]))
     }
 
-    static func chunk(status: UInt8, offset: UInt32, _ data: Data) -> Data {
+    nonisolated static func chunk(status: UInt8, offset: UInt32, _ data: Data) -> Data {
         frame(Command.fileData.rawValue, Data([status]) + withUnsafeBytes(of: offset.bigEndian) { Data($0) } + data)
     }
 }
