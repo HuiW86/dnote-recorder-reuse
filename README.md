@@ -37,6 +37,7 @@ python dnote.py pull --out ./recordings   # 下载并解密为 .ogg
 | `docs/PROTOCOL.md` | 完整 BLE 协议规格 |
 | `docs/HANDOFF.md` | 交接文档：背景、需求、现状、下一步、风险 |
 | `docs/craft-anything-evaluation.md` | craft-anything 对官方 App 的二次分析；快传 TCP 命令集与固件画像 |
+| `docs/features.md` | 功能清单与范围对照表：官方功能 A1～O1 落到里程碑 M1～M4 |
 
 ## 状态
 
