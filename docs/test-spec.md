@@ -86,6 +86,14 @@
 | T-M1-31 | 分片返回 `0xF0` 文件不存在 | `fileNotFound`；重新列表 |
 | T-M1-32 | 在 App 里删除一条本地录音 | OGG 文件与数据库记录都删除；不向卡发送任何命令；SyncItem 保留为 `stored`，不会被重新下载 |
 
+实现（#39）：`app/ReviveKit/Tests/SyncEngineTests/`，每个用例结束时断言写帧里没有 `0x93`/`0x94`/`0xB0`/`0xB1`（§3.5 第 2 道检查）。
+
+- T-M1-23 的「被杀」：在提交前的钩子里挂起，永不返回；随后在同一个数据库和目录上新建 SyncEngine，相当于重启。
+- T-M1-27 分两种：`FakeCard.Fault.disconnectAfter(.deleteFile)` 表示删除已生效后断开，`disconnectInsteadOf(.deleteFile)` 表示断开时删除未生效。
+- 另有失败自动重试，以及录音中不同步两个用例。
+
+用变异检查确认过用例有效：分别让已存入的文件重新下载、去掉启动恢复、在提交前发 `0x91`，T-M1-24、23、26 都会失败。
+
 ### 3.4 真机（M1 验收前）
 
 | 编号 | 用例 | 通过线 |
