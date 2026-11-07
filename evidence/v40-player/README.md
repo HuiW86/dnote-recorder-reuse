@@ -5,7 +5,7 @@
 | 项 | 值 |
 |---|---|
 | 主机 | macOS 27.0，Swift Testing；FFmpeg 8.0.1（Homebrew） |
-| 代码 | `feat/39-sync-engine` 分支，`Player` 模块（`app/ReviveKit/Sources/Player/Player.swift`） |
+| 代码 | `feat/40-player` 分支（基于 #39），`Player` 模块（`app/ReviveKit/Sources/Player/Player.swift`） |
 | 音频 | 系统 Opus 编码器生成的 440 Hz 正弦波（`CardTestSupport/SyntheticOpus.swift`，16 kHz 单声道，20 ms 一包），经 `OggOpus.wrap` 封装；不是卡上的录音，音频不入库 |
 
 ## 命令
