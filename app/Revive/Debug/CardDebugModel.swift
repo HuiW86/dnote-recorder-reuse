@@ -1,13 +1,17 @@
 #if DEBUG
+import AVFoundation
 import CardLink
 import CardProtocol
 import CardService
 import CryptoKit
 import Foundation
+import Library
 import Observation
+import Player
 
 /// Drives CardService against a real card for the #38 checks: connect, pending reconnect,
-/// background restoration, pairing, and the replies listed in test-spec.md §2.
+/// background restoration, pairing, and the replies listed in test-spec.md §2; and plays the
+/// downloaded files through `RecordingPlayer` for the #40 device checks.
 @MainActor
 @Observable
 final class CardDebugModel {
@@ -31,6 +35,7 @@ final class CardDebugModel {
         Task { [weak self] in
             for await event in events { self?.handle(event) }
         }
+        setUpPlayback()
     }
 
     var lastPeripheral: UUID? {
@@ -127,14 +132,20 @@ final class CardDebugModel {
             let start = Date()
             let data = try await fetch(file, from: 0)
             let seconds = Date().timeIntervalSince(start)
+            log.add("downloaded \(data.count) B in \(String(format: "%.1f", seconds)) s, "
+                + String(format: "%.1f KB/s", Double(data.count) / 1000 / max(seconds, 0.001))
+                + ", sha256 \(sha(data)), " + decodeCheck(data))
             if data.count == file.size {
                 try FileManager.default.createDirectory(at: Self.downloads, withIntermediateDirectories: true)
                 try data.write(to: Self.downloads.appendingPathComponent(file.name), options: .atomic)
                 storedLocally.insert(file)
+                // A library failure must not turn the #38 download check into a failure.
+                do {
+                    try await addToLibrary(file, data)
+                } catch {
+                    log.add("library: \(file.name) not added: \(error)")
+                }
             }
-            log.add("downloaded \(data.count) B in \(String(format: "%.1f", seconds)) s, "
-                + String(format: "%.1f KB/s", Double(data.count) / 1000 / max(seconds, 0.001))
-                + ", sha256 \(sha(data)), " + decodeCheck(data))
         }
     }
 
@@ -200,6 +211,131 @@ final class CardDebugModel {
 
     private func sha(_ data: Data) -> String {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: Playback (#40 device checks: background, interruption, headphones unplugged)
+
+    /// Separate from the future app library so debug runs never mix with real data.
+    @ObservationIgnored private var library: RecordingLibrary?
+    private(set) var player: RecordingPlayer?
+    private(set) var recordings: [Recording] = []
+    @ObservationIgnored private var sessionObservers: [NSObjectProtocol] = []
+
+    private func setUpPlayback() {
+        do {
+            let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("debug-library", isDirectory: true)
+            let library = RecordingLibrary(database: try AppDatabase.onDisk(directory: root),
+                                           store: try AudioStore(root: root))
+            try library.recoverAfterLaunch()
+            self.library = library
+            player = RecordingPlayer(library: library)
+            recordings = try library.recordings()
+            observePlayerState()
+            observeSession()
+        } catch {
+            log.add("debug library unavailable: \(error)")
+        }
+    }
+
+    /// Same conversion as SyncEngine (decrypt, split, wrap as OGG), committed through the
+    /// library's sync item path so the Recording row looks like a synced one.
+    private func addToLibrary(_ file: CardFile, _ raw: Data) async throws {
+        guard let library else { return }
+        let device = try library.upsertDevice(sn: "debug") { $0.name = "debug" }
+        let item = try library.syncItem(deviceId: device.id, name: file.name, size: file.size)
+        guard item.recordingId == nil else { return log.add("already in library: \(file.name)") }
+        let (ogg, frames) = try await Task.detached(priority: .userInitiated) {
+            let opus = AudioCrypto.isEncrypted(raw) ? try AudioCrypto.decrypt(raw) : raw
+            let frames = OggOpus.splitFrames(opus)
+            return (OggOpus.wrap(frames), frames.count)
+        }.value
+        let id = UUID()
+        let path = try library.store.storeAudio(ogg, id: id)
+        let now = Date()
+        let recording = Recording(id: id, deviceId: device.id, source: .card, cardFileName: file.name,
+                                  cardFileSize: file.size, startedAt: now, durationMs: frames * 20,
+                                  audioPath: path, audioSha256: sha(ogg), title: file.name,
+                                  createdAt: now, updatedAt: now)
+        _ = try library.commitStored(recording, item: item, deleteAfterSync: false)
+        recordings = try library.recordings()
+        log.add("library: \(file.name) -> ogg \(ogg.count) B, \(frames) frames")
+    }
+
+    func play(_ recording: Recording) {
+        guard let player else { return }
+        log.add("▶ play \(recording.title)")
+        Task { [self] in
+            let start = Date()
+            do {
+                try await player.play(recording)
+                let decoded = library.map { FileManager.default.fileExists(atPath: $0.store.decodedURL(for: recording.id).path) } ?? false
+                log.add("✔ play \(String(format: "%.2f", Date().timeIntervalSince(start))) s to start, "
+                    + "duration \(String(format: "%.2f", player.duration)) s, "
+                    + (decoded ? "via decoded PCM copy" : "OGG opened directly"))
+            } catch {
+                log.add("✘ play: \(error)")
+            }
+        }
+    }
+
+    /// Plays through the PCM copy even where AVAudioPlayer opens OGG directly, so the fallback
+    /// for iOS 17-26 can be checked on a newer phone. Removes cached copies so the decode runs again.
+    var forceDecode = false {
+        didSet {
+            guard let player, let library else { return }
+            player.stop()
+            player.opensOggDirectly = !forceDecode
+            for r in recordings { library.store.removeDecoded(r.id) }
+            log.add("force decode \(forceDecode ? "on" : "off"), decoded copies cleared")
+        }
+    }
+
+    func pausePlayback() { player?.pause() }
+    func stopPlayback() { player?.stop() }
+
+    func deleteRecording(_ recording: Recording) {
+        guard let library else { return }
+        if player?.recordingId == recording.id { player?.stop() }
+        do {
+            try library.deleteRecording(id: recording.id)
+            recordings = try library.recordings()
+            log.add("library: deleted \(recording.title)")
+        } catch {
+            log.add("library: delete failed: \(error)")
+        }
+    }
+
+    /// Logs every player state change, including pauses the player makes on its own.
+    private func observePlayerState() {
+        guard let player else { return }
+        withObservationTracking { _ = player.state } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self, let player = self.player else { return }
+                self.log.add("player \(player.state) at \(String(format: "%.2f", player.currentTime)) s")
+                self.observePlayerState()
+            }
+        }
+    }
+
+    /// Records the system events the player reacts to, so the log shows cause and effect.
+    private func observeSession() {
+        let center = NotificationCenter.default
+        sessionObservers.append(center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil,
+                                                   queue: .main) { [weak self] note in
+            let type = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
+                .flatMap(AVAudioSession.InterruptionType.init)
+            let text = type == .began ? "began" : type == .ended ? "ended" : "unknown"
+            MainActor.assumeIsolated { self?.log.add("session interruption \(text)") }
+        })
+        sessionObservers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil,
+                                                   queue: .main) { [weak self] note in
+            let reason = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt) ?? 0
+            let outputs = AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portType.rawValue)
+            MainActor.assumeIsolated {
+                self?.log.add("session route change reason \(reason), outputs \(outputs)")
+            }
+        })
     }
 
     // MARK: Events

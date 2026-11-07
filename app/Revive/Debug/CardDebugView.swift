@@ -3,7 +3,7 @@ import CardLink
 import CardProtocol
 import SwiftUI
 
-/// Debug entry for real-card verification (#38). Replaced by the real screens in #41.
+/// Debug entry for real-card verification (#38, #40). Replaced by the real screens in #41.
 struct CardDebugView: View {
     @Bindable var model: CardDebugModel
 
@@ -67,6 +67,31 @@ struct CardDebugView: View {
                                 Button("删除卡上文件", role: .destructive) { model.delete(file) }
                                     .disabled(!model.storedLocally.contains(file))
                             }
+                    }
+                }
+                if let player = model.player {
+                    Section("播放：\(String(describing: player.state))（下载后自动入库，长按删除）") {
+                        Toggle("强制解码回退（模拟 iOS 17～26）", isOn: $model.forceDecode)
+                        if player.recordingId != nil {
+                            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                                Text(String(format: "%.1f / %.1f s", player.currentTime, player.duration))
+                                    .font(.system(.body, design: .monospaced))
+                            }
+                            HStack {
+                                Button("暂停") { model.pausePlayback() }
+                                Spacer()
+                                Button("停止") { model.stopPlayback() }
+                            }
+                        }
+                        ForEach(model.recordings, id: \.id) { recording in
+                            Button((player.recordingId == recording.id ? "▶︎ " : "")
+                                   + "\(recording.title)  \(recording.durationMs / 1000) s") {
+                                model.play(recording)
+                            }
+                            .contextMenu {
+                                Button("删除手机上的录音", role: .destructive) { model.deleteRecording(recording) }
+                            }
+                        }
                     }
                 }
                 Section("日志") {

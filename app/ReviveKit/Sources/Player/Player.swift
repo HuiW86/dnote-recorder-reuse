@@ -35,8 +35,9 @@ public final class RecordingPlayer: NSObject {
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     /// Bumped by every load and stop, so a decode that finishes late does not take over.
     @ObservationIgnored private var loadToken = 0
-    /// Tests turn this off to exercise the decode fallback on systems that open OGG directly.
-    @ObservationIgnored var opensOggDirectly = true
+    /// Turned off by tests and the debug screen to exercise the decode fallback on systems that
+    /// open OGG directly. Takes effect on the next load (a different recording, or after `stop`).
+    @ObservationIgnored public var opensOggDirectly = true
 
     public init(library: RecordingLibrary) {
         self.library = library

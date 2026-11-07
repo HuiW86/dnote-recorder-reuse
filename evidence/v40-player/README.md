@@ -64,3 +64,18 @@ sha256 12a6b71a145f22ab6e21e06aadc8ac670d16dd1d2dc8b3a4764adabb15681132
 | 删除录音时删掉副本；启动恢复删掉孤儿副本和 `.part`（`LibraryTests`） | 通过 |
 
 调试时发现：macOS 27 的系统 Opus 解码器（16 kHz）会自己去掉开头 40 个采样（2.5 ms），`primeInfo` 却报告为 0。如果再按文件头的 pre-skip（312/48000 s = 104 个采样）全砍一遍，结果会短 2.5 ms。所以解码前先用前 10 个包测出解码器自己裁掉多少，pre-skip 只补差额。旧版系统的解码器如果不裁剪，测出来是 0，就按 pre-skip 全砍。用扫频信号对比，回退结果与 `AVAudioFile` 直接读取的结果长度一致（16216 个采样），偏移 1 个采样（对比时把 48 kHz 直接抽成 16 kHz 带来的相位差）。
+
+## 真机检查步骤（待跑）
+
+入口：Debug 构建的 Card Debug 页。在「文件」区点按一个文件下载，校验通过后它会按 SyncEngine 的方式（解密 → 分帧 → 封装 OGG）存进单独的调试录音库（Application Support/`debug-library/`），出现在「播放」区。播放器的每次状态变化，以及系统的打断、线路变更通知，都会写进 `card-debug.log`。
+
+| 编号 | 操作 | 通过判据（看日志） |
+|---|---|---|
+| P1 | 点按录音播放 | `✔ play`，时长 ≈ 录音帧数 × 20 ms；耳朵听到的是卡上录的内容 |
+| P2 | 播放中锁屏或切到别的 App，等 30 秒 | 一直有声音；锁屏后状态仍为 `playing`，日志标签为 `[bg]` 或 `[lock]` |
+| P3 | 播放中打进来一个电话（或响起闹钟），挂断 | `session interruption began` 之后紧跟 `player paused`；挂断后不自动继续播放 |
+| P4 | 戴有线或蓝牙耳机播放，拔下或断开 | `session route change reason 2`（oldDeviceUnavailable）之后紧跟 `player paused` |
+| P5 | 长按录音删除 | `library: deleted`，录音从列表消失 |
+| P6 | 打开「强制解码回退」，播放同一条录音两次；再关掉开关播放一次 | 第一次 `via decoded PCM copy`，启动耗时明显长于直接打开；第二次仍是 `via decoded PCM copy`，耗时很短（复用缓存）；听感、时长与直接打开一致；关掉后为 `OGG opened directly`。用来代替 iOS 17～26 真机，但它只证明回退在 iOS 27 的解码器上可用 |
+
+日志存为 `01-device-playback.log`，放进本目录前先按硬规则 4 检索原始 `sn`、`btaddr`。
