@@ -1,0 +1,30 @@
+2026-11-07 20:44:28.393 [fg] scan start
+2026-11-07 21:10:37.391 [fg] scan start
+2026-11-07 21:10:39.783 [fg] ▶ connect
+2026-11-07 21:10:39.824 [fg] link connecting
+2026-11-07 21:10:39.827 [fg] event stateChanged(CardLink.LinkState.connecting)
+2026-11-07 21:10:40.892 [fg] link connected
+2026-11-07 21:10:40.896 [fg] tx 80 len=0 
+2026-11-07 21:10:40.924 [fg] event stateChanged(CardLink.LinkState.connected)
+2026-11-07 21:10:40.956 [fg] rx 80 len=180 {"bat":99,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-07 05:10:45","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-07 21:10:40.959 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 99% free 7653/7671 time 2026-11-07 05:10:45
+2026-11-07 21:10:40.961 [fg] tx 87 len=25 {"time":"20261107211040"}
+2026-11-07 21:10:41.012 [fg] rx 87 len=1 01
+2026-11-07 21:10:41.020 [fg] connected: sn sha256:7036aa3b fw 1.50 rec idle bat 99% free 7653/7671 time 2026-11-07 05:10:45
+2026-11-07 21:10:41.020 [fg] ✔ connect 1.20 s
+2026-11-07 21:10:52.879 [fg] ▶ info
+2026-11-07 21:10:52.900 [fg] tx 80 len=0 
+2026-11-07 21:10:52.923 [fg] rx 80 len=180 {"bat":99,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-07 21:10:52","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-07 21:10:52.934 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 99% free 7653/7671 time 2026-11-07 21:10:52
+2026-11-07 21:10:52.935 [fg] sn sha256:7036aa3b fw 1.50 rec idle bat 99% free 7653/7671 time 2026-11-07 21:10:52
+2026-11-07 21:10:52.935 [fg] ✔ info 0.04 s
+2026-11-07 21:10:58.453 [fg] ▶ switches
+2026-11-07 21:10:58.476 [fg] tx 81 len=0 
+2026-11-07 21:10:58.503 [fg] rx 81 len=78 {"ms":0,"led":1,"motor":1,"nc":1,"wav":0,"vad":0,"gain":4,"nn":4,"autoff":600}
+2026-11-07 21:10:58.506 [fg] DeviceSwitches(usbStorage: Optional(false), led: true, motor: true, noiseCancel: true, saveWav: Optional(false), vad: false, gain: 4, noiseLevel: 4, autoOffSeconds: 600)
+2026-11-07 21:10:58.507 [fg] ✔ switches 0.03 s
+2026-11-07 21:10:59.385 [fg] ▶ status
+2026-11-07 21:10:59.407 [fg] tx 56 len=0 
+2026-11-07 21:10:59.433 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 21:10:59.437 [fg] RecordingStatus(name: "", size: 0, state: CardProtocol.RecordingState.idle)
+2026-11-07 21:10:59.438 [fg] ✔ status 0.03 s
