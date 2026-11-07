@@ -11,7 +11,7 @@ import Player
 struct ArchitectureTests {
     @Test func allModulesLink() {
         let names = [
-            String(describing: Command.self), String(describing: LinkState.self), CardServiceModule.name,
+            String(describing: Command.self), String(describing: LinkState.self), String(describing: CardService.self),
             SyncEngineModule.name, PlayerModule.name,
         ]
         #expect(names.count == Set(names).count)

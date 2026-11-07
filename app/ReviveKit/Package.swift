@@ -39,6 +39,9 @@ let package = Package(
             resources: [.copy("Fixtures")]
         ),
         .testTarget(name: "CardLinkTests", dependencies: ["CardProtocol", "CardLink", "CardTestSupport"]),
+        .testTarget(name: "CardServiceTests", dependencies: [
+            "CardProtocol", "CardLink", "CardService", "CardTestSupport",
+        ]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
         .testTarget(name: "ArchitectureTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player",

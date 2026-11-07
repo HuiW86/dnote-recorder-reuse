@@ -32,6 +32,8 @@ public final class FakeCard: CardLink {
         case truncatedChunk(index: Int)
         /// Deliver every reply's notifications with neighbours swapped (1,0,3,2,...).
         case reorderNotifications
+        /// Ack `0xA0` writes without changing the bond, so `0xA1` disagrees.
+        case ignoreBondWrites
     }
 
     // MARK: Configuration and observable state
@@ -226,10 +228,10 @@ public final class FakeCard: CardLink {
             if paired { files.removeAll { $0.name == name } }
             return []
         case .bond(let id):
-            bondId = id
+            if !faults.contains(.ignoreBondWrites) { bondId = id }
             return [.frame(Self.frame(cmd, Self.ack))]
         case .unbond:
-            bondId = nil
+            if !faults.contains(.ignoreBondWrites) { bondId = nil }
             return [.frame(Self.frame(cmd, Self.ack))]
         case .setEncryptionKey(let enabled, let key):
             // Assumed reply: single 0x01 like the other settings.
