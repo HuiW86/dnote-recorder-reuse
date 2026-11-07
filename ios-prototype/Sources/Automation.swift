@@ -4,6 +4,8 @@ import UIKit
 // Launch arguments that let a run be driven from the Mac without touching the screen:
 //   --autorun [rounds]     the #21 hotspot batch (default 14 rounds)
 //   --delete <name>        delete one recording, by exact name (repeatable)
+//   --ft-probe             #6 phase A: try fast-transfer command variants, save replies
+//   --ft-get <name> [runs] #6: download one recording over WiFi fast transfer (default 3 runs)
 // Example:
 //   xcrun devicectl device process launch --device <udid> \
 //     com.huiw86.dnoteprobe --delete 20261106100604.opus
@@ -15,12 +17,24 @@ extension Probe {
         let batchFlag = args.firstIndex(of: "--autorun")
         let deleteNames = args.indices.filter { args[$0] == "--delete" }
             .compactMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
-        guard batchFlag != nil || !deleteNames.isEmpty else { return }
+        let ftProbe = args.contains("--ft-probe")
+        let ftGet = args.firstIndex(of: "--ft-get").flatMap { $0 + 1 < args.count ? $0 : nil }
+        guard batchFlag != nil || !deleteNames.isEmpty || ftProbe || ftGet != nil else { return }
 
         guard await connectForAutomation() else { return }
 
         if !deleteNames.isEmpty {
             run("delete") { try await self.deleteRecordings(named: deleteNames) }
+            return
+        }
+        if let i = ftGet {
+            let name = args[i + 1]
+            let runs = Int(args.count > i + 2 ? args[i + 2] : "") ?? 3
+            run("ft-get") { try await self.fastTransferRuns(name: name, runs: runs) }
+            return
+        }
+        if ftProbe {
+            run("ft-probe") { try await self.fastTransferProbe() }
             return
         }
         if let flag = batchFlag {

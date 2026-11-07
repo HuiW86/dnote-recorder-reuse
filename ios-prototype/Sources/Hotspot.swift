@@ -1,12 +1,11 @@
 import CoreLocation
 import Foundation
-import Network
 import NetworkExtension
 import UIKit
 
 // FastUpload hotspot reachability, following the official app (FastTransferWifi / FAST_TRANSFER):
 // 0x88 {ap:1, ssid:"FastUpload", psk} -> wait 3 s -> join Wi-Fi -> TCP 192.168.88.1:6718
-// (6 attempts, 2 s apart) -> 0x88 {ap:0}. The TCP protocol itself is #6, not tested here.
+// (6 attempts, 2 s apart) -> 0x88 {ap:0}. The TCP protocol on top is in FastTransfer.swift (#6).
 
 enum FastTransfer {
     static let ssid = "FastUpload"
@@ -70,6 +69,14 @@ extension Probe {
     /// from NEHotspotConfiguration behaviour.
     @discardableResult
     func hotspotProbe(fixedPsk: Bool = false, joinOnce: Bool = false) async throws -> HotspotOutcome {
+        try await withHotspot(fixedPsk: fixedPsk, joinOnce: joinOnce) { _ in }
+    }
+
+    /// Bring the AP up, join it, open TCP 6718, run `body` on the open link, then tear it all
+    /// down. Returns how far it got; `body` runs only on `.pass`, and its errors propagate.
+    @discardableResult
+    func withHotspot(fixedPsk: Bool = false, joinOnce: Bool = false,
+                     _ body: (FastLink) async throws -> Void) async throws -> HotspotOutcome {
         let psk = fixedPsk ? "dnote1234" : generateWifiPassword()
         // Reset first: an AP left on from an earlier run may still use the old password.
         try sendRaw(buildFrame(Cmd.setWifiAp, json: ["ap": 0, "ssid": FastTransfer.ssid, "psk": psk]))
@@ -142,21 +149,25 @@ extension Probe {
             return outcome
         }
 
-        for attempt in 1...FastTransfer.tcpAttempts {
+        var link: FastLink?
+        for attempt in 1...FastTransfer.tcpAttempts where link == nil {
             let t = Date()
             do {
-                let banner = try await tcpConnect()
-                log.add("hotspot: TCP \(FastTransfer.host):\(FastTransfer.port) connected on attempt \(attempt) "
-                        + "first bytes=\(banner.isEmpty ? "(none in 3s)" : banner.hex) [PASS]")
-                return .pass
+                link = try await FastLink.connect()
+                log.add("hotspot: TCP \(FastTransfer.host):\(FastTransfer.port) connected on attempt \(attempt) [PASS]")
             } catch {
                 log.add(String(format: "hotspot: TCP attempt %d failed after %.1fs: %@ | %@", attempt,
                                Date().timeIntervalSince(t), "\(error)", "en0=\(wifiIPv4())"))
+                try await Task.sleep(for: .seconds(2))
             }
-            try await Task.sleep(for: .seconds(2))
         }
-        log.add("hotspot: TCP never connected [FAIL]")
-        return .joinedNoTCP
+        guard let link else {
+            log.add("hotspot: TCP never connected [FAIL]")
+            return .joinedNoTCP
+        }
+        defer { link.close() }
+        try await body(link)
+        return .pass
     }
 
     /// #21: run the join attempt `count` times and tally the outcomes, so the A/B split is
@@ -215,36 +226,5 @@ extension Probe {
             p = i.ifa_next
         }
         return addrs
-    }
-
-    /// Connect over Wi-Fi, then read whatever the card sends within 3 s.
-    private func tcpConnect() async throws -> Data {
-        let params = NWParameters.tcp
-        params.requiredInterfaceType = .wifi
-        let conn = NWConnection(host: .init(FastTransfer.host), port: .init(rawValue: FastTransfer.port)!, using: params)
-        defer { conn.cancel() }
-        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
-            var done = false
-            conn.stateUpdateHandler = { state in
-                switch state {
-                case .ready: if !done { done = true; c.resume() }
-                case .failed(let e), .waiting(let e): if !done { done = true; c.resume(throwing: e) }
-                default: break
-                }
-            }
-            conn.start(queue: .main)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                if !done { done = true; c.resume(throwing: ProbeError.timeout("tcp connect")) }
-            }
-        }
-        return await withCheckedContinuation { c in
-            var done = false
-            conn.receive(minimumIncompleteLength: 1, maximumLength: 64) { data, _, _, _ in
-                if !done { done = true; c.resume(returning: data ?? Data()) }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                if !done { done = true; c.resume(returning: Data()) }
-            }
-        }
     }
 }
