@@ -85,8 +85,8 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 | `stopRecording()` | `0x50` | — | 录音中 |
 | `pause()` / `resume()` | `0x52` / `0x53`，各回 1 字节 `0x01` | — | 录音中 / 已暂停；暂停段不写入文件（#34 已验证） |
 | `recordingStatus()` | `0x56` | `{name, size, rec}`；`rec` 0 空闲 / 1 录音中 / 2 已暂停 | 已连接 |
-| `listFiles()` | `0x90`，收到 `end=1` 结束 | `[CardFile(name, size)]` | 已配对；**录音中返回空列表，不代表卡上没有文件** |
-| `download(name, size, from)` | `0x70 {cmd:1, name, offset:from}`，拼接分片直到 EOF | 从 `from` 开始的原始文件字节 | 已配对；超时 = (size − from) ÷ 15 KB/s + 10 s |
+| `listFiles()` | `0x90`，收到 `end=1` 结束 | `[CardFile(name, size)]` | 已配对；**录音中卡会回空列表，不代表卡上没有文件**：列表为空时再查 `0x56`，录音中或已暂停则报 `cardBusyRecording`（#38） |
+| `download(name, size, from)` | `0x70 {cmd:1, name, offset:from}`，拼接分片直到 EOF | 从 `from` 开始的原始文件字节 | 已配对；超时 = (size − from) ÷ 15 KB/s + 10 s；每个分片的 `offset` 必须等于已收到的位置（#34 证实是分片在文件中的绝对位置），跳号或总长不符报 `transferFailed` |
 | `delete(name)` | `0x91 {name}` | — | 已配对；**只由 SyncEngine 调用**（§4） |
 
 **设备主动推送**（转成事件流 `events`）：
@@ -111,18 +111,21 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 ## 3. 配对状态机（A2）
 
 ```
-未配对 ──连接──▶ 读取信息 ──▶ 校时 ──▶ 设置密钥 ──▶ 绑定 ──▶ 确认 ──▶ 已配对
-                (0x80)      (0x87)     (0xA2)      (0xA0)    (0xA1)
+未配对 ──连接──▶ 读取信息 ──▶ 查询绑定 ──▶ 校时 ──▶ 设置密钥 ──▶ [解绑] ──▶ 绑定 ──▶ 确认 ──▶ 已配对
+                (0x80)      (0xA1)      (0x87)     (0xA2)    (0xA0 [0])  (0xA0)    (0xA1)
 ```
 
 | 步骤 | 命令 | 失败处理 |
 |---|---|---|
 | 读取信息 | `0x80` 取 `sn`、`v` | 重试 1 次，仍失败则 `requestTimeout` |
+| 查询绑定 | `0xA1` | 已绑定且 bondId 与 Keychain 中该 `sn` 的一致：已配对，直接返回，不发任何写命令。已绑定但 bondId 不同：见下方「卡已被其他手机绑定」，用户不确认则 `pairCancelled`，不发任何写命令 |
 | 校时 | `0x87` | 失败不阻断，记日志 |
-| 设置密钥 | `0xA2 [1] + HMAC-SHA256(DEVICE_KEY_SECRET, sn)` | 失败则终止，提示重试 |
+| 设置密钥 | `0xA2 [1] + HMAC-SHA256(DEVICE_KEY_SECRET, sn)` | 无回包则终止，提示重试。回包内容尚无真机证据，收到任何 `0xA2` 回包都算成功（解密用文件头里的密钥材料，不依赖这一步）；真机确认后收紧（`test-spec.md` §2） |
+| 解绑 | `0xA0 [0]`，回 `0x01` | 只在卡已被其他设备绑定且用户确认后发送 |
 | 绑定 | `0xA0 [1] + bondId`；bondId 为本地随机生成的 16 字节 | 失败则终止，提示重试 |
 | 确认 | `0xA1` 返回 `isBonded=1` 且 bondId 一致 | 不一致则 `pairVerifyFailed` |
 
+- **先查询再写**（#38）：`0xA1` 查询放在所有写命令之前，才能做到「已配对的卡不重复绑定」（T-M1-11）和「不确认就不写」（T-M1-12）。Python 客户端的配对流程同样先查询（`evidence/v3-pair/04-pair-idempotent.log`）。
 - **同一连接内生效**，不需要断开重连（H1 已否定）。
 - **不发 `0x94`**：官方新卡绑定时会先格式化，我们不照搬。
 - **卡已被其他手机或官方 App 绑定**（`0xA1` 返回 `isBonded=1`，bondId 不在本地）：提示「此卡已被其他设备绑定，重新绑定后原设备将无法管理此卡」，用户确认后先 `0xA0 [0]` 解绑，再走上面的绑定流程。绑定不影响卡上已有的录音；加密密钥由 `sn` 派生，与原绑定无关，旧录音仍能解开。
@@ -244,15 +247,22 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 |---|---|---|---|
 | `bluetoothOff` | 手机蓝牙关闭 | 否 | 引导打开蓝牙 |
 | `bluetoothUnauthorized` | 没有蓝牙权限 | 否 | 引导去设置授权 |
+| `bluetoothUnsupported` | 设备不支持低功耗蓝牙，或蓝牙正在重置 | 否 | 提示稍后重试 |
 | `connectTimeout` | 连接超时 | 是 | 提示按卡上按键唤醒后重试 |
+| `connectFailed` | 连接失败，或服务、特征发现失败 | 是 | 同 `connectTimeout` |
+| `unknownCard` | 系统不认识这个外设标识（蓝牙重置后） | 否 | 重新扫描 |
 | `disconnected` | 操作中途断开 | 是 | 自动挂起连接；同步任务重试 |
 | `requestTimeout(cmd)` | 命令无响应 | 是 | 重试 1 次后提示 |
 | `notPaired` | 卡未配对或配对失效 | 否 | 引导重新配对 |
-| `pairVerifyFailed` | 绑定后查询不一致 | 是 | 提示重试配对 |
+| `pairVerifyFailed` | 绑定或解绑后查询不一致 | 是 | 提示重试配对 |
+| `pairCancelled` | 卡已被其他设备绑定，用户没有确认重新绑定 | — | 不提示错误，回到设备页 |
 | `cardBusyRecording` | 录音中，不能列表或下载 | 是 | 等录音停止后自动继续 |
 | `fileNotFound` | `0x70` 回 `0xF0` | 否 | 标记该 SyncItem，重新列表 |
 | `transferFailed` | `0x70` 回 `0x40`，或长度不符 | 是 | 自动重试 |
 | `decryptFailed` | 文件头校验不通过 | 否 | 保留卡上文件，原始字节存到诊断目录，提示反馈 |
+| `unexpectedReply(cmd)` | 回包格式不符合协议，或设置写入后读回不一致 | 是 | 重试 1 次后提示反馈 |
+| `invalidArgument` | 参数非法（如增益超出 1～9），没有发出任何命令 | 否 | 程序错误，记日志 |
+| `bondStorageFailed` | Keychain 读写 bondId 失败 | 是 | 提示重试配对 |
 | `phoneStorageFull` | 手机空间不足 | 否 | 提示清理空间 |
 | `firmwareUnverified` | 固件不在已验证表 | — | 只是警告，不阻断（§2.4） |
 

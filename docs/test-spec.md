@@ -36,6 +36,7 @@
 - `FakeCard`：实现 `CardLink` 协议，回包在 `send` 内同步入队，测试结果确定。故障注入见 `FakeCard.Fault`；`advertise()` 模拟卡重新广播，完成挂起连接。
 - `EvidenceLog`：读取 `evidence/` 下两种 jsonl 格式（`event` 或 `kind` 为 `notify` 的行），按原顺序回放，不保留时间间隔。
 - 第 2 道检查（§3.5）：`FakeCard.wroteOnlyWhitelistedCommands`，模拟卡集成用例结束时断言。
+- 故障注入另有 `ignoreBondWrites`：`0xA0` 回 `0x01` 但不改变绑定，用于 T-M1-13。
 - 下列行为没有真机证据，模拟卡按假设实现，#38 真机联调时确认：`0x51` 未配对时回包体是 ASCII 文本 `NULL`；`0xA2` 回 1 字节 `0x01`；`0xA3` 回 1 字节（1 表示已设密钥）；未配对时 `0x70`、`0x91` 不响应；`0x91` 成功时不回包；`0x90` 结束帧形如 `{"index":n,"end":1}`；数据分片的状态字节为 `0x00`，最后一片带 EOF 并携带剩余数据。
 
 ## 3. M1 用例
@@ -56,12 +57,14 @@
 
 | 编号 | 用例 | 通过线 |
 |---|---|---|
-| T-M1-10 | 新卡配对：命令顺序为 `0x80 → 0x87 → 0xA2 → 0xA0 → 0xA1` | 顺序一致；bondId 写入 Keychain |
-| T-M1-11 | 已配对的卡再次配对 | 不重复发 `0xA0` |
+| T-M1-10 | 新卡配对：命令顺序为 `0x80 → 0xA1 → 0x87 → 0xA2 → 0xA0 → 0xA1`（`prd.md` §3） | 顺序一致；bondId 写入 Keychain |
+| T-M1-11 | 已配对的卡再次配对 | 只发 `0x80`、`0xA1`，不发任何写命令 |
 | T-M1-12 | 卡已被其他 bondId 绑定 | 先提示；确认后先 `0xA0 [0]` 再绑定；不确认则不发任何写命令 |
 | T-M1-13 | `0xA1` 返回的 bondId 不一致 | 报 `pairVerifyFailed`，本地不保存 |
 | T-M1-14 | 配对全程不出现 `0x94` | 记录到的所有写帧中没有 `0x94` |
 | T-M1-15 | 解绑 | 发 `0xA0 [0]` 后 `0xA1` 为未绑定；Keychain 中的 bondId 删除；本地录音保留 |
+
+实现（#38）：`app/ReviveKit/Tests/CardServiceTests/` 的 `PairingTests`；同一文件的 `CardServiceTests` 覆盖 `prd.md` §2.3 的业务操作、主动推送事件和下载故障。
 
 ### 3.3 同步（模拟卡，故障注入）
 
