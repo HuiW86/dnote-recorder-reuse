@@ -60,8 +60,8 @@ PAYLOAD 编码分三类：多数命令为 UTF-8 JSON；开关类为单字节 `0x
 
 | CMD | 名称 | PAYLOAD | 响应 |
 |---|---|---|---|
-| 0x80 | 查询设备信息 | — | JSON `{sn, btaddr, bt, recmode, ...}` |
-| 0x81 | 查询开关状态 | — | JSON |
+| 0x80 | 查询设备信息 | — | JSON，字段见下 |
+| 0x81 | 查询开关状态 | — | JSON，字段见下 |
 | 0x82 | USB 存储开关 | `[0\|1]` | — |
 | 0x83 | LED 开关 | `[0\|1]` | — |
 | 0x84 | 马达开关 | `[0\|1]` | — |
@@ -69,12 +69,38 @@ PAYLOAD 编码分三类：多数命令为 UTF-8 JSON；开关类为单字节 `0x
 | 0x86 | 设置蓝牙名 | JSON `{bt}` | — |
 | 0x87 | 校准时间 | JSON `{time:"YYYYMMDDHHmmss"}` | — |
 | 0x88 | WiFi 热点配置 | JSON `{ap, ssid, psk}` | — |
-| 0x89 | WiFi STA 上传地址 | JSON `{url}` | — |
+| 0x89 | WiFi STA 上传 | JSON，三段：`wifi_ssid`、`wifi_password`、`url` | — |
 | 0x8A | 保存 WAV 开关 | `[0\|1]` | — |
 | 0x8B | VAD 开关 | `[0\|1]` | — |
 | 0x8C | 增益档位 | `[1..9]` | — |
 | 0x8D | 降噪档位 | `[1..9]` | — |
 | 0x8F | 空闲关机时长 | uint32 大端（秒） | — |
+
+**`0x80` 设备信息**（固件 v1.50 真机日志证实，字段与顺序一致；#4、#6）：
+
+```json
+{"sn":"<sn>","v":"1.50","time":"2026-11-06 03:45:33","rec":0,"recmode":0,"usb":0,"bat":47,"df":7670,"total_df":7671,"bt":"D·NOTE","btaddr":"<12 位 hex>","wifiap":0}
+```
+
+| 字段 | 含义 |
+|---|---|
+| `sn` | 序列号 |
+| `v` | 固件版本 |
+| `time` | 设备时间 `YYYY-MM-DD HH:mm:ss`（`0x87` 校准） |
+| `rec` | 录音状态，0 空闲 / 1 录音中 |
+| `recmode` | 录音模式 |
+| `usb` | USB 存储开关（`0x82`） |
+| `bat` | 电量 % |
+| `df` / `total_df` | 剩余 / 总存储空间（单位推测为 MB） |
+| `bt` | 蓝牙名（`0x86`） |
+| `btaddr` | 蓝牙地址，无分隔符 |
+| `wifiap` | 热点开关（`0x88`），0 关 / 1 开 |
+
+**`0x81` 开关状态**（来自固件 JSON 模板，未上真机）：`{"ms","led","motor","nc","wav","vad","gain","nn","autoff"}`。字段顺序与 `0x82`–`0x8F` 的设置命令一一对应，推测为 `ms`=USB 存储（`0x82`）、`led`（`0x83`）、`motor`（`0x84`）、`nc` 降噪开关（`0x85`）、`wav`（`0x8A`）、`vad`（`0x8B`）、`gain` 增益档位（`0x8C`）、`nn` 降噪档位（`0x8D`）、`autoff` 空闲关机秒数（`0x8F`）。
+
+**热点状态查询**（来自固件 JSON 模板，CMD 号未知，未上真机）：`{"on","ssid","connect","rssi","ip","mac"}`。快传目前不依赖它，用 `0x80` 的 `wifiap` 判断热点是否开启。
+
+来源：`docs/craft-anything-evaluation.md` §5.3。
 
 `0x88` 的官方用法（WiFi 快传，官方 JS `FastTransferWifi`）：每次快传生成 12 位随机密码，发 `{ap:1, ssid:"FastUpload", psk}` 开热点，结束时发 `{ap:0, ...}` 关闭；`0x80` 的 `wifiap` 字段反映热点开关。
 
