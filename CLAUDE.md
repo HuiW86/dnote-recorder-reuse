@@ -53,6 +53,6 @@ xcodebuild test -project DNoteProbe.xcodeproj -scheme DNoteProbe -destination 'p
 | 蓝牙协议、命令字、帧格式 | `docs/PROTOCOL.md` |
 | 官方 App 有哪些功能和接口 | `docs/official-app-analysis.md` |
 | 设备背景、逆向方法 | `docs/HANDOFF.md` |
-| 数据模型、接口契约、状态机 | `docs/prd.md`（#27，待写） |
+| 数据模型、接口契约、状态机 | `docs/prd.md` |
 | 测试策略 | `docs/test-spec.md`（#28，待写） |
 | 当前进度 | GitHub milestone 与 issue |
