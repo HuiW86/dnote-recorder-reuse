@@ -1,0 +1,10 @@
+{"t": 0.055, "kind": "write", "hex": "a070317b22636d64223a312c226e616d65223a2232303236313130363038303430372e6f707573222c226f6666736574223a307d"}
+{"t": 41.828, "kind": "full", "name": "20261106080407.opus", "len": 948060, "status": "eof", "sha256": "6806825ab1f6abd7", "first_offsets": [0, 200, 400], "chunks": 4741}
+{"t": 41.828, "kind": "write", "hex": "a070367b22636d64223a312c226e616d65223a2232303236313130363038303430372e6f707573222c226f6666736574223a3437343033307d"}
+{"t": 62.768, "kind": "same-connection", "offset": 474030, "len": 474030, "status": "eof", "first_offsets": [474030, 474230, 474430], "matches_tail": true, "matches_whole": false}
+{"t": 62.769, "kind": "write", "hex": "a070367b22636d64223a312c226e616d65223a2232303236313130363038303430372e6f707573222c226f6666736574223a3437343034337d"}
+{"t": 83.813, "kind": "same-connection", "offset": 474043, "len": 474017, "status": "eof", "first_offsets": [474043, 474243, 474443], "matches_tail": true, "matches_whole": false}
+{"t": 83.813, "kind": "write", "hex": "a070317b22636d64223a312c226e616d65223a2232303236313130363038303430372e6f707573222c226f6666736574223a307d"}
+{"t": 105.189, "kind": "interrupted", "got": 474200, "status": "stopped"}
+{"t": 0.057, "kind": "write", "hex": "a070367b22636d64223a312c226e616d65223a2232303236313130363038303430372e6f707573222c226f6666736574223a3437343230307d"}
+{"t": 21.809, "kind": "resumed", "offset": 474200, "len": 473860, "status": "eof", "first_offsets": [474200, 474400, 474600], "joined_len": 948060, "joined_sha256": "6806825ab1f6abd7", "equals_full": true}

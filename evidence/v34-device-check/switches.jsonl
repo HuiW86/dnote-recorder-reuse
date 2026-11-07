@@ -1,0 +1,67 @@
+{"t": 0.053, "kind": "write", "hex": "a08100"}
+{"t": 0.114, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 0.115, "kind": "baseline", "switches": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}}
+{"t": 0.115, "kind": "write", "hex": "a0830100"}
+{"t": 0.204, "kind": "notify", "cmd": "0x83", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0830101"}
+{"t": 0.705, "kind": "write", "hex": "a08100"}
+{"t": 0.744, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 0, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a302c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 0.744, "kind": "write", "hex": "a0830101"}
+{"t": 0.834, "kind": "notify", "cmd": "0x83", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0830101"}
+{"t": 1.335, "kind": "write", "hex": "a08100"}
+{"t": 1.374, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 1.374, "kind": "result", "cmd": "0x83", "field": "led", "orig": 1, "set": 0, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 0, "match": true, "changed_fields": {"led": [1, 0]}, "restored": true}
+{"t": 1.374, "kind": "write", "hex": "a0840100"}
+{"t": 1.465, "kind": "notify", "cmd": "0x84", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0840101"}
+{"t": 1.966, "kind": "write", "hex": "a08100"}
+{"t": 2.005, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 0, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a302c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 2.005, "kind": "write", "hex": "a0840101"}
+{"t": 2.094, "kind": "notify", "cmd": "0x84", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0840101"}
+{"t": 2.595, "kind": "write", "hex": "a08100"}
+{"t": 2.634, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 2.634, "kind": "result", "cmd": "0x84", "field": "motor", "orig": 1, "set": 0, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 0, "match": true, "changed_fields": {"motor": [1, 0]}, "restored": true}
+{"t": 2.635, "kind": "write", "hex": "a0850100"}
+{"t": 2.724, "kind": "notify", "cmd": "0x85", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0850101"}
+{"t": 3.226, "kind": "write", "hex": "a08100"}
+{"t": 3.264, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 0, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a302c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 3.264, "kind": "write", "hex": "a0850101"}
+{"t": 3.354, "kind": "notify", "cmd": "0x85", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0850101"}
+{"t": 3.855, "kind": "write", "hex": "a08100"}
+{"t": 3.895, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 3.895, "kind": "result", "cmd": "0x85", "field": "nc", "orig": 1, "set": 0, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 0, "match": true, "changed_fields": {"nc": [1, 0]}, "restored": true}
+{"t": 3.896, "kind": "write", "hex": "a08b0101"}
+{"t": 3.984, "kind": "notify", "cmd": "0x8b", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08b0101"}
+{"t": 4.485, "kind": "write", "hex": "a08100"}
+{"t": 4.525, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 1, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a312c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 4.525, "kind": "write", "hex": "a08b0100"}
+{"t": 4.614, "kind": "notify", "cmd": "0x8b", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08b0101"}
+{"t": 5.116, "kind": "write", "hex": "a08100"}
+{"t": 5.154, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 5.154, "kind": "result", "cmd": "0x8b", "field": "vad", "orig": 0, "set": 1, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 1, "match": true, "changed_fields": {"vad": [0, 1]}, "restored": true}
+{"t": 5.154, "kind": "write", "hex": "a08c0105"}
+{"t": 5.244, "kind": "notify", "cmd": "0x8c", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08c0101"}
+{"t": 5.746, "kind": "write", "hex": "a08100"}
+{"t": 5.784, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 5, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a352c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 5.785, "kind": "write", "hex": "a08c0104"}
+{"t": 5.874, "kind": "notify", "cmd": "0x8c", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08c0101"}
+{"t": 6.375, "kind": "write", "hex": "a08100"}
+{"t": 6.415, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 6.416, "kind": "result", "cmd": "0x8c", "field": "gain", "orig": 4, "set": 5, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 5, "match": true, "changed_fields": {"gain": [4, 5]}, "restored": true}
+{"t": 6.416, "kind": "write", "hex": "a08d0105"}
+{"t": 6.504, "kind": "notify", "cmd": "0x8d", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08d0101"}
+{"t": 7.006, "kind": "write", "hex": "a08100"}
+{"t": 7.044, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 5, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a352c226175746f6666223a3630307d"}
+{"t": 7.044, "kind": "write", "hex": "a08d0104"}
+{"t": 7.134, "kind": "notify", "cmd": "0x8d", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08d0101"}
+{"t": 7.636, "kind": "write", "hex": "a08100"}
+{"t": 7.674, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 7.674, "kind": "result", "cmd": "0x8d", "field": "nn", "orig": 4, "set": 5, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 5, "match": true, "changed_fields": {"nn": [4, 5]}, "restored": true}
+{"t": 7.674, "kind": "write", "hex": "a08f0400000294"}
+{"t": 7.734, "kind": "notify", "cmd": "0x8f", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08f0101"}
+{"t": 8.235, "kind": "write", "hex": "a08100"}
+{"t": 8.274, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 660}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3636307d"}
+{"t": 8.274, "kind": "write", "hex": "a08f0400000258"}
+{"t": 8.364, "kind": "notify", "cmd": "0x8f", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a08f0101"}
+{"t": 8.865, "kind": "write", "hex": "a08100"}
+{"t": 8.905, "kind": "notify", "cmd": "0x81", "payload": {"ms": 0, "led": 1, "motor": 1, "nc": 1, "wav": 0, "vad": 0, "gain": 4, "nn": 4, "autoff": 600}, "hex": "a0814e7b226d73223a302c226c6564223a312c226d6f746f72223a312c226e63223a312c22776176223a302c22766164223a302c226761696e223a342c226e6e223a342c226175746f6666223a3630307d"}
+{"t": 8.905, "kind": "result", "cmd": "0x8f", "field": "autoff", "orig": 600, "set": 660, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 660, "match": true, "changed_fields": {"autoff": [600, 660]}, "restored": true}
+{"t": 8.905, "kind": "summary", "results": [{"cmd": "0x83", "field": "led", "orig": 1, "set": 0, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 0, "match": true, "changed_fields": {"led": [1, 0]}, "restored": true}, {"cmd": "0x84", "field": "motor", "orig": 1, "set": 0, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 0, "match": true, "changed_fields": {"motor": [1, 0]}, "restored": true}, {"cmd": "0x85", "field": "nc", "orig": 1, "set": 0, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 0, "match": true, "changed_fields": {"nc": [1, 0]}, "restored": true}, {"cmd": "0x8b", "field": "vad", "orig": 0, "set": 1, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 1, "match": true, "changed_fields": {"vad": [0, 1]}, "restored": true}, {"cmd": "0x8c", "field": "gain", "orig": 4, "set": 5, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 5, "match": true, "changed_fields": {"gain": [4, 5]}, "restored": true}, {"cmd": "0x8d", "field": "nn", "orig": 4, "set": 5, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 5, "match": true, "changed_fields": {"nn": [4, 5]}, "restored": true}, {"cmd": "0x8f", "field": "autoff", "orig": 600, "set": 660, "ack": {"len": 1, "sha256": "4bf5122f344554c5"}, "readback": 660, "match": true, "changed_fields": {"autoff": [600, 660]}, "restored": true}]}
