@@ -1,0 +1,56 @@
+# XcodeGen spec. Generate the project with: xcodegen generate
+name: DNoteProbe
+options:
+  bundleIdPrefix: com.huiw86
+  deploymentTarget:
+    iOS: "17.0"
+settings:
+  base:
+    DEVELOPMENT_TEAM: NY89JGE95Q
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5.0"
+targets:
+  DNoteProbe:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: DNoteProbe
+        UILaunchScreen: {}
+        NSBluetoothAlwaysUsageDescription: 连接 D·NOTE 录音卡以读取录音
+        UIBackgroundModes: [bluetooth-central]
+        UIFileSharingEnabled: true
+        NSLocalNetworkUsageDescription: 连接录音卡的 FastUpload 热点进行快传
+        NSLocationWhenInUseUsageDescription: 读取当前 Wi-Fi 名称，确认是否已连上录音卡热点
+        LSSupportsOpeningDocumentsInPlace: true
+    entitlements:
+      path: Sources/DNoteProbe.entitlements
+      properties:
+        com.apple.developer.networking.HotspotConfiguration: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.huiw86.dnoteprobe
+        GENERATE_INFOPLIST_FILE: NO
+        # ChaCha20 over multi-MB files is too slow at -Onone.
+        SWIFT_OPTIMIZATION_LEVEL: -O
+  DNoteProbeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests/Unit
+      - path: Tests/Fixtures
+        buildPhase: resources
+    dependencies:
+      - target: DNoteProbe
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  DNoteProbe:
+    build:
+      targets:
+        DNoteProbe: all
+    test:
+      targets: [DNoteProbeTests]
