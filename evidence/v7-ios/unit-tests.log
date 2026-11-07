@@ -1,0 +1,7 @@
+Test Case '-[DNoteProbeTests.AudioCodecTests testAdvertisementParse]' passed (0.001 seconds).
+Test Case '-[DNoteProbeTests.AudioCodecTests testChaCha20RFC8439]' passed (0.001 seconds).
+Test Case '-[DNoteProbeTests.AudioCodecTests testDecryptMatchesPython]' passed (0.002 seconds).
+Test Case '-[DNoteProbeTests.AudioCodecTests testDecryptRejectsTamperedHeader]' passed (0.003 seconds).
+Test Case '-[DNoteProbeTests.AudioCodecTests testFrameCodec]' passed (0.001 seconds).
+Test Case '-[DNoteProbeTests.AudioCodecTests testOggMatchesPython]' passed (0.001 seconds).
+** TEST SUCCEEDED **

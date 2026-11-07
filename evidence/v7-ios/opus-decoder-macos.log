@@ -1,0 +1,3 @@
+packets 450 sizes [40]
+inRate 16000.0 decoded frames 143960 sec 8.9975 peak 0.6973572
+inRate 48000.0 decoded frames 143960 sec 8.9975 peak 0.69888383

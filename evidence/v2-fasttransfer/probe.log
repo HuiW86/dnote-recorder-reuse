@@ -1,0 +1,165 @@
+2026-11-07 09:56:36.899 [bg] app: foreground
+2026-11-07 09:56:37.066 [bg] central: poweredOn
+2026-11-07 09:56:37.485 [fg] scan: start filter=none
+2026-11-07 09:57:29.761 [fg] scan: found D·NOTE 1DCAAEA2 fw=v1.50 bat=9% rssi=-58 services=[] overflow=[] serviceData=[] localName=D·NOTE connectable=1 md=a32268680000013200010904962fdc
+2026-11-07 09:57:30.257 [fg] scan: stop
+2026-11-07 09:57:30.260 [fg] connect: 1DCAAEA2-2A11-F38D-04A9-2ADC4571EA21
+2026-11-07 09:57:31.008 [fg] central: connected 1DCAAEA2
+2026-11-07 09:57:31.273 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 09:57:31.399 [fg] info: {"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 17:57:34","rec":0,"recmode":0,"usb":0,"bat":9,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 09:57:31.610 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 17:57:34","rec":0,"recmode":0,"usb":0,"bat":9,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 09:57:31.759 [fg] list: 22 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060) 20261106083215.opus(24060) 20261106083242.opus(28060) 20261106083311.opus(22060) 20261106083736.opus(24060)
+2026-11-07 09:57:31.761 [fg] ft-probe: BLE list 22 files; pull sample=20261106035009.opus(8060)
+2026-11-07 09:57:31.802 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 09:57:33.790 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=4zzK7Qu0aQhJ fixed=false joinOnce=false
+2026-11-07 09:57:33.816 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 09:57:34.701 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 17:57:37","rec":0,"recmode":0,"usb":1,"bat":9,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 09:58:58.822 [fg] hotspot: join 1 OK after 78.7s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 09:58:58.852 [fg] hotspot: TCP attempt 1 failed after 0.0s: POSIXErrorCode(rawValue: 50): Network is down | en0=["192.168.88.2"]
+2026-11-07 09:59:00.893 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 2 [PASS]
+2026-11-07 09:59:03.933 [fg] ft-probe: banner 0B 
+2026-11-07 09:59:05.256 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 17:59:08","rec":0,"recmode":0,"usb":1,"bat":10,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 09:59:05.512 [fg] ft-probe: [unknown] sent hello -> 5B in 1.57s closed=false
+2026-11-07 09:59:05.513 [fg] ft-probe: [unknown] head aa05010000
+2026-11-07 09:59:05.514 [fg] ft-probe: [unknown] text \xaa\x05\x01\x00\x00
+2026-11-07 09:59:07.195 [fg] ft-probe: [list] sent list_files -> 833B in 1.68s closed=false
+2026-11-07 09:59:07.196 [fg] ft-probe: [list] head aa0000002001000000160000002c56000032303236313130353230333834342e6f70757300aa00000020020000001600
+2026-11-07 09:59:07.199 [fg] ft-probe: [list] text \xaa\x00\x00\x00 \x01\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261105203844.opus\x00\xaa\x00\x00\x00 \x02\x00\x00\x00\x16\x00\x00\x00L\x15\x03\x0020261106034311.opus\x00\xaa\x00\x00\x00 \x03\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034454.opus\x00\xaa\x00\x00\x00 \x04\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034556.opus\x00\xaa\x00\x00\x00 \x05\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034631.opus\x00\xaa\x00\x00\x00 \x06\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034742.opus\x00\xaa\x00\x00\x00 \x07\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034852.opus\x00\xaa\x00\x00\x00 \x08\x00\x00\x00\x16\x00\x00\x00|\x1f\x00\x0020261106035009.opus\x00\xaa\x00\x00\x00…(+533B)
+2026-11-07 09:59:07.200 [fg] ft-probe: [list] tail  \x12\x00\x00\x00\x16\x00\x00\x00\xbc>\x00\x0020261106083150.opus\x00\xaa\x00\x00\x00 \x13\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083215.opus\x00\xaa\x00\x00\x00 \x14\x00\x00\x00\x16\x00\x00\x00\x9cm\x00\x0020261106083242.opus\x00\xaa\x00\x00\x00 \x15\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261106083311.opus\x00\xaa\x00\x00\x00 \x16\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083736.opus\x00\xaa\x00\x00\x00\x0e\x16\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x000\x00
+2026-11-07 09:59:08.832 [fg] ft-probe: [list-lf] sent list_files\n -> 833B in 1.63s closed=false
+2026-11-07 09:59:08.834 [fg] ft-probe: [list-lf] head aa0000002001000000160000002c56000032303236313130353230333834342e6f70757300aa00000020020000001600
+2026-11-07 09:59:08.836 [fg] ft-probe: [list-lf] text \xaa\x00\x00\x00 \x01\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261105203844.opus\x00\xaa\x00\x00\x00 \x02\x00\x00\x00\x16\x00\x00\x00L\x15\x03\x0020261106034311.opus\x00\xaa\x00\x00\x00 \x03\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034454.opus\x00\xaa\x00\x00\x00 \x04\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034556.opus\x00\xaa\x00\x00\x00 \x05\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034631.opus\x00\xaa\x00\x00\x00 \x06\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034742.opus\x00\xaa\x00\x00\x00 \x07\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034852.opus\x00\xaa\x00\x00\x00 \x08\x00\x00\x00\x16\x00\x00\x00|\x1f\x00\x0020261106035009.opus\x00\xaa\x00\x00\x00…(+533B)
+2026-11-07 09:59:08.838 [fg] ft-probe: [list-lf] tail  \x12\x00\x00\x00\x16\x00\x00\x00\xbc>\x00\x0020261106083150.opus\x00\xaa\x00\x00\x00 \x13\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083215.opus\x00\xaa\x00\x00\x00 \x14\x00\x00\x00\x16\x00\x00\x00\x9cm\x00\x0020261106083242.opus\x00\xaa\x00\x00\x00 \x15\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261106083311.opus\x00\xaa\x00\x00\x00 \x16\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083736.opus\x00\xaa\x00\x00\x00\x0e\x16\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x000\x00
+2026-11-07 09:59:10.520 [fg] ft-probe: [list-crlf] sent list_files\r\n -> 833B in 1.68s closed=false
+2026-11-07 09:59:10.522 [fg] ft-probe: [list-crlf] head aa0000002001000000160000002c56000032303236313130353230333834342e6f70757300aa00000020020000001600
+2026-11-07 09:59:10.524 [fg] ft-probe: [list-crlf] text \xaa\x00\x00\x00 \x01\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261105203844.opus\x00\xaa\x00\x00\x00 \x02\x00\x00\x00\x16\x00\x00\x00L\x15\x03\x0020261106034311.opus\x00\xaa\x00\x00\x00 \x03\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034454.opus\x00\xaa\x00\x00\x00 \x04\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034556.opus\x00\xaa\x00\x00\x00 \x05\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034631.opus\x00\xaa\x00\x00\x00 \x06\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034742.opus\x00\xaa\x00\x00\x00 \x07\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034852.opus\x00\xaa\x00\x00\x00 \x08\x00\x00\x00\x16\x00\x00\x00|\x1f\x00\x0020261106035009.opus\x00\xaa\x00\x00\x00…(+533B)
+2026-11-07 09:59:10.525 [fg] ft-probe: [list-crlf] tail  \x12\x00\x00\x00\x16\x00\x00\x00\xbc>\x00\x0020261106083150.opus\x00\xaa\x00\x00\x00 \x13\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083215.opus\x00\xaa\x00\x00\x00 \x14\x00\x00\x00\x16\x00\x00\x00\x9cm\x00\x0020261106083242.opus\x00\xaa\x00\x00\x00 \x15\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261106083311.opus\x00\xaa\x00\x00\x00 \x16\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083736.opus\x00\xaa\x00\x00\x00\x0e\x16\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x000\x00
+2026-11-07 09:59:13.594 [fg] ft-probe: [pull-space] sent pull 20261106035009.opus -> 5B in 3.07s closed=false
+2026-11-07 09:59:13.596 [fg] ft-probe: [pull-space] head aa04010000
+2026-11-07 09:59:13.597 [fg] ft-probe: [pull-space] text \xaa\x04\x01\x00\x00
+2026-11-07 09:59:16.663 [fg] ft-probe: [pull-space-lf] sent pull 20261106035009.opus\n -> 5B in 3.06s closed=false
+2026-11-07 09:59:16.664 [fg] ft-probe: [pull-space-lf] head aa04010000
+2026-11-07 09:59:16.665 [fg] ft-probe: [pull-space-lf] text \xaa\x04\x01\x00\x00
+2026-11-07 09:59:16.667 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 09:59:16.668 [fg] ft-probe: done, hotspot outcome PASS
+2026-11-07 09:59:20.766 [fg] central: disconnected The connection has timed out unexpectedly.
+2026-11-07 09:59:20.768 [fg] reconnect: pending connect to 1DCAAEA2-2A11-F38D-04A9-2ADC4571EA21
+2026-11-07 09:59:21.438 [fg] central: connected 1DCAAEA2
+2026-11-07 09:59:21.674 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 10:00:29.917 [bg] app: foreground
+2026-11-07 10:00:30.003 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 10:00:30.018 [bg] central: poweredOn
+2026-11-07 10:00:30.019 [bg] central: adopting existing connection 1DCAAEA2
+2026-11-07 10:00:30.054 [bg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 10:00:30.464 [fg] autorun: reusing existing connection
+2026-11-07 10:00:30.852 [fg] list: 22 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060) 20261106083215.opus(24060) 20261106083242.opus(28060) 20261106083311.opus(22060) 20261106083736.opus(24060)
+2026-11-07 10:00:30.854 [fg] ft-probe: BLE list 22 files; pull sample=20261106035009.opus(8060)
+2026-11-07 10:00:30.900 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 10:00:32.904 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=g6ePr1Fu68tv fixed=false joinOnce=false
+2026-11-07 10:00:32.936 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 10:00:35.308 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 18:00:38","rec":0,"recmode":0,"usb":1,"bat":11,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 10:01:32.033 [fg] hotspot: join 1 OK after 53.0s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 10:01:32.088 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 [PASS]
+2026-11-07 10:01:35.118 [fg] ft-probe: banner 0B 
+2026-11-07 10:01:36.698 [fg] ft-probe: [unknown] sent hello -> 5B in 1.58s closed=false
+2026-11-07 10:01:36.699 [fg] ft-probe: [unknown] head aa05010000
+2026-11-07 10:01:36.700 [fg] ft-probe: [unknown] text \xaa\x05\x01\x00\x00
+2026-11-07 10:01:38.386 [fg] ft-probe: [list] sent list_files -> 833B in 1.68s closed=false
+2026-11-07 10:01:38.388 [fg] ft-probe: [list] head aa0000002001000000160000002c56000032303236313130353230333834342e6f70757300aa00000020020000001600
+2026-11-07 10:01:38.390 [fg] ft-probe: [list] text \xaa\x00\x00\x00 \x01\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261105203844.opus\x00\xaa\x00\x00\x00 \x02\x00\x00\x00\x16\x00\x00\x00L\x15\x03\x0020261106034311.opus\x00\xaa\x00\x00\x00 \x03\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034454.opus\x00\xaa\x00\x00\x00 \x04\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034556.opus\x00\xaa\x00\x00\x00 \x05\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034631.opus\x00\xaa\x00\x00\x00 \x06\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034742.opus\x00\xaa\x00\x00\x00 \x07\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034852.opus\x00\xaa\x00\x00\x00 \x08\x00\x00\x00\x16\x00\x00\x00|\x1f\x00\x0020261106035009.opus\x00\xaa\x00\x00\x00…(+533B)
+2026-11-07 10:01:38.392 [fg] ft-probe: [list] tail  \x12\x00\x00\x00\x16\x00\x00\x00\xbc>\x00\x0020261106083150.opus\x00\xaa\x00\x00\x00 \x13\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083215.opus\x00\xaa\x00\x00\x00 \x14\x00\x00\x00\x16\x00\x00\x00\x9cm\x00\x0020261106083242.opus\x00\xaa\x00\x00\x00 \x15\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261106083311.opus\x00\xaa\x00\x00\x00 \x16\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083736.opus\x00\xaa\x00\x00\x00\x0e\x16\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x000\x00
+2026-11-07 10:01:40.073 [fg] ft-probe: [list-lf] sent list_files\n -> 833B in 1.68s closed=false
+2026-11-07 10:01:40.074 [fg] ft-probe: [list-lf] head aa0000002001000000160000002c56000032303236313130353230333834342e6f70757300aa00000020020000001600
+2026-11-07 10:01:40.077 [fg] ft-probe: [list-lf] text \xaa\x00\x00\x00 \x01\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261105203844.opus\x00\xaa\x00\x00\x00 \x02\x00\x00\x00\x16\x00\x00\x00L\x15\x03\x0020261106034311.opus\x00\xaa\x00\x00\x00 \x03\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034454.opus\x00\xaa\x00\x00\x00 \x04\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034556.opus\x00\xaa\x00\x00\x00 \x05\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034631.opus\x00\xaa\x00\x00\x00 \x06\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034742.opus\x00\xaa\x00\x00\x00 \x07\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034852.opus\x00\xaa\x00\x00\x00 \x08\x00\x00\x00\x16\x00\x00\x00|\x1f\x00\x0020261106035009.opus\x00\xaa\x00\x00\x00…(+533B)
+2026-11-07 10:01:40.078 [fg] ft-probe: [list-lf] tail  \x12\x00\x00\x00\x16\x00\x00\x00\xbc>\x00\x0020261106083150.opus\x00\xaa\x00\x00\x00 \x13\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083215.opus\x00\xaa\x00\x00\x00 \x14\x00\x00\x00\x16\x00\x00\x00\x9cm\x00\x0020261106083242.opus\x00\xaa\x00\x00\x00 \x15\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261106083311.opus\x00\xaa\x00\x00\x00 \x16\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083736.opus\x00\xaa\x00\x00\x00\x0e\x16\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x000\x00
+2026-11-07 10:01:41.749 [fg] ft-probe: [list-crlf] sent list_files\r\n -> 833B in 1.67s closed=false
+2026-11-07 10:01:41.750 [fg] ft-probe: [list-crlf] head aa0000002001000000160000002c56000032303236313130353230333834342e6f70757300aa00000020020000001600
+2026-11-07 10:01:41.752 [fg] ft-probe: [list-crlf] text \xaa\x00\x00\x00 \x01\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261105203844.opus\x00\xaa\x00\x00\x00 \x02\x00\x00\x00\x16\x00\x00\x00L\x15\x03\x0020261106034311.opus\x00\xaa\x00\x00\x00 \x03\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034454.opus\x00\xaa\x00\x00\x00 \x04\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034556.opus\x00\xaa\x00\x00\x00 \x05\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034631.opus\x00\xaa\x00\x00\x00 \x06\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034742.opus\x00\xaa\x00\x00\x00 \x07\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034852.opus\x00\xaa\x00\x00\x00 \x08\x00\x00\x00\x16\x00\x00\x00|\x1f\x00\x0020261106035009.opus\x00\xaa\x00\x00\x00…(+533B)
+2026-11-07 10:01:41.754 [fg] ft-probe: [list-crlf] tail  \x12\x00\x00\x00\x16\x00\x00\x00\xbc>\x00\x0020261106083150.opus\x00\xaa\x00\x00\x00 \x13\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083215.opus\x00\xaa\x00\x00\x00 \x14\x00\x00\x00\x16\x00\x00\x00\x9cm\x00\x0020261106083242.opus\x00\xaa\x00\x00\x00 \x15\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261106083311.opus\x00\xaa\x00\x00\x00 \x16\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083736.opus\x00\xaa\x00\x00\x00\x0e\x16\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x000\x00
+2026-11-07 10:01:44.861 [fg] ft-probe: [get-space] sent get 20261106035009.opus -> 8079B in 3.10s closed=false
+2026-11-07 10:01:44.862 [fg] ft-probe: [get-space] head aa01001f8a7c1f0000000000007c1f00005342656e63727974683773706162396d316e6f766e7a3034313574159376e2
+2026-11-07 10:01:44.864 [fg] ft-probe: [get-space] text \xaa\x01\x00\x1f\x8a|\x1f\x00\x00\x00\x00\x00\x00|\x1f\x00\x00SBencryth7spab9m1novnz0415t\x15\x93v\xe2\xd6\xaa\x13/<\xe2\xe6\x97A\x98\xe8\xa7\xb6\x9d\x1c\x10\x08\x97\xfcT\xd9\x93\x02S\xfb\x05\x1d\\x0f\xa4\xde\x80\xa6\r\x12@\x09\xff\xbe\xa5\xd4\xaa\x9bbx\x82\x92s\xf5t&\x7f Ex\x10g\xde\xfc\xe0\xf6\xc3\xd7:\xff\x0e\xeb7\xa2\x12-3\xc4\xda\x87\xe9\x09`\xca\xd5\x98\xb1\xd2\xaf\xa3\xc2\xfaDv?4=v\x15\x18r\xa9\x9b\xbb\xcf\x1d\xednacE4p Nn\xa6#n\xb7%X\x99"#\xddm>\x95\x8c\xf1\xf0,\xe9iM\x1d\xae\x80\x95\x8b\xe7\x95\xb6\xba{\x0e\x97\x0f\xd7a\xb0\\x8e^TA6\x0f\x04\xb1dLA\xbd\x84D3FxD\xf4\xaf\xfa>\x07l9\xdc\x17\xcbF\xf9\xe78%[\x8d\x00k{n\x82xU\x9d\x9f\x97\xf8i\xe5_\xc5\xde\xf3\xc1\xec\xb1@"\xeaNuG\x01\xebB\x0f\xd1\x09As\xe3\x8c\x13\x89\xe6\x8b\xec\xe5\xf1v\x9d\xe2\xba\x86o\xb0i\xf7\xb76\x87\x99\xab|\xcf\x99o\x96;2\xe7o\xf7f\xf6…(+7779B)
+2026-11-07 10:01:44.865 [fg] ft-probe: [get-space] tail \x04LCwY\xaco\xa0\xb2\xc5\x81/@lo\x9eci\xb1^G\xd6\xb0\x88\xc9C`\xcb\xad+\xc93M\xe6\xefm\x8e\xc0\x1dE\x97Iz\xcf0>\r6x\xa6\x03f\xf0\x8f\xe7\x93\x99:\xf5|\xeeT\xc0D\xa0B\i\x1b&L\x81d\xba\xabC\xb9 \xae\xed\xb1\xe7\xc9\xfcH\x93\xf3\x1f\x1c\x81a\x93\x16\x14\xd6v~\x12\x01\xe4\xbe\\xe5\xf5\xa7\xf3\xe2|#\x92\xca\x84\xa6i\n\xa5\xd4\xd7\x8d\x91G\xb0\x08\xd1n\x8em\xc4$\x1e\x1ec\xf1#\xeem\xd5\n\x1fLP\xf1I\x97z]\x1b\xc9A|q\xc7\xaf\xb0\x86L\xa5\xbc9\xf1\xae=\xba{\x85\x85\xa6\xc2\xbbA_\x84S~\\xf6\x91\xd1C\xb8\x86\x04\xae\xf2o\x1f-\xf8\\xa7\xc3\xe4\xe0\x1f\xe6w\x98\x10PB
+2026-11-07 10:01:46.549 [fg] ft-probe: [list-after] sent list_files -> 833B in 1.68s closed=false
+2026-11-07 10:01:46.551 [fg] ft-probe: [list-after] head aa0000002001000000160000002c56000032303236313130353230333834342e6f70757300aa00000020020000001600
+2026-11-07 10:01:46.553 [fg] ft-probe: [list-after] text \xaa\x00\x00\x00 \x01\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261105203844.opus\x00\xaa\x00\x00\x00 \x02\x00\x00\x00\x16\x00\x00\x00L\x15\x03\x0020261106034311.opus\x00\xaa\x00\x00\x00 \x03\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034454.opus\x00\xaa\x00\x00\x00 \x04\x00\x00\x00\x16\x00\x00\x00\x8cF\x00\x0020261106034556.opus\x00\xaa\x00\x00\x00 \x05\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034631.opus\x00\xaa\x00\x00\x00 \x06\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034742.opus\x00\xaa\x00\x00\x00 \x07\x00\x00\x00\x16\x00\x00\x00,\xcd\x01\x0020261106034852.opus\x00\xaa\x00\x00\x00 \x08\x00\x00\x00\x16\x00\x00\x00|\x1f\x00\x0020261106035009.opus\x00\xaa\x00\x00\x00…(+533B)
+2026-11-07 10:01:46.554 [fg] ft-probe: [list-after] tail  \x12\x00\x00\x00\x16\x00\x00\x00\xbc>\x00\x0020261106083150.opus\x00\xaa\x00\x00\x00 \x13\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083215.opus\x00\xaa\x00\x00\x00 \x14\x00\x00\x00\x16\x00\x00\x00\x9cm\x00\x0020261106083242.opus\x00\xaa\x00\x00\x00 \x15\x00\x00\x00\x16\x00\x00\x00,V\x00\x0020261106083311.opus\x00\xaa\x00\x00\x00 \x16\x00\x00\x00\x16\x00\x00\x00\xfc]\x00\x0020261106083736.opus\x00\xaa\x00\x00\x00\x0e\x16\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x000\x00
+2026-11-07 10:01:46.555 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 10:01:46.556 [fg] ft-probe: done, hotspot outcome PASS
+2026-11-07 10:01:46.631 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 10:02:05.339 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 18:02:08","rec":0,"recmode":0,"usb":1,"bat":12,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 10:03:35.338 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 18:03:38","rec":0,"recmode":0,"usb":1,"bat":13,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 10:05:05.353 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 18:05:08","rec":0,"recmode":0,"usb":1,"bat":14,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 10:06:10.052 [bg] app: foreground
+2026-11-07 10:06:10.136 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 10:06:10.154 [bg] central: poweredOn
+2026-11-07 10:06:10.155 [bg] central: adopting existing connection 1DCAAEA2
+2026-11-07 10:06:10.195 [bg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 10:06:10.584 [fg] autorun: reusing existing connection
+2026-11-07 10:06:10.653 [fg] ft-runs: 20261106040350.opus x3; BLE copy sha256=ed0688d355877658f8daeae6c61b3ef4d429fc32d21342a6a5ee55f3ced9f6b5
+2026-11-07 10:06:10.677 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 10:06:12.701 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=WW4v3X1wnWPH fixed=false joinOnce=false
+2026-11-07 10:06:12.732 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 10:06:35.368 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 18:06:38","rec":0,"recmode":0,"usb":1,"bat":15,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 10:07:03.673 [fg] hotspot: join 1 OK after 44.8s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 10:07:03.873 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 [PASS]
+2026-11-07 10:07:03.966 [fg] ft-list: 22 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060) 20261106083215.opus(24060) 20261106083242.opus(28060) 20261106083311.opus(22060) 20261106083736.opus(24060)
+2026-11-07 10:07:03.968 [fg] === ft run 1/3 ===
+2026-11-07 10:07:05.243 [fg] ft-get: 20261106040350.opus 1048576/15180060 B 1.3s
+2026-11-07 10:07:06.596 [fg] ft-get: 20261106040350.opus 2097152/15180060 B 2.6s
+2026-11-07 10:07:07.933 [fg] ft-get: 20261106040350.opus 3145728/15180060 B 4.0s
+2026-11-07 10:07:09.202 [fg] ft-get: 20261106040350.opus 4194304/15180060 B 5.2s
+2026-11-07 10:07:10.445 [fg] ft-get: 20261106040350.opus 5242880/15180060 B 6.5s
+2026-11-07 10:07:11.749 [fg] ft-get: 20261106040350.opus 6291456/15180060 B 7.8s
+2026-11-07 10:07:13.131 [fg] ft-get: 20261106040350.opus 7340032/15180060 B 9.2s
+2026-11-07 10:07:14.420 [fg] ft-get: 20261106040350.opus 8388608/15180060 B 10.5s
+2026-11-07 10:07:15.689 [fg] ft-get: 20261106040350.opus 9437184/15180060 B 11.7s
+2026-11-07 10:07:16.972 [fg] ft-get: 20261106040350.opus 10485760/15180060 B 13.0s
+2026-11-07 10:07:18.220 [fg] ft-get: 20261106040350.opus 11534336/15180060 B 14.3s
+2026-11-07 10:07:19.521 [fg] ft-get: 20261106040350.opus 12582912/15180060 B 15.6s
+2026-11-07 10:07:20.780 [fg] ft-get: 20261106040350.opus 13631488/15180060 B 16.8s
+2026-11-07 10:07:22.077 [fg] ft-get: 20261106040350.opus 14680064/15180060 B 18.1s
+2026-11-07 10:07:22.698 [fg] ft-get: done 20261106040350.opus 15180060B in 18.71s = 792.34 KB/s, 1854 chunks [8192B×1853 284B×1], tags [868c×2 80b1×2 5364×2] (1833 distinct)
+2026-11-07 10:07:22.717 [fg] ft-get: sha256 raw=ed0688d355877658f8daeae6c61b3ef4d429fc32d21342a6a5ee55f3ced9f6b5
+2026-11-07 10:07:22.732 [fg] ft-runs: run 1 size OK sha matches BLE [PASS]
+2026-11-07 10:07:22.733 [fg] === ft run 2/3 ===
+2026-11-07 10:07:24.023 [fg] ft-get: 20261106040350.opus 1048576/15180060 B 1.3s
+2026-11-07 10:07:25.275 [fg] ft-get: 20261106040350.opus 2097152/15180060 B 2.5s
+2026-11-07 10:07:26.511 [fg] ft-get: 20261106040350.opus 3145728/15180060 B 3.8s
+2026-11-07 10:07:27.756 [fg] ft-get: 20261106040350.opus 4194304/15180060 B 5.0s
+2026-11-07 10:07:28.986 [fg] ft-get: 20261106040350.opus 5242880/15180060 B 6.3s
+2026-11-07 10:07:30.280 [fg] ft-get: 20261106040350.opus 6291456/15180060 B 7.5s
+2026-11-07 10:07:31.621 [fg] ft-get: 20261106040350.opus 7340032/15180060 B 8.9s
+2026-11-07 10:07:32.917 [fg] ft-get: 20261106040350.opus 8388608/15180060 B 10.2s
+2026-11-07 10:07:34.205 [fg] ft-get: 20261106040350.opus 9437184/15180060 B 11.5s
+2026-11-07 10:07:35.472 [fg] ft-get: 20261106040350.opus 10485760/15180060 B 12.7s
+2026-11-07 10:07:36.746 [fg] ft-get: 20261106040350.opus 11534336/15180060 B 14.0s
+2026-11-07 10:07:38.021 [fg] ft-get: 20261106040350.opus 12582912/15180060 B 15.3s
+2026-11-07 10:07:39.285 [fg] ft-get: 20261106040350.opus 13631488/15180060 B 16.6s
+2026-11-07 10:07:40.557 [fg] ft-get: 20261106040350.opus 14680064/15180060 B 17.8s
+2026-11-07 10:07:41.305 [fg] ft-get: done 20261106040350.opus 15180060B in 18.55s = 799.21 KB/s, 1854 chunks [8192B×1853 284B×1], tags [868c×2 80b1×2 5364×2] (1833 distinct)
+2026-11-07 10:07:41.324 [fg] ft-get: sha256 raw=ed0688d355877658f8daeae6c61b3ef4d429fc32d21342a6a5ee55f3ced9f6b5
+2026-11-07 10:07:41.338 [fg] ft-runs: run 2 size OK sha matches BLE [PASS]
+2026-11-07 10:07:41.339 [fg] === ft run 3/3 ===
+2026-11-07 10:07:42.602 [fg] ft-get: 20261106040350.opus 1048576/15180060 B 1.3s
+2026-11-07 10:07:43.836 [fg] ft-get: 20261106040350.opus 2097152/15180060 B 2.5s
+2026-11-07 10:07:45.071 [fg] ft-get: 20261106040350.opus 3145728/15180060 B 3.7s
+2026-11-07 10:07:46.300 [fg] ft-get: 20261106040350.opus 4194304/15180060 B 5.0s
+2026-11-07 10:07:47.550 [fg] ft-get: 20261106040350.opus 5242880/15180060 B 6.2s
+2026-11-07 10:07:48.841 [fg] ft-get: 20261106040350.opus 6291456/15180060 B 7.5s
+2026-11-07 10:07:50.170 [fg] ft-get: 20261106040350.opus 7340032/15180060 B 8.8s
+2026-11-07 10:07:50.731 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 18:07:53","rec":0,"recmode":0,"usb":1,"bat":16,"df":7653,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 10:07:51.477 [fg] ft-get: 20261106040350.opus 8388608/15180060 B 10.1s
+2026-11-07 10:07:52.744 [fg] ft-get: 20261106040350.opus 9437184/15180060 B 11.4s
+2026-11-07 10:07:55.608 [fg] ft-get: 20261106040350.opus 10485760/15180060 B 14.3s
+2026-11-07 10:07:56.892 [fg] ft-get: 20261106040350.opus 11534336/15180060 B 15.6s
+2026-11-07 10:07:58.184 [fg] ft-get: 20261106040350.opus 12582912/15180060 B 16.8s
+2026-11-07 10:07:59.442 [fg] ft-get: 20261106040350.opus 13631488/15180060 B 18.1s
+2026-11-07 10:08:00.710 [fg] ft-get: 20261106040350.opus 14680064/15180060 B 19.4s
+2026-11-07 10:08:01.348 [fg] ft-get: done 20261106040350.opus 15180060B in 19.99s = 741.71 KB/s, 1854 chunks [8192B×1853 284B×1], tags [868c×2 80b1×2 5364×2] (1833 distinct)
+2026-11-07 10:08:01.366 [fg] ft-get: sha256 raw=ed0688d355877658f8daeae6c61b3ef4d429fc32d21342a6a5ee55f3ced9f6b5
+2026-11-07 10:08:01.381 [fg] ft-runs: run 3 size OK sha matches BLE [PASS]
+2026-11-07 10:08:01.382 [fg] ft-runs: [SUMMARY] 3 runs, KB/s 792.34 / 799.21 / 741.71, mean 777.75, min 741.71, max 799.21
+2026-11-07 10:08:01.382 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 10:08:01.383 [fg] ft-runs: hotspot outcome PASS
+2026-11-07 10:08:01.439 [fg] notify: unsolicited cmd=0x88 body=

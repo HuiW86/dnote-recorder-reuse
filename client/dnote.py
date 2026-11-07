@@ -8,6 +8,7 @@ dnote.py — 追觅 D·NOTE (DNOTE001B) 录音卡 离线客户端 (命令行)
   status    查询录音状态 / 绑定状态 / 加密状态
   record    让设备开始录音 (可选时长后自动停止)
   stop      停止录音
+  live      实时录音: 边录边经 0x68 收音频, 保存为 .ogg (卡上同时留存录音文件)
   list      列出设备上的录音文件
   pull      下载全部(或指定)录音到本地, 自动解密并封装为 .ogg
   usb       开/关 USB 存储模式
@@ -21,6 +22,7 @@ dnote.py — 追觅 D·NOTE (DNOTE001B) 录音卡 离线客户端 (命令行)
   python dnote.py scan
   python dnote.py info
   python dnote.py record --seconds 20
+  python dnote.py live --seconds 30 --out live.ogg
   python dnote.py list
   python dnote.py pull --out ./recordings
   python dnote.py pull --keep          # 下载后不删除设备上的文件(默认就是不删)
@@ -105,6 +107,7 @@ class Session:
         self.client = client
         self._waiters: dict[int, asyncio.Future] = {}
         self._file_cb = None          # 下载时的分片回调
+        self._live_cb = None          # 实时录音 0x68 回调
         self._list_items = []         # 文件列表累积
         self._list_done = None        # asyncio.Event
 
@@ -126,6 +129,11 @@ class Session:
         # 文件数据 0x70
         if fr.cmd == P.Cmd.REQUEST_FILE_DATA and self._file_cb:
             self._file_cb(fr.payload)
+            return
+        # 实时音频 0x68
+        if fr.cmd == P.Cmd.REALTIME_AUDIO:
+            if self._live_cb and isinstance(fr.payload, dict):
+                self._live_cb(fr.payload)
             return
         # 其它: 唤醒等待该命令字的 future
         w = self._waiters.pop(fr.cmd, None)
@@ -249,6 +257,46 @@ async def cmd_record(args):
             await s.write(P.frame_stop_recording())
             print("已停止。等待设备写盘...")
             await asyncio.sleep(2.0)
+
+
+async def cmd_live(args):
+    addr = await _pick_device(args.address)
+    audio = bytearray()
+    stats = {"packets": 0, "gaps": 0, "lost_bytes": 0}
+    def cb(pl):
+        # offset counts audio bytes; a jump means dropped notifications
+        if pl["offset"] != len(audio) + stats["lost_bytes"]:
+            stats["gaps"] += 1
+            stats["lost_bytes"] = pl["offset"] - len(audio)
+        audio.extend(pl["data"])
+        stats["packets"] += 1
+    saved = False
+    try:
+        async with BleakClient(addr) as client:
+            s = Session(client); await s.start()
+            s._live_cb = cb
+            try:
+                # 0x51 inside try: if its reply is lost the card may still be recording, so 0x50 must go out
+                name = await s.request(P.frame_start_recording(True), P.Cmd.START_RECORDING)
+                print(f"实时录音开始, 卡上文件: {name.get('name') if isinstance(name, dict) else name}")
+                await asyncio.sleep(args.seconds)
+            finally:
+                if client.is_connected:
+                    await s.write(P.frame_stop_recording())
+                    await asyncio.sleep(1.0)
+                s._live_cb = None
+    finally:
+        # keep whatever arrived, also on timeout / disconnect / Ctrl+C
+        frames, remainder = P.split_opus_frames(bytes(audio), 40)
+        if frames:
+            with open(args.out, "wb") as f:
+                f.write(wrap_opus_frames_as_ogg(frames))
+            saved = True
+            print(f"已保存 {args.out}: {stats['packets']} 包, {len(frames)} 帧 ≈ {len(frames) * 0.02:.1f}s"
+                  + (f", 丢包 {stats['gaps']} 处/{stats['lost_bytes']}B" if stats["gaps"] else "")
+                  + (f", 余{len(remainder)}B" if remainder else ""))
+    if not saved:
+        raise SystemExit("未收到实时音频 (0x68)。")
 
 
 async def cmd_stop(args):
@@ -432,6 +480,9 @@ def main():
     sub.add_parser("status")
     sp = sub.add_parser("record"); sp.add_argument("--seconds", type=float, default=0)
     sub.add_parser("stop")
+    sp = sub.add_parser("live")
+    sp.add_argument("--seconds", type=float, required=True)
+    sp.add_argument("--out", default="live.ogg")
     sub.add_parser("list")
     sp = sub.add_parser("pull")
     sp.add_argument("--out", default="./recordings")
@@ -446,7 +497,7 @@ def main():
     args = ap.parse_args()
     fn = {
         "scan": cmd_scan, "info": cmd_info, "status": cmd_status,
-        "record": cmd_record, "stop": cmd_stop, "list": cmd_list,
+        "record": cmd_record, "stop": cmd_stop, "live": cmd_live, "list": cmd_list,
         "pull": cmd_pull, "usb": cmd_usb, "synctime": cmd_synctime,
         "pair": cmd_pair, "unpair": cmd_unpair,
     }[args.cmd]

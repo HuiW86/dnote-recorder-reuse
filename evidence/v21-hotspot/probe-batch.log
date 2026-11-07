@@ -1,0 +1,146 @@
+2026-11-07 02:06:24.943 [bg] autorun: requested rounds=14
+2026-11-07 02:06:25.045 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 02:06:25.065 [bg] central: poweredOn
+2026-11-07 02:06:25.066 [bg] central: adopting existing connection 1DCAAEA2
+2026-11-07 02:06:25.114 [bg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 02:06:25.452 [fg] autorun: reusing existing connection
+2026-11-07 02:06:25.543 [fg] hotspot batch: location authorization=2 (2/3/4 = usable for fetchCurrent)
+2026-11-07 02:06:25.547 [fg] === hotspot round 1/14 ===
+2026-11-07 02:06:25.580 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:06:27.571 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=J6KfnqVzNZuy fixed=false joinOnce=false
+2026-11-07 02:06:27.594 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:06:43.747 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 10:06:45","rec":1,"recmode":0,"usb":0,"bat":30,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 02:08:58.794 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 10:09:00","rec":1,"recmode":0,"usb":0,"bat":29,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 02:12:03.835 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 10:12:05","rec":1,"recmode":0,"usb":0,"bat":28,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 02:12:36.395 [fg] hotspot: join 1 OK after 362.6s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:12:39.561 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:12:39.563 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:12:39.564 [fg] === round 1/14 -> PASS | PASS=1 ===
+2026-11-07 02:12:39.638 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:12:50.129 [fg] === hotspot round 2/14 ===
+2026-11-07 02:12:50.170 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:12:52.265 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=bT8Yd6gfLHUA fixed=false joinOnce=false
+2026-11-07 02:12:52.299 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:13:19.559 [fg] hotspot: join 1 OK after 21.2s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:13:22.750 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:13:22.752 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:13:22.753 [fg] === round 2/14 -> PASS | PASS=2 ===
+2026-11-07 02:13:22.794 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:13:33.129 [fg] === hotspot round 3/14 ===
+2026-11-07 02:13:33.161 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:13:35.225 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=LvS9Q8npyreF fixed=false joinOnce=false
+2026-11-07 02:13:35.261 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:14:27.322 [fg] hotspot: join 1 OK after 45.7s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:14:30.572 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:14:30.575 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:14:30.576 [fg] === round 3/14 -> PASS | PASS=3 ===
+2026-11-07 02:14:30.655 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:14:41.225 [fg] === hotspot round 4/14 ===
+2026-11-07 02:14:41.260 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:14:43.268 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=9MZPdQha2MZ7 fixed=false joinOnce=false
+2026-11-07 02:14:43.299 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:15:14.029 [fg] hotspot: join 1 OK after 24.4s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:15:17.099 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:15:17.101 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:15:17.102 [fg] === round 4/14 -> PASS | PASS=4 ===
+2026-11-07 02:15:17.154 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:15:23.936 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 10:15:26","rec":1,"recmode":0,"usb":0,"bat":27,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 02:15:27.585 [fg] === hotspot round 5/14 ===
+2026-11-07 02:15:27.613 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:15:29.596 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=kr0UrJdNjFGt fixed=false joinOnce=false
+2026-11-07 02:15:29.621 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:15:48.303 [fg] hotspot: join 1 OK after 12.7s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:15:51.435 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:15:51.437 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:15:51.438 [fg] === round 5/14 -> PASS | PASS=5 ===
+2026-11-07 02:15:51.505 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:16:02.013 [fg] === hotspot round 6/14 ===
+2026-11-07 02:16:02.049 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:16:04.127 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=SfAQJxY4tnLM fixed=false joinOnce=false
+2026-11-07 02:16:04.152 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:16:22.702 [fg] hotspot: join 1 OK after 12.2s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:16:25.918 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:16:25.920 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:16:25.921 [fg] === round 6/14 -> PASS | PASS=6 ===
+2026-11-07 02:16:25.989 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:16:36.129 [fg] === hotspot round 7/14 ===
+2026-11-07 02:16:36.161 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:16:38.230 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=WehZk3d8iaMX fixed=false joinOnce=false
+2026-11-07 02:16:38.261 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:17:06.119 [fg] hotspot: join 1 NOT on card subnet after 21.5s ssid=unavailable en0=[]
+2026-11-07 02:17:20.742 [fg] hotspot: join 2 OK after 12.6s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:17:20.769 [fg] hotspot: TCP attempt 1 failed after 0.0s: POSIXErrorCode(rawValue: 50): Network is down | en0=["192.168.88.2"]
+2026-11-07 02:17:25.984 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 2 first bytes=(none in 3s) [PASS]
+2026-11-07 02:17:25.986 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:17:25.987 [fg] === round 7/14 -> PASS | PASS=7 ===
+2026-11-07 02:17:26.050 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:17:36.378 [fg] === hotspot round 8/14 ===
+2026-11-07 02:17:36.415 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:17:38.389 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=RcB5EC8SYCAz fixed=false joinOnce=false
+2026-11-07 02:17:38.425 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:17:57.830 [fg] hotspot: join 1 OK after 13.4s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:18:01.055 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:18:01.057 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:18:01.058 [fg] === round 8/14 -> PASS | PASS=8 ===
+2026-11-07 02:18:01.135 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:18:04.301 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 10:18:06","rec":1,"recmode":0,"usb":0,"bat":26,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 02:18:11.128 [fg] === hotspot round 9/14 ===
+2026-11-07 02:18:11.157 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:18:13.257 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=qTk5G5z1dK5z fixed=false joinOnce=false
+2026-11-07 02:18:13.286 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:18:32.869 [fg] hotspot: join 1 OK after 13.3s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:18:36.033 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:18:36.036 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:18:36.037 [fg] === round 9/14 -> PASS | PASS=9 ===
+2026-11-07 02:18:36.117 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:18:46.128 [fg] === hotspot round 10/14 ===
+2026-11-07 02:18:46.151 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:18:48.233 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=2W2BE28fc3mV fixed=false joinOnce=false
+2026-11-07 02:18:48.266 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:19:06.386 [fg] hotspot: join 1 OK after 12.1s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:19:09.560 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:19:09.562 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:19:09.563 [fg] === round 10/14 -> PASS | PASS=10 ===
+2026-11-07 02:19:09.627 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:19:20.154 [fg] === hotspot round 11/14 ===
+2026-11-07 02:19:20.186 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:19:22.292 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=GmhPRW1qD8Q9 fixed=false joinOnce=false
+2026-11-07 02:19:22.318 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:19:43.406 [fg] hotspot: join 1 OK after 14.7s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:19:46.779 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:19:46.781 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:19:46.782 [fg] === round 11/14 -> PASS | PASS=11 ===
+2026-11-07 02:19:46.846 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:19:57.133 [fg] === hotspot round 12/14 ===
+2026-11-07 02:19:57.167 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:19:59.139 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=qHSfDx2f7M06 fixed=false joinOnce=false
+2026-11-07 02:19:59.162 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:20:24.135 [fg] hotspot: join 1 NOT on card subnet after 18.6s ssid=unavailable en0=[]
+2026-11-07 02:20:44.793 [fg] hotspot: join 2 NOT on card subnet after 18.6s ssid=unavailable en0=[]
+2026-11-07 02:20:58.865 [fg] hotspot: join 3 OK after 12.1s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:21:02.071 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:21:02.073 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:21:02.074 [fg] === round 12/14 -> PASS | PASS=12 ===
+2026-11-07 02:21:02.147 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:21:12.670 [fg] === hotspot round 13/14 ===
+2026-11-07 02:21:12.707 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:21:14.804 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=b0i7gMJ5ZY6W fixed=false joinOnce=false
+2026-11-07 02:21:14.838 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:21:38.869 [fg] hotspot: join 1 NOT on card subnet after 17.7s ssid=unavailable en0=[]
+2026-11-07 02:21:39.363 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 10:21:41","rec":1,"recmode":0,"usb":0,"bat":25,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 02:21:59.500 [fg] hotspot: join 2 NOT on card subnet after 18.6s ssid=unavailable en0=["192.168.31.209"]
+2026-11-07 02:22:19.130 [fg] hotspot: join 3 NOT on card subnet after 17.5s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:22:21.133 [fg] hotspot: could not join FastUpload — inconclusive: SSID unreadable (entitlement or Location permission) [FAIL]
+2026-11-07 02:22:21.135 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:22:21.135 [fg] === round 13/14 -> inconclusive | PASS=12 inconclusive=1 ===
+2026-11-07 02:22:21.228 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:22:31.733 [fg] === hotspot round 14/14 ===
+2026-11-07 02:22:31.759 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:22:33.858 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=FdypMbiWsD74 fixed=false joinOnce=false
+2026-11-07 02:22:33.889 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 02:22:55.494 [fg] hotspot: join 1 OK after 15.3s ssid=unavailable en0=["192.168.88.2"]
+2026-11-07 02:22:59.876 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 1 first bytes=(none in 3s) [PASS]
+2026-11-07 02:22:59.878 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 02:22:59.879 [fg] === round 14/14 -> PASS | PASS=13 inconclusive=1 ===
+2026-11-07 02:22:59.880 [fg] === hotspot batch done (14 rounds): PASS=13 inconclusive=1 [SUMMARY] ===
+2026-11-07 02:22:59.974 [fg] notify: unsolicited cmd=0x88 body=

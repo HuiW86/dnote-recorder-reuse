@@ -1,0 +1,338 @@
+2026-11-07 00:02:25.938 app: foreground
+2026-11-07 00:02:37.622 central: poweredOn
+2026-11-07 00:02:53.038 scan: start filter=FE98
+2026-11-07 00:03:09.154 scan: start filter=FE98
+2026-11-07 00:03:37.365 scan: start filter=FE98
+2026-11-07 00:03:40.485 scan: start filter=FE98
+2026-11-07 00:03:45.310 scan: start filter=FE98
+2026-11-07 00:03:59.465 scan: start filter=FE98
+2026-11-07 00:04:07.571 scan: start filter=FE98
+2026-11-07 00:04:12.336 reconnect: no known peripheral
+2026-11-07 00:04:15.222 reconnect: no known peripheral
+2026-11-07 00:04:15.426 reconnect: no known peripheral
+2026-11-07 00:04:15.561 reconnect: no known peripheral
+2026-11-07 00:04:17.044 reconnect: no known peripheral
+2026-11-07 00:04:17.214 reconnect: no known peripheral
+2026-11-07 00:04:17.349 reconnect: no known peripheral
+2026-11-07 00:04:31.075 scan: start filter=FE98
+2026-11-07 00:05:30.999 app: foreground
+2026-11-07 00:05:31.162 central: restored state peripherals=[]
+2026-11-07 00:05:31.188 central: poweredOn
+2026-11-07 00:05:41.998 scan: start filter=none
+2026-11-07 00:05:45.387 scan: found D·NOTE 1DCAAEA2 fw=v1.50 bat=45% rssi=-71 services=[] overflow=[] serviceData=[] localName=D·NOTE connectable=1 md=a32268680000013200012d01962fdc
+2026-11-07 00:05:54.436 scan: stop
+2026-11-07 00:05:54.440 connect: 1DCAAEA2-2A11-F38D-04A9-2ADC4571EA21
+2026-11-07 00:05:55.744 central: connected 1DCAAEA2
+2026-11-07 00:05:56.110 scan: start filter=none
+2026-11-07 00:05:56.238 gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:05:56.312 info: {"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:05:58","rec":1,"recmode":0,"usb":0,"bat":45,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 00:06:23.982 scan: start filter=FE98
+2026-11-07 00:06:35.091 scan: start filter=FE98
+2026-11-07 00:06:39.098 rec status: {"name":"20261106080407.opus","size":304000,"recd":152000,"rec":1,"upload":0} hex=7b226e616d65223a2232303236313130363038303430372e6f707573222c2273697a65223a3330343030302c2272656364223a3135323030302c22726563223a312c2275706c6f6164223a307d
+2026-11-07 00:06:39.128 bond: isBonded=true bondId=411803f6de4241962769906f5f97c799
+2026-11-07 00:06:39.160 chacha20: hex=01
+2026-11-07 00:06:50.733 pair: write bondId=75744825969d11c917a64ee301037cfe -> 01
+2026-11-07 00:06:50.766 pair: verify isBonded=true match=true [PASS]
+2026-11-07 00:06:52.458 list: 0 files 
+2026-11-07 00:07:01.569 list: 0 files 
+2026-11-07 00:07:07.068 scan: start filter=FE98
+2026-11-07 00:07:09.680 scan: start filter=none
+2026-11-07 00:07:12.473 rec status: {"name":"20261106080407.opus","size":372000,"recd":186000,"rec":1,"upload":0} hex=7b226e616d65223a2232303236313130363038303430372e6f707573222c2273697a65223a3337323030302c2272656364223a3138363030302c22726563223a312c2275706c6f6164223a307d
+2026-11-07 00:07:12.503 bond: isBonded=true bondId=75744825969d11c917a64ee301037cfe
+2026-11-07 00:07:12.534 chacha20: hex=01
+2026-11-07 00:07:16.187 pair: write bondId=75744825969d11c917a64ee301037cfe -> 01
+2026-11-07 00:07:16.217 pair: verify isBonded=true match=true [PASS]
+2026-11-07 00:07:17.416 unpair: -> 01
+2026-11-07 00:07:17.448 unpair: verify isBonded=false
+2026-11-07 00:07:18.241 list: 0 files 
+2026-11-07 00:08:24.437 app: foreground
+2026-11-07 00:08:24.519 central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:08:24.533 central: poweredOn
+2026-11-07 00:10:14.841 scan: start filter=none
+2026-11-07 00:10:31.468 scan: start filter=none
+2026-11-07 00:11:42.840 app: foreground
+2026-11-07 00:11:42.919 central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:11:42.933 central: poweredOn
+2026-11-07 00:11:42.934 central: adopting existing connection 1DCAAEA2
+2026-11-07 00:11:42.974 gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:11:49.921 scan: start filter=none
+2026-11-07 00:12:00.845 stop recording: sent
+2026-11-07 00:12:00.884 notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:12:00.958 notify: unsolicited cmd=0x50 body=
+2026-11-07 00:12:01.904 rec status: {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:12:04.079 pair: write bondId=75744825969d11c917a64ee301037cfe -> 01
+2026-11-07 00:12:04.111 pair: verify isBonded=true match=true [PASS]
+2026-11-07 00:12:08.145 list: 11 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060)
+2026-11-07 00:12:13.426 notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:12:15","rec":0,"recmode":0,"usb":0,"bat":44,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 00:12:14.416 download: start 20261106034454.opus size=18060
+2026-11-07 00:12:15.207 download: done 20261106034454.opus 18060B in 0.8s = 22.28 KB/s
+2026-11-07 00:12:15.255 decode: encrypted=true frames=450 remainder=0B wav=8.9975s
+2026-11-07 00:12:15.255 sha256 raw=9289c676c64dce41935fea754a9535532dd0d83abb09f23a9e7a3f3a43a2a639 ogg=8309e76dd104f065740d4a66a65c6ec0827ec80f53b96992743438a4eaf6e783
+2026-11-07 00:12:15.338 play: 20261106034454.wav duration=8.9975s started=true
+2026-11-07 00:13:26.611 app: foreground
+2026-11-07 00:13:26.691 central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:13:26.705 central: poweredOn
+2026-11-07 00:13:26.705 central: adopting existing connection 1DCAAEA2
+2026-11-07 00:13:26.743 gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:13:51.765 list: 11 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060)
+2026-11-07 00:14:05.398 download: start 20261106040350.opus size=15180060
+2026-11-07 00:18:15.903 notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:18:17","rec":0,"recmode":0,"usb":0,"bat":43,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 00:21:57.659 notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:21:58","rec":0,"recmode":0,"usb":0,"bat":42,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 00:23:45.711 download: done 20261106040350.opus 15180060B in 580.3s = 25.55 KB/s
+2026-11-07 00:23:53.305 decode: encrypted=true frames=379500 remainder=0B wav=7589.9975s
+2026-11-07 00:23:53.319 sha256 raw=ed0688d355877658f8daeae6c61b3ef4d429fc32d21342a6a5ee55f3ced9f6b5 ogg=c45eebf1e2366415c1abbb97684bdcf5d111baf30124bc3a6b7edf92a7201968
+2026-11-07 00:23:53.421 play: 20261106040350.wav duration=7589.9975s started=true
+2026-11-07 00:25:14.633 [bg] app: foreground
+2026-11-07 00:25:14.758 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:25:14.774 [fg] central: poweredOn
+2026-11-07 00:25:14.775 [fg] central: adopting existing connection 1DCAAEA2
+2026-11-07 00:25:14.808 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:27:36.391 [fg] notify: unsolicited cmd=0x54 body={"name":"20261106082737.opus"}
+2026-11-07 00:27:43.682 [fg] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:27:43.731 [fg] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:27:45.001 [fg] list: 12 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060)
+2026-11-07 00:27:45.003 [fg] auto-list: new files ["20261105203844.opus(22060)", "20261106034311.opus(202060)", "20261106034454.opus(18060)", "20261106034556.opus(18060)", "20261106034631.opus(118060)", "20261106034742.opus(118060)", "20261106034852.opus(118060)", "20261106035009.opus(8060)", "20261106035334.opus(18060)", "20261106040350.opus(15180060)", "20261106080407.opus(948060)", "20261106082737.opus(14060)"]
+2026-11-07 00:28:28.756 [fg] notify: unsolicited cmd=0x54 body={"name":"20261106082830.opus"}
+2026-11-07 00:28:36.318 [fg] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:28:36.403 [fg] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:28:37.636 [fg] list: 13 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060)
+2026-11-07 00:28:37.638 [fg] auto-list: new files ["20261106082830.opus(14060)"]
+2026-11-07 00:28:51.645 [fg] notify: unsolicited cmd=0x54 body={"name":"20261106082853.opus"}
+2026-11-07 00:29:00.990 [fg] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:29:01.077 [fg] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:29:02.266 [fg] list: 14 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060)
+2026-11-07 00:29:02.268 [fg] auto-list: new files ["20261106082853.opus(18060)"]
+2026-11-07 00:29:58.400 [bg] app: background
+2026-11-07 00:30:01.243 [bg] notify: unsolicited cmd=0x54 body={"name":"20261106083002.opus"}
+2026-11-07 00:30:11.262 [bg] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:30:11.321 [bg] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:30:12.614 [bg] list: 15 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060)
+2026-11-07 00:30:12.616 [bg] auto-list: new files ["20261106083002.opus(18060)"]
+2026-11-07 00:30:26.663 [bg] notify: unsolicited cmd=0x54 body={"name":"20261106083028.opus"}
+2026-11-07 00:30:37.330 [bg] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:30:37.378 [bg] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:30:38.685 [bg] list: 16 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060)
+2026-11-07 00:30:38.687 [bg] auto-list: new files ["20261106083028.opus(20060)"]
+2026-11-07 00:30:42.808 [bg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:30:44","rec":0,"recmode":0,"usb":0,"bat":41,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 00:30:50.308 [bg] notify: unsolicited cmd=0x54 body={"name":"20261106083051.opus"}
+2026-11-07 00:31:00.009 [bg] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:31:00.057 [bg] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:31:01.410 [bg] list: 17 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060)
+2026-11-07 00:31:01.412 [bg] auto-list: new files ["20261106083051.opus(18060)"]
+2026-11-07 00:31:48.900 [lock] notify: unsolicited cmd=0x54 body={"name":"20261106083150.opus"}
+2026-11-07 00:31:57.957 [lock] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:31:58.012 [lock] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:31:59.322 [lock] list: 18 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060)
+2026-11-07 00:31:59.323 [lock] auto-list: new files ["20261106083150.opus(16060)"]
+2026-11-07 00:32:13.463 [lock] notify: unsolicited cmd=0x54 body={"name":"20261106083215.opus"}
+2026-11-07 00:32:25.682 [lock] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:32:25.731 [lock] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:32:27.118 [lock] list: 19 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060) 20261106083215.opus(24060)
+2026-11-07 00:32:27.119 [lock] auto-list: new files ["20261106083215.opus(24060)"]
+2026-11-07 00:32:41.201 [lock] notify: unsolicited cmd=0x54 body={"name":"20261106083242.opus"}
+2026-11-07 00:32:55.735 [lock] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:32:55.777 [lock] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:32:57.194 [lock] list: 20 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060) 20261106083215.opus(24060) 20261106083242.opus(28060)
+2026-11-07 00:32:57.195 [lock] auto-list: new files ["20261106083242.opus(28060)"]
+2026-11-07 00:33:10.021 [lock] notify: unsolicited cmd=0x54 body={"name":"20261106083311.opus"}
+2026-11-07 00:33:21.332 [lock] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:33:21.386 [lock] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:33:22.799 [lock] list: 21 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060) 20261106083215.opus(24060) 20261106083242.opus(28060) 20261106083311.opus(22060)
+2026-11-07 00:33:22.800 [lock] auto-list: new files ["20261106083311.opus(22060)"]
+2026-11-07 00:37:35.133 [lock] notify: unsolicited cmd=0x54 body={"name":"20261106083736.opus"}
+2026-11-07 00:37:47.374 [lock] notify: unsolicited cmd=0x56 body={"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-07 00:37:47.418 [lock] notify: unsolicited cmd=0x55 body=
+2026-11-07 00:37:48.862 [lock] list: 22 files 20261105203844.opus(22060) 20261106034311.opus(202060) 20261106034454.opus(18060) 20261106034556.opus(18060) 20261106034631.opus(118060) 20261106034742.opus(118060) 20261106034852.opus(118060) 20261106035009.opus(8060) 20261106035334.opus(18060) 20261106040350.opus(15180060) 20261106080407.opus(948060) 20261106082737.opus(14060) 20261106082830.opus(14060) 20261106082853.opus(18060) 20261106083002.opus(18060) 20261106083028.opus(20060) 20261106083051.opus(18060) 20261106083150.opus(16060) 20261106083215.opus(24060) 20261106083242.opus(28060) 20261106083311.opus(22060) 20261106083736.opus(24060)
+2026-11-07 00:37:48.863 [lock] auto-list: new files ["20261106083736.opus(24060)"]
+2026-11-07 00:37:54.085 [bg] app: device unlocked
+2026-11-07 00:37:54.086 [bg] app: device unlocked
+2026-11-07 00:42:17.871 [bg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:42:19","rec":0,"recmode":0,"usb":0,"bat":40,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 00:44:00.627 [bg] app: foreground
+2026-11-07 00:44:00.809 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:44:00.828 [bg] central: poweredOn
+2026-11-07 00:44:00.828 [bg] central: adopting existing connection 1DCAAEA2
+2026-11-07 00:44:00.876 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:48:28.061 [bg] app: foreground
+2026-11-07 00:48:28.141 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:48:28.157 [fg] central: poweredOn
+2026-11-07 00:48:28.157 [fg] central: adopting existing connection 1DCAAEA2
+2026-11-07 00:48:28.207 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:48:54.882 [fg] hotspot: 0x88 ap=1 ssid=FastUpload psk=L5ML5rV9Z8rv
+2026-11-07 00:48:54.907 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:49:07.294 [fg] hotspot: joined Wi-Fi in 9.2s
+2026-11-07 00:49:07.324 [fg] hotspot: TCP attempt 1 failed
+2026-11-07 00:49:09.347 [fg] hotspot: TCP attempt 2 failed
+2026-11-07 00:49:11.349 [fg] hotspot: TCP attempt 3 failed
+2026-11-07 00:49:16.569 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 4 first bytes=(none in 3s) [PASS]
+2026-11-07 00:49:16.571 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 00:49:16.648 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:49:23.987 [fg] hotspot: 0x88 ap=1 ssid=FastUpload psk=6GxRiBrzgSZ4
+2026-11-07 00:49:24.022 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:49:34.811 [fg] hotspot: joined Wi-Fi in 7.7s
+2026-11-07 00:49:34.833 [fg] hotspot: TCP attempt 1 failed
+2026-11-07 00:49:40.060 [fg] hotspot: TCP 192.168.88.1:6718 connected on attempt 2 first bytes=(none in 3s) [PASS]
+2026-11-07 00:49:40.062 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 00:49:40.160 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:50:55.074 [fg] hotspot: 0x88 ap=1 ssid=FastUpload psk=xYyjQ8FLSn6G
+2026-11-07 00:50:55.101 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:51:02.536 [fg] hotspot: joined Wi-Fi in 4.4s
+2026-11-07 00:51:07.758 [fg] hotspot: TCP attempt 1 failed
+2026-11-07 00:51:15.129 [fg] hotspot: TCP attempt 2 failed
+2026-11-07 00:51:22.338 [fg] hotspot: TCP attempt 3 failed
+2026-11-07 00:51:29.621 [fg] hotspot: TCP attempt 4 failed
+2026-11-07 00:51:32.977 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:51:34","rec":0,"recmode":0,"usb":0,"bat":39,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 00:51:37.001 [fg] hotspot: TCP attempt 5 failed
+2026-11-07 00:51:44.312 [fg] hotspot: TCP attempt 6 failed
+2026-11-07 00:51:46.401 [fg] hotspot: TCP never connected [FAIL]
+2026-11-07 00:51:46.403 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 00:51:46.435 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:52:30.305 [bg] app: foreground
+2026-11-07 00:52:30.387 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:52:30.401 [bg] central: poweredOn
+2026-11-07 00:52:30.402 [bg] central: adopting existing connection 1DCAAEA2
+2026-11-07 00:52:30.456 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:52:52.800 [fg] hotspot: 0x88 ap=1 ssid=FastUpload psk=j7fcA6NrQwmz
+2026-11-07 00:52:52.823 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:53:05.704 [fg] hotspot: joined Wi-Fi in 9.7s
+2026-11-07 00:53:05.737 [fg] hotspot: TCP attempt 1 failed after 0.0s: POSIXErrorCode(rawValue: 50): Network is down | ssid=? en0=[]
+2026-11-07 00:53:13.093 [fg] hotspot: TCP attempt 2 failed after 5.2s: timeout("tcp connect") | ssid=? en0=["192.168.31.82"]
+2026-11-07 00:53:20.268 [fg] hotspot: TCP attempt 3 failed after 5.1s: timeout("tcp connect") | ssid=? en0=["192.168.31.82"]
+2026-11-07 00:53:27.554 [fg] hotspot: TCP attempt 4 failed after 5.2s: timeout("tcp connect") | ssid=? en0=["192.168.31.82"]
+2026-11-07 00:53:34.888 [fg] hotspot: TCP attempt 5 failed after 5.2s: timeout("tcp connect") | ssid=? en0=["192.168.31.82"]
+2026-11-07 00:53:42.018 [fg] hotspot: TCP attempt 6 failed after 5.1s: timeout("tcp connect") | ssid=? en0=["192.168.31.82"]
+2026-11-07 00:53:44.124 [fg] hotspot: TCP never connected [FAIL]
+2026-11-07 00:53:44.127 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 00:53:44.346 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:54:19.046 [bg] app: foreground
+2026-11-07 00:54:19.131 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:54:19.146 [bg] central: poweredOn
+2026-11-07 00:54:19.146 [bg] central: adopting existing connection 1DCAAEA2
+2026-11-07 00:54:19.192 [bg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:54:41.743 [fg] hotspot: 0x88 ap=1 ssid=FastUpload psk=nwMe6gcLTCMu
+2026-11-07 00:54:41.766 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:55:03.015 [fg] hotspot: join 1 NOT on card subnet after 18.2s en0=["192.168.31.209"]
+2026-11-07 00:55:24.597 [fg] hotspot: join 2 NOT on card subnet after 19.5s en0=["192.168.31.82"]
+2026-11-07 00:55:38.227 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 08:55:40","rec":0,"recmode":0,"usb":0,"bat":38,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 00:55:40.072 [fg] hotspot: join 3 NOT on card subnet after 13.4s en0=[]
+2026-11-07 00:55:42.124 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 00:55:42.126 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 00:55:42.231 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:56:41.169 [bg] app: foreground
+2026-11-07 00:56:41.251 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 00:56:41.265 [bg] central: poweredOn
+2026-11-07 00:56:41.265 [bg] central: adopting existing connection 1DCAAEA2
+2026-11-07 00:56:41.300 [bg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 00:57:01.941 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:57:03.993 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=KeDSLb7T8SVp
+2026-11-07 00:57:04.042 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:57:28.242 [fg] hotspot: join 1 NOT on card subnet after 18.1s en0=["192.168.31.82"]
+2026-11-07 00:57:48.379 [fg] hotspot: join 2 NOT on card subnet after 18.1s en0=["192.168.31.82"]
+2026-11-07 00:58:08.513 [fg] hotspot: join 3 NOT on card subnet after 18.0s en0=["192.168.31.82"]
+2026-11-07 00:58:10.649 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 00:58:10.651 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 00:58:10.687 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:58:13.896 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:58:15.879 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=WYsaq6Vqy8gm
+2026-11-07 00:58:15.907 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:58:40.095 [fg] hotspot: join 1 NOT on card subnet after 18.0s en0=["192.168.31.82"]
+2026-11-07 00:59:00.077 [fg] hotspot: join 2 NOT on card subnet after 18.0s en0=["192.168.31.82"]
+2026-11-07 00:59:20.137 [fg] hotspot: join 3 NOT on card subnet after 18.0s en0=["192.168.31.82"]
+2026-11-07 00:59:22.245 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 00:59:22.247 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 00:59:22.326 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:59:25.191 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:59:27.265 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=BrPmZJqUe16t
+2026-11-07 00:59:27.292 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 00:59:51.542 [fg] hotspot: join 1 NOT on card subnet after 17.9s en0=["192.168.31.82"]
+2026-11-07 01:00:08.303 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 09:00:10","rec":0,"recmode":0,"usb":0,"bat":37,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 01:00:20.979 [fg] hotspot: join 2 NOT on card subnet after 27.4s en0=["192.168.31.82"]
+2026-11-07 01:00:41.086 [fg] hotspot: join 3 NOT on card subnet after 18.0s en0=["192.168.31.82"]
+2026-11-07 01:00:43.124 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 01:00:43.126 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 01:00:43.158 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:01:57.139 [fg] central: disconnected (by app)
+2026-11-07 01:01:59.483 [fg] scan: found D·NOTE 1DCAAEA2 fw=v1.50 bat=37% rssi=-64 services=[] overflow=[] serviceData=[] localName=D·NOTE connectable=1 md=a32268680000013200012501962fdc
+2026-11-07 01:03:29.623 [bg] app: foreground
+2026-11-07 01:03:29.714 [bg] central: poweredOn
+2026-11-07 01:03:40.829 [fg] scan: start filter=none
+2026-11-07 01:03:41.231 [fg] scan: found D·NOTE 1DCAAEA2 fw=v1.50 bat=37% rssi=-64 services=[] overflow=[] serviceData=[] localName=D·NOTE connectable=1 md=a32268680000013200012501962fdc
+2026-11-07 01:03:58.839 [fg] scan: stop
+2026-11-07 01:03:58.840 [fg] connect: 1DCAAEA2-2A11-F38D-04A9-2ADC4571EA21
+2026-11-07 01:03:59.438 [fg] central: connected 1DCAAEA2
+2026-11-07 01:03:59.668 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 01:03:59.794 [fg] info: {"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 09:04:01","rec":0,"recmode":0,"usb":0,"bat":37,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 01:04:07.267 [fg] hotspot: manual ON ssid=FastUpload psk=dnote1234
+2026-11-07 01:04:07.297 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:04:21.190 [bg] app: background
+2026-11-07 01:04:51.290 [bg] app: foreground
+2026-11-07 01:04:58.639 [fg] hotspot: manual OFF ssid=FastUpload psk=dnote1234
+2026-11-07 01:04:58.805 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:05:56.658 [bg] app: foreground
+2026-11-07 01:05:56.786 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 01:05:56.804 [fg] central: poweredOn
+2026-11-07 01:05:56.805 [fg] central: adopting existing connection 1DCAAEA2
+2026-11-07 01:05:56.852 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 01:06:12.419 [bg] app: background
+2026-11-07 01:06:38.379 [bg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 09:06:40","rec":0,"recmode":0,"usb":0,"bat":36,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":0}
+2026-11-07 01:08:03.534 [bg] app: foreground
+2026-11-07 01:08:05.494 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:08:07.571 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=dnote1234 fixed=true
+2026-11-07 01:08:07.594 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:08:29.539 [fg] hotspot: join 1 NOT on card subnet after 11.4s en0=["192.168.31.82"]
+2026-11-07 01:08:42.987 [fg] hotspot: join 2 NOT on card subnet after 11.4s en0=["192.168.31.82"]
+2026-11-07 01:08:56.516 [fg] hotspot: join 3 NOT on card subnet after 11.4s en0=["192.168.31.82"]
+2026-11-07 01:08:58.647 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 01:08:58.649 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 01:08:58.682 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:09:00.845 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:09:02.858 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=dnote1234 fixed=true
+2026-11-07 01:09:02.883 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:09:24.507 [fg] hotspot: join 1 NOT on card subnet after 11.4s en0=["192.168.31.82"]
+2026-11-07 01:09:37.984 [bg] hotspot: join 2 NOT on card subnet after 11.3s en0=["192.168.31.82"]
+2026-11-07 01:09:52.252 [fg] hotspot: join 3 NOT on card subnet after 12.2s en0=["192.168.31.82"]
+2026-11-07 01:09:54.369 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 01:09:54.371 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 01:09:54.471 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:10:00.423 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:10:02.495 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=dnote1234 fixed=true
+2026-11-07 01:10:02.524 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:10:24.447 [fg] hotspot: join 1 NOT on card subnet after 11.4s en0=["192.168.31.82"]
+2026-11-07 01:10:37.937 [fg] hotspot: join 2 NOT on card subnet after 11.4s en0=["192.168.31.82"]
+2026-11-07 01:10:43.503 [bg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 09:10:45","rec":0,"recmode":0,"usb":0,"bat":35,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 01:10:51.402 [fg] hotspot: join 3 NOT on card subnet after 11.4s en0=["192.168.31.82"]
+2026-11-07 01:10:53.491 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 01:10:53.494 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 01:10:53.522 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:11:53.879 [bg] app: foreground
+2026-11-07 01:11:53.975 [bg] central: restored state peripherals=["1DCAAEA2:2"]
+2026-11-07 01:11:53.992 [fg] central: poweredOn
+2026-11-07 01:11:53.992 [fg] central: adopting existing connection 1DCAAEA2
+2026-11-07 01:11:54.033 [fg] gatt: ready mtu(write)=512 mtu(noresp)=269
+2026-11-07 01:12:10.642 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:12:12.698 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=dnote1234 fixed=true joinOnce=false
+2026-11-07 01:12:12.723 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:12:36.511 [fg] hotspot: join 1 NOT on card subnet after 13.4s en0=["192.168.31.82"]
+2026-11-07 01:12:52.686 [fg] hotspot: join 2 NOT on card subnet after 14.1s en0=["192.168.31.82"]
+2026-11-07 01:13:08.864 [fg] hotspot: join 3 NOT on card subnet after 14.1s en0=["192.168.31.82"]
+2026-11-07 01:13:10.980 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 01:13:10.982 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 01:13:11.064 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:13:15.228 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:13:17.234 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=dnote1234 fixed=true joinOnce=false
+2026-11-07 01:13:17.268 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:13:49.049 [fg] hotspot: join 1 NOT on card subnet after 21.5s en0=["192.168.31.82"]
+2026-11-07 01:14:04.882 [fg] hotspot: join 2 NOT on card subnet after 13.8s en0=["192.168.31.82"]
+2026-11-07 01:14:26.872 [fg] hotspot: join 3 NOT on card subnet after 19.9s en0=["192.168.31.82"]
+2026-11-07 01:14:28.925 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 01:14:28.927 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 01:14:28.955 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:14:31.218 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:14:33.202 [fg] hotspot: 0x88 ap=0 then ap=1 ssid=FastUpload psk=dnote1234 fixed=true joinOnce=false
+2026-11-07 01:14:33.229 [fg] notify: unsolicited cmd=0x88 body=
+2026-11-07 01:14:57.020 [fg] hotspot: join 1 NOT on card subnet after 13.4s en0=["192.168.31.82"]
+2026-11-07 01:15:18.483 [fg] hotspot: join 2 NOT on card subnet after 19.4s en0=["192.168.31.82"]
+2026-11-07 01:15:33.665 [fg] notify: unsolicited cmd=0x80 body={"sn":"h7spab9m1novnz0415","v":"1.50","time":"2026-11-06 09:15:35","rec":0,"recmode":0,"usb":0,"bat":34,"df":7654,"total_df":7671,"bt":"D·NOTE","btaddr":"3a51f3c4162f","wifiap":1}
+2026-11-07 01:15:34.448 [fg] hotspot: join 3 NOT on card subnet after 13.8s en0=["192.168.31.82"]
+2026-11-07 01:15:36.583 [fg] hotspot: could not join FastUpload [FAIL]
+2026-11-07 01:15:36.585 [fg] hotspot: cleanup (removed Wi-Fi config, 0x88 ap=0)
+2026-11-07 01:15:36.665 [fg] notify: unsolicited cmd=0x88 body=

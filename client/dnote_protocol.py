@@ -70,10 +70,11 @@ class Cmd:
     SHUTDOWN               = 0x95
     # 录音
     STOP_RECORDING         = 0x50
-    START_RECORDING        = 0x51  # payload: [0|1]
+    START_RECORDING        = 0x51  # payload: [0|1]; [1] also streams 0x68 realtime audio
     PAUSE_RECORDING        = 0x52
     RESUME_RECORDING       = 0x53
-    START_REALTIME         = 0x54  # payload: [0|1]
+    START_REALTIME         = 0x54  # payload: [0|1]; no effect alone on fw v1.50 (see PROTOCOL.md 4.3)
+    REALTIME_AUDIO         = 0x68  # notify: [flag|seq(1)][offset(4,BE)][opus frames]
     QUERY_REC_STATUS       = 0x56
     # 文件数据传输
     REQUEST_FILE_DATA      = 0x70  # payload: JSON {cmd,name,offset}
@@ -93,6 +94,9 @@ class FileStatus:
     CANCELLED = 0x30
     ERROR     = 0x40
     NOT_FOUND = 0xF0
+
+
+LIVE_HEADER_LEN = 5  # 0x68 payload header before Opus data
 
 
 class PowerState:
@@ -149,6 +153,15 @@ def parse_frame(data: bytes) -> Frame:
         offset = struct.unpack(">I", body[1:5])[0]
         return Frame(valid=True, cmd=cmd,
                      payload={"start": start, "offset": offset, "data": body[5:]})
+
+    # 0x68 实时音频: [flag(hi4)|seq(lo4)][offset(4,BE)][data...]
+    if cmd == 0x68 and lc >= LIVE_HEADER_LEN:
+        return Frame(valid=True, cmd=cmd, payload={
+            "flag": body[0] >> 4,
+            "seq": body[0] & 0x0F,
+            "offset": struct.unpack(">I", body[1:5])[0],
+            "data": body[LIVE_HEADER_LEN:],
+        })
 
     # 0xA1 绑定信息: [isBonded(1)][bondId(16)]
     if cmd == 0xA1:
@@ -219,7 +232,9 @@ def frame_delete_file(name):     return build_frame(Cmd.DELETE_FILE, {"name": na
 def frame_request_file(name, cmd=1, offset=0):
     """cmd=1 启动下载(App 使用值)；offset 断点续传起点。"""
     return build_frame(Cmd.REQUEST_FILE_DATA, {"cmd": cmd, "name": name, "offset": offset})
-def frame_start_recording(flag=False): return build_frame(Cmd.START_RECORDING, bytes([1 if flag else 0]))
+def frame_start_recording(flag=False):
+    """flag=True: record and stream realtime audio via 0x68."""
+    return build_frame(Cmd.START_RECORDING, bytes([1 if flag else 0]))
 def frame_stop_recording():      return build_frame(Cmd.STOP_RECORDING)
 def frame_query_rec_status():    return build_frame(Cmd.QUERY_REC_STATUS)
 def frame_query_bond():          return build_frame(Cmd.QUERY_BOND)

@@ -1,0 +1,38 @@
+{
+  "seconds_requested": 60.0,
+  "disconnected_at": null,
+  "notify_counts": {
+    "0x80": 1,
+    "0x56": 3,
+    "0x51": 1,
+    "0x68": 743,
+    "0x50": 1
+  },
+  "live_notifications": 743,
+  "live_notify_len_hist": {
+    "168": 743
+  },
+  "audio_bytes": 118880,
+  "frames_40B": 2972,
+  "remainder_bytes": 0,
+  "live_span_s": 59.355,
+  "expected_frames_by_span": 2968,
+  "frame_deviation_pct": 0.14,
+  "toc_byte_hist_top5": {
+    "0x4b": 2222,
+    "0x48": 750
+  },
+  "distinct_toc_bytes": 2,
+  "header_samples": [
+    "0000000000",
+    "11000000a0",
+    "1200000140",
+    "13000001e0",
+    "1400000280",
+    "...",
+    "140001ce80",
+    "150001cf20",
+    "160001cfc0"
+  ],
+  "replies_54_sent": 0
+}
