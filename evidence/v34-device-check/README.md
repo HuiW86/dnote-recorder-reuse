@@ -26,7 +26,7 @@ python probe_m1.py --address $A --out ../evidence/v34-device-check offset --name
 
 **结果：通过（7/7）**
 
-- 出厂值：`{"ms":0,"led":1,"motor":1,"nc":1,"wav":0,"vad":0,"gain":4,"nn":4,"autoff":600}`，字段名与 `PROTOCOL.md` 中按固件模板推测的一致。
+- 测试前的值：`{"ms":0,"led":1,"motor":1,"nc":1,"wav":0,"vad":0,"gain":4,"nn":4,"autoff":600}`，字段名与 `PROTOCOL.md` 中按固件模板推测的一致。
 - 每项读回值都等于设置值，`changed_fields` 只有对应的一个字段；7 项全部恢复成原值。
 - 每条设置命令都回 1 字节 `0x01`（例如 `a0830101`）。
 - 未验证：`ms`（`0x82` USB 存储）、`wav`（`0x8A` 保存 WAV），二者属于 M4（`features.md` A3b）。
