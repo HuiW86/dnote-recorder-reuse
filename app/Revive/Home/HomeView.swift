@@ -110,7 +110,9 @@ private struct HomeContent: View {
                             RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
                         }
                         .swipeActions {
-                            Button("删除", role: .destructive) { pendingDelete = recording }
+                            // No destructive role: it animates the row away before the user confirms.
+                            Button("删除") { pendingDelete = recording }
+                                .tint(.red)
                         }
                     }
                 }

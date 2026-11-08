@@ -111,9 +111,11 @@ public final class RecordingLibrary: Sendable {
             try SyncItem.filter(Column("device_id") == deviceId && Column("state") == SyncState.failed.rawValue)
                 .fetchAll(db)
         }
-        // `SyncFailure.decryptFailed`; SyncEngine sits above Library, so the raw value is spelled out.
-        let undecryptable = failed.filter { $0.lastError == "decryptFailed" }.count
-        return FailureCounts(retryable: failed.count - undecryptable, undecryptable: undecryptable)
+        // `SyncFailure` raw values; SyncEngine sits above Library, so they are spelled out.
+        // `fileNotFound` is never shown: the file is gone from the card (product-spec.md §7.1).
+        let shown = failed.filter { $0.lastError != "fileNotFound" }
+        let undecryptable = shown.filter { $0.lastError == "decryptFailed" }.count
+        return FailureCounts(retryable: shown.count - undecryptable, undecryptable: undecryptable)
     }
 
     /// When the newest card recording was stored; nil when none was.

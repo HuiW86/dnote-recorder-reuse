@@ -21,6 +21,21 @@ struct AppDatabaseTests {
 }
 
 struct RecordingLibraryTests {
+    /// Undecryptable files are counted apart; files gone from the card are not shown at all.
+    @Test func failureCountsSplitAndSkipFileNotFound() throws {
+        let (library, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try library.upsertDevice(sn: "SN") { $0.name = "卡" }
+        for (name, error) in [("a", "transferFailed"), ("b", "decryptFailed"), ("c", "fileNotFound")] {
+            var item = try library.syncItem(deviceId: device.id, name: name, size: 1)
+            item.state = .failed
+            item.lastError = error
+            try library.update(item)
+        }
+        _ = try library.syncItem(deviceId: device.id, name: "d", size: 1)
+        #expect(try library.failureCounts(deviceId: device.id) == FailureCounts(retryable: 1, undecryptable: 1))
+    }
+
     private func makeLibrary() throws -> (RecordingLibrary, URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("lib-\(UUID().uuidString)")
         return (RecordingLibrary(database: try AppDatabase.inMemory(), store: try AudioStore(root: root)), root)

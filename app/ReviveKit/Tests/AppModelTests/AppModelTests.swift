@@ -64,6 +64,12 @@ final class Harness {
         pairing.select(try #require(pairing.candidates.first))
     }
 
+    /// The first pass after pairing has listed the card and finished. The session shows the card
+    /// as idle from its 0x80 before that pass starts, so waiting for idle is not enough.
+    func firstSyncDone() async {
+        await waitUntil("first sync") { sent(.listFiles) >= 1 && !session.syncEngine.isRunning }
+    }
+
     var isDone: Bool {
         if case .done = pairing.phase { true } else { false }
     }

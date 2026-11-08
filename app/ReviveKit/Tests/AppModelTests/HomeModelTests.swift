@@ -109,6 +109,7 @@ struct HomeModelTests {
         let h = try Harness(card: card, bonds: InMemoryBondStore([card.serial: card.bondId!]))
         try await h.scanAndSelect()
         await waitUntil("paired") { h.isDone }
+        await h.firstSyncDone()
         let model = HomeModel(session: h.session, preferences: h.preferences)
         model.start()
         return (h, model)
@@ -177,7 +178,7 @@ struct HomeModelTests {
         let (h, model) = try await home(FakeCard(paired: true))
         await waitUntil("idle") { model.status == .idle }
         h.card.dropLink()
-        await waitUntil("not connected") { model.status == .connecting }
+        await waitUntil("not connected") { h.session.linkState == .connecting && model.status == .waiting }
         await model.refresh()
         #expect(model.toast?.text == "录音卡未连接")
     }
@@ -203,7 +204,7 @@ struct HomeModelTests {
         h.card.setPhoneBluetooth(.poweredOff)
         await waitUntil("unavailable") { model.status == .bluetoothUnavailable }
         h.card.setPhoneBluetooth(.idle)
-        await waitUntil("pending connect") { model.status == .connecting }
+        await waitUntil("pending connect") { h.session.linkState == .connecting && model.status == .waiting }
         h.card.advertise()
         await waitUntil("idle again") { model.status == .idle }
     }

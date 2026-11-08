@@ -9,9 +9,10 @@ import SyncEngine
 /// Device state as the screens see it (product-spec.md §5.1).
 public enum DeviceStatus: Equatable, Sendable {
     case noDevice
-    /// Paired, not connected; a pending connect waits for the card to advertise.
+    /// Paired, not connected; a pending connect waits for the card to advertise. CoreBluetooth
+    /// reports a pending connect as `.connecting` for as long as the card sleeps.
     case waiting
-    /// Connecting, or connected and still reading the card.
+    /// On the link and still reading the card (0x80, 0x56).
     case connecting
     case idle
     case recording
@@ -48,7 +49,13 @@ public final class CardSession {
 
     /// Off while the DEBUG card screen is open, so its logs show only the requests it sends
     /// (evidence/v38-card-link). Syncs requested directly on `syncEngine` still run.
-    public var autoSyncEnabled = true
+    public var autoSyncEnabled = true {
+        didSet {
+            // Turned back on after the card connected silently: catch up on what identify skipped.
+            guard autoSyncEnabled, !oldValue, let device = connectedDevice else { return }
+            Task { [weak self] in await self?.catchUp(device) }
+        }
+    }
 
     @ObservationIgnored private var listeners: [UUID: (CardEvent) -> Void] = [:]
     @ObservationIgnored private let now: () -> Date
@@ -93,11 +100,10 @@ public final class CardSession {
             case nil: return .connecting
             }
         }
+        // Connected but not named by its 0x80 yet. `.connecting` is not enough: it also covers a
+        // pending connect to a sleeping card, which must read as waiting (press the card button).
         let onLink = connectedDevice == nil && service.peripheralId?.uuidString == device.peripheralId
-        switch linkState {
-        case .connecting where onLink, .connected where onLink: return .connecting
-        default: return .waiting
-        }
+        return linkState == .connected && onLink ? .connecting : .waiting
     }
 
     public func startScan() {
@@ -209,13 +215,18 @@ public final class CardSession {
         guard let device = pairedDevices.first(where: { $0.sn == info.serial }) else { return }
         connectedDevice = device
         cardInfo = info
+        // 0x80 carries the recording state too; 0x56 then adds recd. Without this, a failed 0x56
+        // would leave the card showing as connecting with recording disabled until a reconnect.
+        if case .unknown = info.recordingState {} else { setRecording(info.recordingState, ms: nil) }
         // The DEBUG card screen sends its own requests; stay silent while it is open.
         guard autoSyncEnabled else { return }
-        Task { [weak self] in
-            await self?.readRecordingStatus()
-            guard let self, self.autoSyncEnabled, self.connectedDevice?.id == device.id else { return }
-            self.syncEngine.requestSync()
-        }
+        Task { [weak self] in await self?.catchUp(device) }
+    }
+
+    private func catchUp(_ device: Device) async {
+        await readRecordingStatus()
+        guard autoSyncEnabled, connectedDevice?.id == device.id else { return }
+        syncEngine.requestSync()
     }
 
     private func forgetCard() {

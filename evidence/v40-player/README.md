@@ -65,7 +65,7 @@ sha256 12a6b71a145f22ab6e21e06aadc8ac670d16dd1d2dc8b3a4764adabb15681132
 
 调试时发现：macOS 27 的系统 Opus 解码器（16 kHz）会自己去掉开头 40 个采样（2.5 ms），`primeInfo` 却报告为 0。如果再按文件头的 pre-skip（312/48000 s = 104 个采样）全砍一遍，结果会短 2.5 ms。所以解码前先用前 10 个包测出解码器自己裁掉多少，pre-skip 只补差额。旧版系统的解码器如果不裁剪，测出来是 0，就按 pre-skip 全砍。用扫频信号对比，回退结果与 `AVAudioFile` 直接读取的结果长度一致（16216 个采样），偏移 1 个采样（对比时把 48 kHz 直接抽成 16 kHz 带来的相位差）。
 
-## 真机检查步骤（待跑）
+## 真机检查步骤（2026-11-08：P1、P2、P3、P6 已跑，P4、P5 待跑）
 
 入口：Debug 构建的 Card Debug 页。在「文件」区点按一个文件下载，校验通过后它会按 SyncEngine 的方式（解密 → 分帧 → 封装 OGG）存进单独的调试录音库（Application Support/`debug-library/`），出现在「播放」区。播放器的每次状态变化，以及系统的打断、线路变更通知，都会写进 `card-debug.log`。
 
@@ -76,6 +76,19 @@ sha256 12a6b71a145f22ab6e21e06aadc8ac670d16dd1d2dc8b3a4764adabb15681132
 | P3 | 播放中打进来一个电话（或响起闹钟），挂断 | `session interruption began` 之后紧跟 `player paused`；挂断后不自动继续播放 |
 | P4 | 戴有线或蓝牙耳机播放，拔下或断开 | `session route change reason 2`（oldDeviceUnavailable）之后紧跟 `player paused` |
 | P5 | 长按录音删除 | `library: deleted`，录音从列表消失 |
-| P6 | 打开「强制解码回退」，播放同一条录音两次；再关掉开关播放一次 | 第一次 `via decoded PCM copy`，启动耗时明显长于直接打开；第二次仍是 `via decoded PCM copy`，耗时很短（复用缓存）；听感、时长与直接打开一致；关掉后为 `OGG opened directly`。用来代替 iOS 17～26 真机，但它只证明回退在 iOS 27 的解码器上可用 |
+| P6 | 打开「强制解码回退」，播放同一条录音两次；再关掉开关播放一次 | 第一次 `via decoded PCM copy`，记录启动耗时（含解码）；第二次仍是 `via decoded PCM copy`，耗时很短（复用缓存）；听感、时长与直接打开一致；关掉后为 `OGG opened directly`。用来代替 iOS 17～26 真机，但它只证明回退在 iOS 27 的解码器上可用 |
+
+### 结果（P1、P2、P3、P6）
+
+环境：iPhone 12，iOS 27.2，Debug 包由 `b1b41d0` 构建；卡固件 v1.50。录音 `20261106034311.opus`（卡上 202060 B，5050 帧；入库 OGG 209880 B）。理论时长 5050 × 20 ms − 312/48000 s = 100.9935 s。
+
+| 编号 | 结果 | 日志要点 |
+|---|---|---|
+| P1 | 通过 | `✔ play 0.11 s to start, duration 100.99 s, OGG opened directly`；人耳确认是卡上录的内容 |
+| P2 | 通过 | 锁屏后 20:22:06.539 `player playing` → 20:23:47.545 `player idle`，连续 101.0 s，中间没有暂停；人耳确认声音清晰不断。日志只在状态变化时写一行，锁屏期间没有状态变化，所以没有 `[lock]` 标签的行，播完那行标签是 `[fg]`（判据中的标签一项无法从这份日志判断，以连续时长和人耳为准） |
+| P3 | 通过（用计时器响铃打断） | 20:43:06.372 `session interruption began` → 20:43:06.385 `player paused at 53.53 s`；20:58:05 `session interruption ended` 之后没有自动继续 |
+| P6 | 通过 | 强制解码开：第一次 `0.18 s to start … via decoded PCM copy`，第二次 `0.04 s`（复用缓存），时长都是 100.99 s；关掉开关后 `0.05 s … OGG opened directly`。对比 P1 直接打开 0.11 s，101 s 的录音解码只多出约 0.1 s，差别不算「明显」，所以判据改为如实记录耗时 |
+
+P3 之后 20:54:24 有一行 `player idle at 0.00 s`，前后没有 `force decode`、`library: deleted`、`▶ play`，按代码只可能来自「停止」按钮（`CardDebugModel.stopPlayback`），不是暂停状态自己跳回 idle。
 
 日志存为 `01-device-playback.log`，放进本目录前先按硬规则 4 检索原始 `sn`、`btaddr`。
