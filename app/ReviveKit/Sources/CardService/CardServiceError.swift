@@ -14,7 +14,8 @@ public enum CardServiceError: Error, Equatable, Sendable {
     /// The link dropped during the operation, or there was no link.
     case disconnected
     case requestTimeout(Command)
-    /// `0x51` replied `NULL`, or `0x90` got no reply (prd.md §2.3).
+    /// `0x51` replied `NULL`, or `0xA1` shows the card is not bonded to this phone (prd.md §2.3).
+    /// An unpaired card still lists, sends and deletes files (#38 E), so file commands never imply it.
     case notPaired
     /// `0xA0`/`0xA1` disagree after a bond or unbond write.
     case pairVerifyFailed
@@ -22,6 +23,8 @@ public enum CardServiceError: Error, Equatable, Sendable {
     case pairCancelled
     /// The card is recording, so it lists no files (#5).
     case cardBusyRecording
+    /// `0x70` replied a bare `0x40`: the card refuses transfers until it is restarted (#38).
+    case cardBusy
     /// `0x70` replied `0xF0`.
     case fileNotFound
     /// `0x70` replied `0x30`/`0x40`, a chunk was malformed or out of order, or the length is off.

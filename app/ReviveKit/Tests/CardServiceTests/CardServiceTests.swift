@@ -193,10 +193,30 @@ struct CardServiceTests {
 
     // MARK: Files
 
-    @Test func listFilesOnUnpairedCardIsNotPaired() async throws {
+    /// #38 E: an unpaired card still lists files, so the list says nothing about pairing.
+    @Test func listFilesOnUnpairedCardStillLists() async throws {
         let card = FakeCard(files: [.init(name: "a.opus", content: Data(count: 10))], paired: false)
         let service = try await connected(card)
-        await #expect(throws: CardServiceError.notPaired) { try await service.listFiles() }
+        #expect(try await service.listFiles().map(\.name) == ["a.opus"])
+        #expect(try await !service.isPairedWithThisPhone())
+    }
+
+    /// A list that never ends is a timeout, not "not paired".
+    @Test func listTimeoutIsRequestTimeout() async throws {
+        let card = FakeCard(files: [.init(name: "a.opus", content: Data(count: 10))])
+        let service = try await connected(card)
+        card.faults = [.noResponse(.listFiles)]
+        await #expect(throws: CardServiceError.requestTimeout(.listFiles)) { try await service.listFiles() }
+    }
+
+    /// #38: a bare 0x40 reply to 0x70.
+    @Test func refusedDownloadIsCardBusy() async throws {
+        let card = FakeCard(files: [.init(name: "a.opus", content: Data(count: 500))])
+        let service = try await connected(card)
+        card.faults = [.refuseDownloads]
+        await #expect(throws: CardServiceError.cardBusy) {
+            _ = try await service.download(CardFile(name: "a.opus", size: 500))
+        }
     }
 
     @Test func listFilesWhileRecordingIsBusy() async throws {
@@ -309,6 +329,21 @@ struct PairingTests {
         #expect(store.bonds[card.serial] == bondId)
         #expect(card.encryptionKey == AudioCrypto.deviceKey(serial: card.serial))
         #expect(try await service.isPairedWithThisPhone())
+    }
+
+    /// #38 D: 0xA2 must be acked; a refusal stops before any bond write.
+    @Test func rejectedEncryptionKeyFailsBeforeBonding() async throws {
+        let card = FakeCard(paired: false)
+        let store = InMemoryBondStore()
+        let service = try await connected(card, store: store)
+        card.faults = [.rejectEncryptionKey]
+        let before = card.writtenFrames.count
+        await #expect(throws: CardServiceError.unexpectedReply(.setEncryptionKey)) {
+            _ = try await service.pair { true }
+        }
+        #expect(commands(card, from: before) == [0x80, 0xA1, 0x87, 0xA2])
+        #expect(card.bondId == nil)
+        #expect(store.bonds.isEmpty)
     }
 
     /// T-M1-11

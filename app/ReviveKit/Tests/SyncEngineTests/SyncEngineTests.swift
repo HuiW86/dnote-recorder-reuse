@@ -409,6 +409,38 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    /// #38 E: the card serves files when bonded elsewhere, so the engine checks 0xA1 itself.
+    @Test func cardBondedElsewhereIsNotSynced() async throws {
+        var options = testOptions
+        options.deleteAfterSync = true
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options)
+        let deletesBefore = h.deletes.count
+        h.card.bondId = Data(repeating: 0x77, count: 16)
+        h.card.files.append(.init(name: "b.opus", content: plainOpus(frames: 5, seed: 3)))
+        await h.engine.syncNow()
+        #expect(h.engine.status == .stopped("notPaired"))
+        #expect(h.downloads.count == 1)
+        #expect(h.deletes.count == deletesBefore)
+        #expect(h.card.files.map(\.name) == ["b.opus"])
+        h.checkNoForbiddenWrites()
+    }
+
+    /// #38: a card that refuses every download stops the pass without spending attempts.
+    @Test func refusedDownloadStopsPassWithoutAttempts() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted),
+                                          .init(name: "b.opus", content: plainOpus(frames: 5, seed: 4))],
+                                  faults: [.refuseDownloads])
+        #expect(h.engine.status == .stopped("cardBusy"))
+        #expect(h.downloads.count == 1)
+        let item = try #require(try h.items.first { $0.cardFileName == "a.opus" })
+        #expect(item.lastError == "cardBusy" && item.attempts == 0)
+        h.card.faults = []
+        h.card.dropLink()
+        h.card.advertise()
+        try await waitUntil("both stored") { try h.recordings.count == 2 }
+        h.checkNoForbiddenWrites()
+    }
+
     @Test func noSyncWhileRecording() async throws {
         let h = try await Harness(files: [], waitForFirstPass: true)
         _ = try await h.service.startRecording()

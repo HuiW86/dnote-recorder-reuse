@@ -150,19 +150,16 @@ public final class CardService {
     // MARK: - Files
 
     /// Files on the card. Throws `cardBusyRecording` instead of returning the empty list a
-    /// recording card sends, which would wrongly mean "no files" (#5).
+    /// recording card sends, which would wrongly mean "no files" (#5). The card lists files
+    /// whether or not it is paired (#38 E); check pairing with `isPairedWithThisPhone`.
     public func listFiles() async throws -> [CardFile] {
         var files: [CardFile] = []
-        do {
-            try await exchange(.listFiles, timeout: timing.listFiles) { frame in
-                switch FileListMessage.parse(frame) {
-                case .file(let f): files.append(f); return false
-                case .end: return true
-                case nil: throw CardServiceError.unexpectedReply(.listFiles)
-                }
+        try await exchange(.listFiles, timeout: timing.listFiles) { frame in
+            switch FileListMessage.parse(frame) {
+            case .file(let f): files.append(f); return false
+            case .end: return true
+            case nil: throw CardServiceError.unexpectedReply(.listFiles)
             }
-        } catch CardServiceError.requestTimeout(.listFiles) where files.isEmpty {
-            throw CardServiceError.notPaired
         }
         if files.isEmpty, try await recordingStatus().state != .idle {
             throw CardServiceError.cardBusyRecording
@@ -181,6 +178,7 @@ public final class CardService {
         var next = offset
         let timeout = .seconds(Double(remaining) / timing.downloadBytesPerSecond) + timing.downloadSlack
         try await exchange(.download(name: file.name, offset: offset), timeout: timeout) { frame in
+            if FileChunk.isRefusal(frame) { throw CardServiceError.cardBusy }
             guard let chunk = FileChunk.parse(frame) else { throw CardServiceError.transferFailed }
             switch chunk.status {
             case .notFound: throw CardServiceError.fileNotFound
@@ -206,8 +204,8 @@ public final class CardService {
         return data
     }
 
-    /// Deletes a file on the card. The card does not reply (PROTOCOL.md §4.2); confirm with
-    /// `listFiles`. Only SyncEngine may call this, after the file is stored locally (CLAUDE.md rule 2).
+    /// Deletes a file on the card. The v1.50 card acks with `0x01` (#38 E), but the ack is not
+    /// awaited: the outcome is confirmed with `listFiles`. Only SyncEngine may call this, after the file is stored locally (CLAUDE.md rule 2).
     public func delete(_ name: String) async throws {
         let req = CardRequest.delete(name: name)
         await acquire(req.command.rawValue)
@@ -232,9 +230,9 @@ public final class CardService {
         }
 
         do { try await syncTime() } catch { log.error("syncTime during pairing failed: \(String(describing: error))") }
-        // The 0xA2 reply has not been captured on a real card yet (test-spec.md §2), so any
-        // 0xA2 reply counts; decryption does not depend on it (keys come from the file header).
-        _ = try await request(.setEncryptionKey(enabled: true, key: AudioCrypto.deviceKey(serial: serial))) { $0 }
+        // The v1.50 card acks 0xA2 with 0x01 (#38 D). It is sent before any bond write, so a
+        // refusal leaves the card as it was.
+        try await ack(.setEncryptionKey(enabled: true, key: AudioCrypto.deviceKey(serial: serial)))
         if status.isBonded { try await ack(.unbond) }
 
         let bondId = Data((0..<16).map { _ in UInt8.random(in: .min ... .max) })

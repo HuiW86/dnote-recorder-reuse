@@ -155,6 +155,9 @@ public final class SyncEngine {
         defer { progress = nil }
         do {
             let device = try await currentDevice()
+            // The card serves files whether or not it is paired (#38 E): never sync, let alone
+            // delete, on a card that was re-bound to another phone.
+            guard try await service.isPairedWithThisPhone() else { throw CardServiceError.notPaired }
             guard try await cardIsIdle() else { return }
             let files: [CardFile]
             do {
@@ -290,6 +293,10 @@ public final class SyncEngine {
             case .requestTimeout:
                 fail(&item, .transferFailed, countsAsAttempt: true)
                 return false
+            case .cardBusy:
+                // Every file would be refused until the card restarts: keep the part, stop the pass.
+                fail(&item, .cardBusy, countsAsAttempt: false)
+                throw error
             default:
                 // Link lost and the like: keep the part for resuming after reconnect (prd.md §4.3).
                 fail(&item, SyncFailure(error), countsAsAttempt: false)
@@ -426,12 +433,13 @@ public final class SyncEngine {
 /// Item failure codes, stored in `sync_item.last_error` (prd.md §6).
 public enum SyncFailure: String, Error, Sendable {
     case disconnected, transferFailed, fileNotFound, decryptFailed, phoneStorageFull, storeFailed
-    case notPaired, cardBusyRecording, requestTimeout, other
+    case notPaired, cardBusyRecording, cardBusy, requestTimeout, other
 
     init(_ error: CardServiceError) {
         switch error {
         case .notPaired: self = .notPaired
         case .cardBusyRecording: self = .cardBusyRecording
+        case .cardBusy: self = .cardBusy
         case .fileNotFound: self = .fileNotFound
         case .transferFailed: self = .transferFailed
         case .requestTimeout: self = .requestTimeout

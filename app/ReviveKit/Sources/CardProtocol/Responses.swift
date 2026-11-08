@@ -169,7 +169,10 @@ public enum StartRecordingReply: Equatable, Sendable {
 
     public static func parse(_ frame: Frame) -> StartRecordingReply? {
         guard frame.cmd == Command.startRecording.rawValue else { return nil }
-        if let name = frame.decode(NameOnly.self)?.name, !name.isEmpty { return .started(name: name) }
+        // An unpaired v1.50 card replies `{"name":"NULL"}` and does not record (#38 E).
+        if let name = frame.decode(NameOnly.self)?.name, !name.isEmpty {
+            return name == "NULL" ? .notPaired : .started(name: name)
+        }
         return frame.text.trimmingCharacters(in: .whitespacesAndNewlines) == "NULL" ? .notPaired : nil
     }
 }
@@ -245,6 +248,12 @@ public struct FileChunk: Equatable, Sendable {
         self.status = status
         self.offset = offset
         self.data = data
+    }
+
+    /// A bare one-byte `0x4X` reply to `0x70`, with no offset: the card refuses to start a
+    /// transfer. Seen after the app was killed mid-download, until the card was restarted (#38).
+    public static func isRefusal(_ frame: Frame) -> Bool {
+        frame.cmd == Command.fileData.rawValue && frame.body.count == 1 && frame.body[frame.body.startIndex] & 0xF0 == 0x40
     }
 
     /// Nil when the body is shorter than the 5-byte header (a truncated chunk).

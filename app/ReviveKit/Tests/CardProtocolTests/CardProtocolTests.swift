@@ -149,6 +149,25 @@ struct ResponseParsingTests {
         let started = Frame(cmd: 0x51, body: Data(#"{"name":"20261106215528.opus"}"#.utf8))
         #expect(StartRecordingReply.parse(started) == .started(name: "20261106215528.opus"))
         #expect(StartRecordingReply.parse(Frame(cmd: 0x51, body: Data("NULL".utf8))) == .notPaired)
+        // Body captured from an unpaired card in evidence/v38-card-link/05-replies.log.
+        #expect(StartRecordingReply.parse(Frame(cmd: 0x51, body: Data(#"{"name":"NULL"}"#.utf8))) == .notPaired)
+    }
+
+    /// evidence/v38-card-link/03a-…log: `rx 70 len=1 40` after the app was killed mid-download.
+    @Test func bareErrorByteIsARefusal() {
+        #expect(FileChunk.isRefusal(Frame(cmd: 0x70, body: Data([0x40]))))
+        #expect(FileChunk.parse(Frame(cmd: 0x70, body: Data([0x40]))) == nil)
+        #expect(!FileChunk.isRefusal(Frame(cmd: 0x70, body: Data([0x40, 0, 0, 0, 0]))))
+        #expect(!FileChunk.isRefusal(Frame(cmd: 0x70, body: Data([0x00]))))
+    }
+
+    /// Status bytes seen on v1.50 (#38 E): 0x00, 0x11, 0x12 … 0x1F, 0x10 …, last 0x2E.
+    @Test func chunkStatusSequenceNumbers() {
+        func status(_ b: UInt8) -> FileChunk.Status? { FileChunk.parse(Frame(cmd: 0x70, body: Data([b, 0, 0, 0, 0])))?.status }
+        #expect(status(0x00) == .data)
+        #expect(status(0x1F) == .data)
+        #expect(status(0x2E) == .eof)
+        #expect(status(0x4A) == .error)
     }
 
     /// Body captured in evidence/v34-device-check/pause.jsonl at 11.5 s.

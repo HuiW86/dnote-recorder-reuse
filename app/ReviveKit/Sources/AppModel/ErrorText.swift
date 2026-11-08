@@ -17,6 +17,7 @@ extension CardServiceError {
         case .notPaired: "这张卡需要重新配对"
         case .pairVerifyFailed: "配对没有成功，请重试"
         case .cardBusyRecording: "录音中，结束后自动同步"
+        case .cardBusy: "录音卡暂时无法传输。长按关机再开机后自动继续"
         case .transferFailed: "录音同步失败，稍后自动重试"
         case .unexpectedReply: "录音卡返回了无法识别的数据，请重试"
         case .bondStorageFailed: "无法保存配对信息，请重试"
