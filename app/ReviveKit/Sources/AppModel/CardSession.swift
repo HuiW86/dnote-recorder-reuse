@@ -46,6 +46,13 @@ public final class CardSession {
     /// (product-spec.md P05 RecordingStatusCard). Nil when not known yet.
     public private(set) var recordedMs: Int?
     public private(set) var recordedAt: Date?
+    /// The user tapped "断开连接" on P07: no pending connect until they pull to refresh on P05 or
+    /// reopen the app (product-spec.md P07).
+    public private(set) var userDisconnected = false
+
+    /// Whether a card deletes its files once stored (per card, set from Preferences). Applied to
+    /// SyncEngine when the card connects.
+    @ObservationIgnored public var deleteAfterSync: (UUID) -> Bool = { _ in false }
 
     /// Off while the DEBUG card screen is open, so its logs show only the requests it sends
     /// (evidence/v38-card-link). Syncs requested directly on `syncEngine` still run.
@@ -116,6 +123,7 @@ public final class CardSession {
     /// Registers a pending connect to `device`, unless the link is busy with a card or already
     /// has one pending (registered by the link itself after a drop).
     public func connectWhenSeen(_ device: Device) throws {
+        userDisconnected = false
         switch linkState {
         case .connecting, .connected, .disconnected(.lost): return
         default: break
@@ -124,10 +132,34 @@ public final class CardSession {
         try service.connectWhenSeen(id)
     }
 
+    /// "断开连接" on P07.
+    public func disconnect() {
+        userDisconnected = true
+        service.disconnect()
+    }
+
+    /// Unbonds the connected card (`0xA0 [0]`, checked by `0xA1`), marks it unpaired and drops the
+    /// link so it advertises again. Recordings on the card and on the phone are kept.
+    public func unpair(_ device: Device) async throws {
+        guard connectedDevice?.id == device.id else { throw CardServiceError.disconnected }
+        try await service.unpair()
+        try library.markUnpaired(id: device.id)
+        disconnect()
+        refreshDevices()
+    }
+
+    /// Applies a change of the per-card "同步后删除" to the card on the link.
+    public func deleteAfterSyncChanged(for deviceId: UUID) {
+        guard connectedDevice?.id == deviceId else { return }
+        syncEngine.options.deleteAfterSync = deleteAfterSync(deviceId)
+    }
+
     /// Re-reads the paired cards, after pairing or unpairing. A card just paired on the link
     /// is then recognised: its recording state is read and its first sync starts.
     public func refreshDevices() {
         pairedDevices = (try? library.pairedDevices()) ?? []
+        // Unpaired while on the link: stop treating it as a paired card (no more syncs).
+        if let device = connectedDevice, !pairedDevices.contains(where: { $0.id == device.id }) { forgetCard() }
         if connectedDevice == nil, linkState == .connected, let info = service.lastInfo { identify(info) }
     }
 
@@ -215,6 +247,7 @@ public final class CardSession {
         guard let device = pairedDevices.first(where: { $0.sn == info.serial }) else { return }
         connectedDevice = device
         cardInfo = info
+        syncEngine.options.deleteAfterSync = deleteAfterSync(device.id)
         // 0x80 carries the recording state too; 0x56 then adds recd. Without this, a failed 0x56
         // would leave the card showing as connecting with recording disabled until a reconnect.
         if case .unknown = info.recordingState {} else { setRecording(info.recordingState, ms: nil) }

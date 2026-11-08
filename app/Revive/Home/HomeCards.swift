@@ -4,7 +4,7 @@ import SwiftUI
 
 // Home screen components (product-spec.md §0.2, P05, P04).
 
-/// Card name and connection state at the top left. Tapping it opens P07 / P08 in batch 3.
+/// Card name and connection state at the top left; opens P07 (product-spec.md §2.1).
 struct DeviceChip: View {
     let device: Device?
     let status: DeviceStatus

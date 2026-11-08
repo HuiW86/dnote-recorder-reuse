@@ -60,6 +60,7 @@ final class AppEnvironment {
         #endif
         do {
             session = try CardSession(link: link, bondStore: KeychainBondStore(), library: library)
+            session?.deleteAfterSync = { [preferences] in preferences.deleteAfterSync(for: $0) }
         } catch {
             log.error("card session unavailable: \(String(describing: error), privacy: .public)")
         }

@@ -43,6 +43,8 @@ public final class FakeCard: CardLink {
         case refuseDownloads
         /// Answer `0xA2` with `0x00` instead of the `0x01` ack.
         case rejectEncryptionKey
+        /// Ack setting writes without changing the switches, so the `0x81` read-back disagrees.
+        case ignoreSettings
     }
 
     // MARK: Configuration and observable state
@@ -236,7 +238,7 @@ public final class FakeCard: CardLink {
             // Assumed format: one byte, 1 when a key is set.
             return [.frame(Self.frame(cmd, Data([encryptionKey == nil ? 0 : 1])))]
         case .set(let setting):
-            apply(setting)
+            if !faults.contains(.ignoreSettings) { apply(setting) }
             return [.frame(Self.frame(cmd, Self.ack))]
         case .syncTime:
             return [.frame(Self.frame(cmd, Self.ack))]

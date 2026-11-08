@@ -6,6 +6,7 @@ import SwiftUI
 /// Navigation targets from home (product-spec.md §2.3). Pages pass ids only.
 enum Route: Hashable {
     case recording(UUID)
+    case device(UUID)
     case settings, about, privacy, permissions
 }
 
@@ -27,6 +28,7 @@ struct HomeView: View {
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .recording(let id): RecordingDetailView(env: env, recordingId: id)
+                case .device(let id): DeviceView(env: env, deviceId: id)
                 case .settings: SettingsView()
                 case .about: AboutView()
                 case .privacy: PrivacyView()
@@ -54,7 +56,15 @@ private struct HomeContent: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    DeviceChip(device: model.currentDevice, status: model.status, battery: model.battery)
+                    // P08 (switch cards from the chevron) comes in batch 3c; the chip opens P07 for now.
+                    if let device = model.currentDevice {
+                        NavigationLink(value: Route.device(device.id)) {
+                            DeviceChip(device: device, status: model.status, battery: model.battery)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        DeviceChip(device: nil, status: model.status, battery: model.battery)
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: Route.settings) {

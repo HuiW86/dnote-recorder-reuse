@@ -110,6 +110,10 @@ public final class PairingModel {
         phase = .scanning
         scanTimer?.cancel()
         guard session.bluetoothProblem == nil else { return }
+        // A card on the link that is not paired here (unpaired on P07 or elsewhere, a pairing given
+        // up) does not advertise, so the scan would never find it. Not `session.disconnect()`: that
+        // would also stop the home screen reconnecting once this card is paired.
+        if session.linkState == .connected, session.connectedDevice == nil { session.service.disconnect() }
         session.startScan()
         let timeout = scanTimeout
         scanTimer = Task { [weak self] in

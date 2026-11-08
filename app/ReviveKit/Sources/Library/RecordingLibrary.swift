@@ -127,6 +127,21 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Device.fetchOne($0, key: id) }
     }
 
+    /// Unpairing keeps the row and its recordings; without `pairedAt` the card no longer counts as
+    /// paired (product-spec.md P07 「解绑此卡」).
+    public func markUnpaired(id: UUID) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE device SET paired_at = NULL WHERE id = ?", arguments: [id])
+        }
+    }
+
+    /// Local display name only; nothing is written to the card (`0x86` is M4).
+    public func renameDevice(id: UUID, to name: String) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE device SET name = ? WHERE id = ?", arguments: [name, id])
+        }
+    }
+
     /// Deletes a recording, its audio and any decoded copy. The SyncItem stays `stored`, so the file is not
     /// synced again, and nothing is sent to the card (prd.md §4.3, T-M1-32).
     public func deleteRecording(id: UUID) throws {

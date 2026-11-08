@@ -104,6 +104,11 @@ public final class HomeModel {
 
     /// Pull to refresh (product-spec.md P05).
     public func refresh() async {
+        // After "断开连接" on P07, pulling down is how the user asks to connect again.
+        if status == .waiting, session.userDisconnected {
+            reconnect(force: true)
+            return
+        }
         guard status == .idle || status == .recording || status == .paused else {
             toast = Toast("录音卡未连接")
             return
@@ -185,8 +190,8 @@ public final class HomeModel {
 
     // MARK: - Reconnect
 
-    private func reconnect() {
-        guard let device = currentDevice, status == .waiting else { return }
+    private func reconnect(force: Bool = false) {
+        guard let device = currentDevice, status == .waiting, force || !session.userDisconnected else { return }
         do {
             try session.connectWhenSeen(device)
         } catch {
