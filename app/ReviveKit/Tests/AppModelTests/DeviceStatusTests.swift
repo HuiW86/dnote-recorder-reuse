@@ -74,6 +74,23 @@ struct DeviceStatusTests {
         #expect(h.session.connectedDevice?.id == id)
     }
 
+    /// One 0x80 and one 0xA1 per reconnect: sync waits for the connect routine's 0x80 instead of
+    /// reading its own. (Pairing sends 0xA1 twice on purpose: the pairing check, then SyncEngine's
+    /// guard against syncing a card bonded to another phone.)
+    @Test func reconnectSendsInfoAndBondStatusOnce() async throws {
+        let (h, id) = try await pairedHarness()
+        await waitUntil("idle") { h.session.status(of: id) == .idle }
+        await h.session.syncEngine.idle()
+        let info = h.sent(.deviceInfo), bond = h.sent(.bondStatus)
+        h.card.dropLink()
+        h.card.advertise()
+        await waitUntil("idle again") { h.session.status(of: id) == .idle }
+        await waitUntil("synced") { h.sent(.listFiles) == 2 }
+        await h.session.syncEngine.idle()
+        #expect(h.sent(.deviceInfo) - info == 1)
+        #expect(h.sent(.bondStatus) - bond == 1)
+    }
+
     @Test func bluetoothOffOverridesEverything() async throws {
         let (h, id) = try await pairedHarness()
         await waitUntil("idle") { h.session.status(of: id) == .idle }
