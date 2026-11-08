@@ -10,7 +10,7 @@ extension CardServiceError {
         case .bluetoothOff: "蓝牙已关闭，请在控制中心或设置中打开"
         case .bluetoothUnauthorized: "需要蓝牙权限才能连接录音卡"
         case .bluetoothUnsupported: "蓝牙暂时不可用，请稍后再试"
-        case .connectTimeout, .connectFailed: "连接超时。按一下卡上的录音键唤醒后重试"
+        case .connectTimeout, .connectFailed: "连接超时。按住卡上的录音键，白灯闪烁后重试"
         case .unknownCard: "找不到这张录音卡，请重新搜索"
         case .disconnected: "连接已断开，连上后继续"
         case .requestTimeout: "录音卡没有响应，请重试"

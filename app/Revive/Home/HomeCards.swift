@@ -190,7 +190,7 @@ struct RecordControlBar: View {
 
     private var hint: String? {
         switch model.status {
-        case .waiting: "按一下卡上的录音键唤醒"
+        case .waiting: "按住卡上的录音键，白灯闪烁后松手"
         case .connecting: "正在连接录音卡…"
         default: nil
         }

@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// P02 connect guide (product-spec.md §4.2). Same instruction as the official app; the
-/// card drawing is our own line art, not the product photo.
+/// P02 connect guide (product-spec.md §4.2). Official app instruction, with "press" made
+/// "press and hold": a short press does not wake a card that has powered off
+/// (evidence/v38-card-link 03c). The card drawing is our own line art, not the product photo.
 struct ConnectGuideView: View {
     let onContinue: () -> Void
 
@@ -11,7 +12,7 @@ struct ConnectGuideView: View {
             CardSketch()
                 .frame(width: 140, height: 200)
                 .accessibilityHidden(true)
-            Text("把录音卡靠近手机，按一下**录音键**唤醒，等**白灯闪烁**后松手")
+            Text("把录音卡靠近手机，按住**录音键**，等**白灯闪烁**后松手")
                 .font(.title3)
                 .multilineTextAlignment(.center)
             Spacer()

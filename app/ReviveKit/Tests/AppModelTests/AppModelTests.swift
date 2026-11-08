@@ -167,7 +167,7 @@ struct PairingModelTests {
         h.card.advertising = false  // the card went back to sleep
         h.pairing.select(try #require(h.pairing.candidates.first))
         await waitUntil("failed") { h.pairing.phase == .failed(.connecting, .connectTimeout) }
-        #expect(CardServiceError.connectTimeout.userText == "连接超时。按一下卡上的录音键唤醒后重试")
+        #expect(CardServiceError.connectTimeout.userText == "连接超时。按住卡上的录音键，白灯闪烁后重试")
 
         h.card.advertising = true
         h.pairing.retry()
