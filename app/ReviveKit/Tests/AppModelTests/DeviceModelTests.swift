@@ -44,6 +44,20 @@ struct DeviceModelTests {
         h.checkNoForbiddenWrites()
     }
 
+    /// Coming back from the level list re-runs the page's load: it must not put the old value
+    /// back over one being sent (seen on the real card, #41 batch 3b).
+    @Test func reloadDoesNotUndoSettingBeingSent() async throws {
+        let (h, model) = try await connectedDevice()
+        await model.load()
+        model.set(.noiseLevel(5))
+        await model.load()
+        await model.load(force: true)
+        #expect(model.switches?.noiseLevel == 5)
+        await waitUntil("sent") { model.pending.isEmpty }
+        #expect(model.switches?.noiseLevel == 5)
+        #expect(h.sent(.switches) == 2)  // first load, then the set's own read-back
+    }
+
     /// The read-back disagrees twice (one automatic retry): the switch goes back with a Toast.
     @Test func failedSettingGoesBackWithToast() async throws {
         let (h, model) = try await connectedDevice()

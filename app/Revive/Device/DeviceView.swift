@@ -152,7 +152,7 @@ private struct DeviceContent: View {
                 HStack {
                     Text("读取失败").foregroundStyle(.secondary)
                     Spacer()
-                    Button("重试") { Task { await model.load() } }
+                    Button("重试") { Task { await model.load(force: true) } }
                 }
             }
         } else {

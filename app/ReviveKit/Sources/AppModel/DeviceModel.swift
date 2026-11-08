@@ -88,14 +88,19 @@ public final class DeviceModel {
 
     // MARK: - Settings
 
-    /// Reads `0x81` once connected. Called again when the connection comes back.
-    public func load() async {
+    /// Reads `0x81` once connected, again after a reconnect, or with `force` ("重试"). Not while a
+    /// setting is being sent: a read sent just before it would put the old value back on screen.
+    public func load(force: Bool = false) async {
         guard isConnected else {
             switches = nil
             return
         }
+        guard force || switches == nil, pending.isEmpty else { return }
         do {
-            switches = try await retryingOnce { try await self.session.service.switches() }
+            let read = try await retryingOnce { try await self.session.service.switches() }
+            // A setting sent meanwhile has its own read-back; keep its value on screen.
+            guard pending.isEmpty else { return }
+            switches = read
             switchesFailed = false
         } catch {
             switchesFailed = switches == nil
