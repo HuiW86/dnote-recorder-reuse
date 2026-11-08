@@ -82,7 +82,8 @@ public final class CardSession {
             break
         }
         // A card being paired is not in the library yet: its first sync starts when pairing
-        // completes, not on connect (an unpaired card would only time out on 0x90).
+        // completes, not on connect. SyncEngine also checks 0xA1 itself, because an unpaired
+        // card still serves files (#38 E).
         if autoSyncEnabled, isPairedCardConnected { syncEngine.handle(event) }
         for listener in listeners.values { listener(event) }
     }
