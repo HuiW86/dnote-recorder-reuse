@@ -89,6 +89,13 @@ struct RecordingTextTests {
         #expect(RecordingText.longDuration(ms: r.durationMs) == "23 分钟 5 秒")
     }
 
+    /// Chinese and 24-hour on a phone set to an English region too.
+    @Test func dateTimeIgnoresPhoneRegion() throws {
+        let evening = try #require(SyncEngine.startDate(fileName: "20261108234600.opus"))
+        #expect(RecordingText.dateTime(evening, calendar: calendar) == "11月8日 23:46")
+        #expect(RecordingText.time(evening, calendar: calendar) == "23:46")
+    }
+
     @Test func unparsableFileNameSaysTimeUnknown() {
         let r = recording(file: "garbage.opus", startedAt: Date(), ms: 45_000)
         #expect(RecordingText.title(r) == "时间未知")

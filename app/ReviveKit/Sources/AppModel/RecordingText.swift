@@ -8,16 +8,26 @@ public enum RecordingText {
     /// "11月7日 14:02"; "时间未知" when the card file name carries no time.
     public static func title(_ r: Recording, calendar: Calendar = .current) -> String {
         guard hasKnownTime(r) else { return "时间未知" }
-        let c = calendar.dateComponents([.month, .day, .hour, .minute], from: r.startedAt)
-        return String(format: "%d月%d日 %02d:%02d", c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
+        return dateTime(r.startedAt, calendar: calendar)
+    }
+
+    /// "11月7日 14:02", whatever the phone's region: the app is Chinese only.
+    public static func dateTime(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.month, .day], from: date)
+        return String(format: "%d月%d日 ", c.month ?? 0, c.day ?? 0) + time(date, calendar: calendar)
+    }
+
+    /// "14:02", 24-hour.
+    public static func time(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 
     /// "14:02 · 23 分钟", plus "· 卡名" when several cards are paired.
     public static func subtitle(_ r: Recording, deviceName: String?, calendar: Calendar = .current) -> String {
         var parts: [String] = []
         if hasKnownTime(r) {
-            let c = calendar.dateComponents([.hour, .minute], from: r.startedAt)
-            parts.append(String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0))
+            parts.append(time(r.startedAt, calendar: calendar))
         }
         parts.append(duration(ms: r.durationMs))
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }

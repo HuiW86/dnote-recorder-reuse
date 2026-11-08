@@ -25,6 +25,8 @@ struct DeviceChip: View {
                 .foregroundStyle(.secondary)
         }
         .font(.subheadline.weight(.medium))
+        // The toolbar offers too little width and the name collapses to nothing.
+        .fixedSize()
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(.quaternary, in: Capsule())
@@ -90,7 +92,7 @@ struct RecordingStatusCard: View {
                     }
                 }
                 if let start = model.recordingStartedAt {
-                    Text("开始于 \(start.formatted(date: .omitted, time: .shortened))")
+                    Text("开始于 \(RecordingText.time(start))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -115,7 +117,7 @@ struct SyncStatusCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(card.title).font(.subheadline.weight(.medium))
                     if case .done(let at) = card {
-                        Text(at.formatted(date: .abbreviated, time: .shortened))
+                        Text(RecordingText.dateTime(at))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
