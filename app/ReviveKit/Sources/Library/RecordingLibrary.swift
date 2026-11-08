@@ -89,6 +89,10 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Recording.order(Column("started_at")).fetchAll($0) }
     }
 
+    public func recording(id: UUID) throws -> Recording? {
+        try database.writer.read { try Recording.fetchOne($0, key: id) }
+    }
+
     /// Recordings newest first, now and after every change (the home list, product-spec.md P05).
     /// The first value arrives immediately; keep the returned observation to keep observing.
     @MainActor

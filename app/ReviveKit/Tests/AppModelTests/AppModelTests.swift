@@ -10,7 +10,9 @@ import Testing
 
 // First-use flow against the fake card (product-spec.md §3.1, P01–P03).
 
-let fastTiming = CardService.Timing(request: .milliseconds(200), listFiles: .milliseconds(200),
+// No test here waits for a request to time out; the margin keeps tests that briefly hold the
+// main actor (player setup) from failing unrelated requests when suites run in parallel.
+let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
                                             downloadBytesPerSecond: 1_000_000, downloadSlack: .milliseconds(500))
 let syncOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
                                              recordingStoppedDelay: .milliseconds(10), spaceMargin: 0)

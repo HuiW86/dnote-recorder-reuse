@@ -4,7 +4,16 @@ import CardService
 import Foundation
 import Library
 import Observation
+import Player
 import SyncEngine
+
+/// A short message shown on top for 2 s; a new one replaces the old (product-spec.md §6).
+public struct Toast: Equatable, Identifiable, Sendable {
+    public let id = UUID()
+    public let text: String
+
+    public init(_ text: String) { self.text = text }
+}
 
 /// Home screen state: recording list, device status, sync card and recording control
 /// (product-spec.md P05, P04).
@@ -13,12 +22,6 @@ import SyncEngine
 public final class HomeModel {
     public enum Command: Equatable, Sendable {
         case start, pause, resume, stop
-    }
-
-    /// A short message shown on top for 2 s; a new one replaces the old (product-spec.md §6).
-    public struct Toast: Equatable, Identifiable, Sendable {
-        public let id = UUID()
-        public let text: String
     }
 
     public let session: CardSession
@@ -33,12 +36,14 @@ public final class HomeModel {
     public var showsConsent = false
 
     @ObservationIgnored private let preferences: Preferences
+    @ObservationIgnored private let player: RecordingPlayer?
     @ObservationIgnored private var observation: LibraryObservation?
     @ObservationIgnored private var listener: UUID?
 
-    public init(session: CardSession, preferences: Preferences) {
+    public init(session: CardSession, preferences: Preferences, player: RecordingPlayer? = nil) {
         self.session = session
         self.preferences = preferences
+        self.player = player
     }
 
     /// Starts watching the library and asks for the current card to reconnect.
@@ -103,7 +108,7 @@ public final class HomeModel {
     /// Pull to refresh (product-spec.md P05).
     public func refresh() async {
         guard status == .idle || status == .recording || status == .paused else {
-            toast = Toast(text: "录音卡未连接")
+            toast = Toast("录音卡未连接")
             return
         }
         await session.syncEngine.syncNow()
@@ -156,7 +161,7 @@ public final class HomeModel {
                 }
             } catch {
                 let text = (error as? CardServiceError)?.userText ?? "操作失败，请重试"
-                toast = Toast(text: text)
+                toast = Toast(text)
             }
         }
     }
@@ -165,11 +170,12 @@ public final class HomeModel {
 
     /// Deletes the local recording only; nothing is sent to the card (product-spec.md §3.3).
     public func delete(_ id: UUID) {
+        if player?.recordingId == id { player?.stop() }
         do {
             try session.library.deleteRecording(id: id)
-            toast = Toast(text: "已删除")
+            toast = Toast("已删除")
         } catch {
-            toast = Toast(text: "删除失败，请重试")
+            toast = Toast("删除失败，请重试")
         }
     }
 
@@ -187,7 +193,7 @@ public final class HomeModel {
         do {
             try session.connectWhenSeen(device)
         } catch {
-            toast = Toast(text: (error as? CardServiceError)?.userText ?? "找不到这张录音卡，请重新搜索")
+            toast = Toast((error as? CardServiceError)?.userText ?? "找不到这张录音卡，请重新搜索")
         }
     }
 }
