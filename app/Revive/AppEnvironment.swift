@@ -47,8 +47,10 @@ final class AppEnvironment {
     func startBluetooth() -> CardSession? {
         if let session { return session }
         guard let library else { return nil }
-        var link: any CardLink = BluetoothCardLink()
+        let bluetooth = BluetoothCardLink()
+        var link: any CardLink = bluetooth
         #if DEBUG
+        bluetooth.onRestore = { [debugLog] in debugLog.add($0) }
         link = TappedLink(link, log: debugLog)
         #endif
         do {

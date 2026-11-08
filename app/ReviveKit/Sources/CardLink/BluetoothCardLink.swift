@@ -30,6 +30,12 @@ public final class BluetoothCardLink: NSObject, CardLink {
     /// Peripheral handed over by state restoration; adopted once Bluetooth is powered on,
     /// because CoreBluetooth ignores commands issued before that.
     private var restoredPeripheral: CBPeripheral?
+    /// What state restoration handed over, for the #38 C evidence; nil when it did not run.
+    public private(set) var restoreReport: String?
+    /// Called with `restoreReport`; called at once if restoration already ran when set.
+    public var onRestore: ((String) -> Void)? {
+        didSet { if let restoreReport { onRestore?(restoreReport) } }
+    }
 
     private static let service = CBUUID(string: CardGATT.service)
     private static let writeUUID = CBUUID(string: CardGATT.writeCharacteristic)
@@ -237,8 +243,15 @@ extension BluetoothCardLink: CBCentralManagerDelegate {
 
     nonisolated public func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
         // Delegate callbacks arrive on the main queue (see init), so this never crosses threads.
-        nonisolated(unsafe) let restored = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.first
+        nonisolated(unsafe) let all = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] ?? []
+        nonisolated(unsafe) let restored = all.first
+        let states = all.map { String(describing: $0.state.rawValue) }.joined(separator: ",")
+        let scanning = dict[CBCentralManagerRestoredStateScanServicesKey] != nil
         MainActor.assumeIsolated {
+            // Peripheral states: 0 disconnected, 1 connecting, 2 connected, 3 disconnecting.
+            let report = "restore: peripherals=\(all.count) states=[\(states)] scanning=\(scanning)"
+            restoreReport = report
+            onRestore?(report)
             if let p = restored {
                 restoredPeripheral = p
                 peripheral = p

@@ -27,8 +27,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             env.debugLog.add("launch: bluetoothCentrals=\(centrals) state=\(application.applicationState.rawValue)")
             #endif
             // With a paired card, or when iOS relaunched us for one, the stack must exist now so
-            // pending connects and restoration work. First use waits for P01 instead.
-            if env.hasPairedDevice || !centrals.isEmpty { env.startBluetooth() }
+            // pending connects and restoration work. Once Bluetooth is authorized, creating the
+            // manager shows no prompt, so start it too (prewarm launches carry no centrals key).
+            // Otherwise first use waits for P01, which asks for the permission.
+            if env.hasPairedDevice || !centrals.isEmpty || AppEnvironment.bluetoothAuthorization == .allowed {
+                env.startBluetooth()
+            }
         }
         return true
     }
