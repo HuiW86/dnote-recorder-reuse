@@ -128,7 +128,9 @@ private struct PlayerCard: View {
                     HStack {
                         Text(Self.clock(position, hours: duration >= 3600))
                         Spacer()
-                        Text(Self.clock(duration, hours: duration >= 3600))
+                        // Decoded length is a few ms short of the stored one (Opus pre-skip); round so
+                        // it reads like 时长 instead of dropping a second once loaded.
+                        Text(Self.clock(duration.rounded(), hours: duration >= 3600))
                     }
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
