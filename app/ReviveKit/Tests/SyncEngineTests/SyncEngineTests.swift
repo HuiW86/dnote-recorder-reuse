@@ -179,6 +179,23 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    /// Only failed files still on the card are shown; one that left the card stops counting.
+    @Test func failuresCountOnlyFilesStillOnCard() async throws {
+        var corrupt = encrypted
+        corrupt[corrupt.startIndex + 40] ^= 0xFF
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted),
+                                          .init(name: "bad.opus", content: corrupt)],
+                                  faults: [.chunkStatus(index: 1, status: 0x40)])
+        #expect(try h.items.filter { $0.state == .failed }.count == 2)
+        #expect(h.engine.failures == FailureCounts(retryable: 1, undecryptable: 1))
+
+        h.card.files.removeAll()
+        await h.engine.syncNow()
+        #expect(try h.items.filter { $0.state == .failed }.count == 2)  // items stay; the count does not
+        #expect(h.engine.failures == FailureCounts(retryable: 0, undecryptable: 0))
+        h.checkNoForbiddenWrites()
+    }
+
     /// T-M1-21
     @Test func resumesAfterDrop() async throws {
         let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)],

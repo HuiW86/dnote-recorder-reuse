@@ -75,6 +75,9 @@ public final class SyncEngine {
     /// Files on the current card that are not in the library yet, as of the last list.
     /// Files that failed to decrypt are not counted: they are never retried.
     public private(set) var pendingCount = 0
+    /// Failed files still on the current card, as of the last list (product-spec.md P05
+    /// SyncStatusCard). Files that left the card no longer count.
+    public private(set) var failures = FailureCounts(retryable: 0, undecryptable: 0)
     /// End of the last pass that ran to completion; on launch, the newest stored card recording.
     public private(set) var lastCompletedAt: Date?
 
@@ -92,6 +95,8 @@ public final class SyncEngine {
     @ObservationIgnored private var retryTimer: Task<Void, Never>?
     /// `0x70` said a listed file does not exist: list once more (prd.md §6 `fileNotFound`).
     @ObservationIgnored private var relistAfterNotFound = false
+    /// The card `failures` belongs to.
+    @ObservationIgnored private var failuresDeviceId: UUID?
 
     /// Recovers from a previous crash before anything else touches the library (prd.md §4.3).
     public init(service: CardService, library: RecordingLibrary, options: Options = Options(),
@@ -160,6 +165,10 @@ public final class SyncEngine {
         defer { progress = nil }
         do {
             let device = try await currentDevice()
+            if failuresDeviceId != device.id {
+                failures = FailureCounts(retryable: 0, undecryptable: 0)
+                failuresDeviceId = device.id
+            }
             // The card serves files whether or not it is paired (#38 E): never sync, let alone
             // delete, on a card that was re-bound to another phone.
             guard try await service.isPairedWithThisPhone() else { throw CardServiceError.notPaired }
@@ -204,6 +213,7 @@ public final class SyncEngine {
                 if try await sync(item, device: device) { pendingCount -= 1 }
             }
             progress = nil
+            failures = try failureCounts(device, listed: listed)
 
             if options.deleteAfterSync { try await deletePending(device) }
             status = .idle
@@ -218,6 +228,16 @@ public final class SyncEngine {
             log.error("sync pass stopped: \(code, privacy: .public)")
             status = .stopped(code)
         }
+    }
+
+    /// Counts failed items among the listed files. `fileNotFound` is never shown: the next
+    /// list settles it (product-spec.md §7.1).
+    private func failureCounts(_ device: Device, listed: Set<Key>) throws -> FailureCounts {
+        let failed = try library.syncItems(deviceId: device.id).filter {
+            $0.state == .failed && $0.lastError != SyncFailure.fileNotFound.rawValue && listed.contains(Key($0))
+        }
+        let undecryptable = failed.filter { $0.lastError == SyncFailure.decryptFailed.rawValue }.count
+        return FailureCounts(retryable: failed.count - undecryptable, undecryptable: undecryptable)
     }
 
     private func cardIsIdle() async throws -> Bool {

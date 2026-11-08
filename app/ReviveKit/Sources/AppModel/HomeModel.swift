@@ -97,11 +97,8 @@ public final class HomeModel {
                                    lastCompletedAt: engine.lastCompletedAt,
                                    cardFree: session.cardInfo?.freeSpace, cardTotal: session.cardInfo?.totalSpace,
                                    deleteAfterSync: engine.options.deleteAfterSync)
-        // Read failures only between passes; during a pass the card shows progress anyway.
-        if connected, engine.status == .idle, !engine.isRunning, let id = currentDevice?.id,
-           let failures = try? session.library.failureCounts(deviceId: id) {
-            input.failures = failures
-        }
+        // Failures only between passes; during a pass the card shows progress anyway.
+        if connected, engine.status == .idle, !engine.isRunning { input.failures = engine.failures }
         return SyncCard.make(input)
     }
 

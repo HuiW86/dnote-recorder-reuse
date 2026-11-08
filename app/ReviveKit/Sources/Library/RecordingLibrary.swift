@@ -105,19 +105,6 @@ public final class RecordingLibrary: Sendable {
                                                     onError: onError, onChange: onChange))
     }
 
-    /// Failed files of one card that the user should hear about (product-spec.md P05 SyncStatusCard).
-    public func failureCounts(deviceId: UUID) throws -> FailureCounts {
-        let failed = try database.writer.read { db in
-            try SyncItem.filter(Column("device_id") == deviceId && Column("state") == SyncState.failed.rawValue)
-                .fetchAll(db)
-        }
-        // `SyncFailure` raw values; SyncEngine sits above Library, so they are spelled out.
-        // `fileNotFound` is never shown: the file is gone from the card (product-spec.md §7.1).
-        let shown = failed.filter { $0.lastError != "fileNotFound" }
-        let undecryptable = shown.filter { $0.lastError == "decryptFailed" }.count
-        return FailureCounts(retryable: shown.count - undecryptable, undecryptable: undecryptable)
-    }
-
     /// When the newest card recording was stored; nil when none was.
     public func lastStoredAt() throws -> Date? {
         try database.writer.read { db in
