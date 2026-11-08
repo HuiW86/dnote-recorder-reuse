@@ -47,6 +47,11 @@ struct CardDebugView: View {
                         Button("解绑", role: .destructive) { model.unpair() }
                     }
                     HStack {
+                        Button("自动关机 300 s") { model.setAutoOff(300) }
+                        Spacer()
+                        Button("自动关机 600 s") { model.setAutoOff(600) }
+                    }
+                    HStack {
                         Button("开始") { model.startRecording() }
                         Spacer()
                         Button("暂停") { model.pause() }

@@ -88,6 +88,13 @@ final class CardDebugModel {
     func switches() { run("switches") { [self] in log.add("\(try await service.switches())") } }
     func recordingStatus() { run("status") { [self] in log.add("\(try await service.recordingStatus())") } }
     func syncTime() { run("syncTime") { [self] in try await service.syncTime() } }
+    /// Checks the unit of `autoff` (#41 batch 3): `set` reads 0x81 back and fails on a mismatch.
+    func setAutoOff(_ seconds: UInt32) {
+        run("autoOff \(seconds)") { [self] in
+            try await service.set(.autoOff(seconds: seconds))
+            log.add("\(try await service.switches())")
+        }
+    }
     func startRecording() { run("start") { [self] in log.add("recording " + (try await service.startRecording())) } }
     func stopRecording() { run("stop") { [self] in try await service.stopRecording() } }
     func pause() { run("pause") { [self] in try await service.pause() } }
