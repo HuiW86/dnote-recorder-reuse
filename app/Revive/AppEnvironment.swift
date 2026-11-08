@@ -63,6 +63,7 @@ final class AppEnvironment {
 
     /// Re-reads whether any card is paired, after pairing or unpairing.
     func refreshDevices() {
+        session?.refreshDevices()
         hasPairedDevice = ((try? library?.pairedDevices()) ?? []).isEmpty == false
     }
 

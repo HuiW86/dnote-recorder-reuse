@@ -10,13 +10,13 @@ import Testing
 
 // First-use flow against the fake card (product-spec.md §3.1, P01–P03).
 
-private let fastTiming = CardService.Timing(request: .milliseconds(200), listFiles: .milliseconds(200),
+let fastTiming = CardService.Timing(request: .milliseconds(200), listFiles: .milliseconds(200),
                                             downloadBytesPerSecond: 1_000_000, downloadSlack: .milliseconds(500))
-private let syncOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
+let syncOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
                                              recordingStoppedDelay: .milliseconds(10), spaceMargin: 0)
 
 @MainActor
-private func waitUntil(_ what: String, timeout: Duration = .seconds(3),
+func waitUntil(_ what: String, timeout: Duration = .seconds(3),
                        _ condition: () throws -> Bool) async rethrows {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
@@ -27,7 +27,7 @@ private func waitUntil(_ what: String, timeout: Duration = .seconds(3),
 }
 
 @MainActor
-private final class Harness {
+final class Harness {
     let card: FakeCard
     let bonds: InMemoryBondStore
     let library: RecordingLibrary

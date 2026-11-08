@@ -298,7 +298,11 @@ public final class CardService {
         case .state(let state):
             // Events are delivered asynchronously, so judge the link by its current state: a stale
             // `.connecting` from before `connect` returned must not fail requests on the new link.
-            if link.state != .connected { failWaiters(.disconnected) }
+            if link.state != .connected {
+                failWaiters(.disconnected)
+                // A stale 0x80 would name the previous card after a reconnect to another one.
+                lastInfo = nil
+            }
             if case .disconnected(let reason) = state {
                 continuation.yield(.disconnected(reason))
             } else {

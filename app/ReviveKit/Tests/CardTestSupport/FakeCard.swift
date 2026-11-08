@@ -56,6 +56,8 @@ public final class FakeCard: CardLink {
     public var encryptionKey: Data?
     public var switches: DeviceSwitches
     public private(set) var recording: (name: String, state: RecordingState)?
+    /// `recd` in `0x56` replies while recording.
+    public var recordedMs = 0
     public var faults: [Fault] = []
     public var chunkSize = 200
     /// False: the card is asleep and scans do not find it.
@@ -360,7 +362,7 @@ public final class FakeCard: CardLink {
 
     private func recordingStatusFrame() -> Data {
         Self.frame(Command.recordingStatus.rawValue, json: [
-            "name": recording?.name ?? "", "size": 0, "recd": 0, "rec": recordingCode, "upload": 0,
+            "name": recording?.name ?? "", "size": 0, "recd": recording == nil ? 0 : recordedMs, "rec": recordingCode, "upload": 0,
         ])
     }
 

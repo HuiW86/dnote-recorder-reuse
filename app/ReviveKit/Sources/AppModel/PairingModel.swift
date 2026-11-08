@@ -188,7 +188,7 @@ public final class PairingModel {
             preferences.currentDeviceId = device.id
             phase = .done(deviceId: device.id)
             // The session holds back sync for unknown cards; this card is known now.
-            session.syncEngine.requestSync()
+            session.refreshDevices()
         } catch CardServiceError.pairCancelled {
             service.disconnect()
             return true
