@@ -1,0 +1,32 @@
+2026-11-08 12:55:53.531 [lock] link disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 12:55:53.543 [lock] link connecting
+2026-11-08 12:55:53.567 [lock] event disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 12:55:53.593 [lock] event stateChanged(CardLink.LinkState.connecting)
+2026-11-08 12:57:08.686 [bg] link connected
+2026-11-08 12:57:08.702 [bg] tx 80 len=0 
+2026-11-08 12:57:08.704 [bg] event stateChanged(CardLink.LinkState.connected)
+2026-11-08 12:57:08.825 [bg] rx 80 len=180 {"bat":90,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 12:57:09","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 12:57:08.843 [bg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 90% free 7653/7671 time 2026-11-08 12:57:09
+2026-11-08 12:57:08.847 [bg] tx 87 len=25 {"time":"20261108125708"}
+2026-11-08 12:57:08.957 [bg] rx 87 len=1 01
+2026-11-08 12:57:31.891 [bg] link disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 12:57:31.911 [bg] link connecting
+2026-11-08 12:57:31.917 [bg] event disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 12:57:31.940 [bg] event stateChanged(CardLink.LinkState.connecting)
+2026-11-08 16:25:42.165 [bg] link poweredOff
+2026-11-08 16:25:42.195 [bg] event stateChanged(CardLink.LinkState.poweredOff)
+2026-11-08 16:25:43.414 [bg] link connecting
+2026-11-08 16:25:43.425 [bg] event stateChanged(CardLink.LinkState.connecting)
+2026-11-08 17:04:03.930 [fg] scan start
+2026-11-08 17:04:05.623 [fg] scan start
+2026-11-08 17:04:11.763 [fg] scan start
+2026-11-08 17:04:12.495 [fg] link connected
+2026-11-08 17:04:12.510 [fg] tx 80 len=0 
+2026-11-08 17:04:12.517 [fg] event stateChanged(CardLink.LinkState.connected)
+2026-11-08 17:04:12.544 [fg] rx 80 len=174 {"bat":90,"bt":"D·NOTE","btaddr":"…162f","df":0,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 17:04:12","total_df":0,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 17:04:12.553 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 90% free 0/0 time 2026-11-08 17:04:12
+2026-11-08 17:04:12.555 [fg] tx 87 len=25 {"time":"20261108170412"}
+2026-11-08 17:04:12.602 [fg] rx 87 len=1 01
+2026-11-08 17:04:12.679 [fg] rx 80 len=180 {"bat":90,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 17:04:12","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 17:04:12.692 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 90% free 7653/7671 time 2026-11-08 17:04:12
+2026-11-08 17:04:13.244 [fg] scan start
