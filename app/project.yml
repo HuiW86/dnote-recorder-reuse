@@ -3,6 +3,8 @@
 name: Revive
 options:
   bundleIdPrefix: com.huiw86
+  # Simplified Chinese only in M1 (product-spec.md §10); system controls (Back, Copy) follow it.
+  developmentLanguage: zh-Hans
   deploymentTarget:
     iOS: "17.0"
 packages:
@@ -27,6 +29,8 @@ targets:
       path: Revive/Info.plist
       properties:
         CFBundleDisplayName: Revive
+        CFBundleDevelopmentRegion: zh-Hans
+        CFBundleLocalizations: [zh-Hans]
         # Take versions from build settings so TestFlight build numbers can be bumped in one place.
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)

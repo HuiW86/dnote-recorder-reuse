@@ -6,6 +6,7 @@ import SwiftUI
 /// Navigation targets from home (product-spec.md §2.3). Pages pass ids only.
 enum Route: Hashable {
     case recording(UUID)
+    case settings, about, privacy, permissions
 }
 
 /// P05 home: recording list with device, recording and sync status (product-spec.md §4.2).
@@ -26,6 +27,10 @@ struct HomeView: View {
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .recording(let id): RecordingDetailView(env: env, recordingId: id)
+                case .settings: SettingsView()
+                case .about: AboutView()
+                case .privacy: PrivacyView()
+                case .permissions: PermissionsView()
                 }
             }
         }
@@ -50,6 +55,12 @@ private struct HomeContent: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     DeviceChip(device: model.currentDevice, status: model.status, battery: model.battery)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: Route.settings) {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("设置")
                 }
             }
             .refreshable { await model.refresh() }

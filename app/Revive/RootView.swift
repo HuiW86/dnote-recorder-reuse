@@ -52,6 +52,8 @@ private struct DebugEntry: ViewModifier {
                     Image(systemName: "ladybug").padding(8)
                 }
                 .accessibilityLabel("调试")
+                // Below the navigation bar, clear of the settings gear and P06's toolbar.
+                .padding(.top, 48)
                 .padding(.trailing, 4)
             }
             .sheet(isPresented: $showing, onDismiss: { env.session?.autoSyncEnabled = true }) {
