@@ -15,28 +15,12 @@ struct RootView: View {
                     ShareLink(item: error) { Text("导出诊断信息") }
                 }
             } else if env.hasPairedDevice {
-                HomePlaceholderView(env: env)
+                HomeView(env: env)
             } else {
                 OnboardingFlow(env: env)
             }
         }
         .debugEntry(env)
-    }
-}
-
-/// Stand-in for P05 until batch 2 of #41.
-struct HomePlaceholderView: View {
-    let env: AppEnvironment
-
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView {
-                Label("录音卡已配对", systemImage: "checkmark.circle")
-            } description: {
-                Text("首页在 #41 第 2 批实现")
-            }
-            .navigationTitle("全部录音")
-        }
     }
 }
 

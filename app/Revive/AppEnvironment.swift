@@ -6,6 +6,7 @@ import Foundation
 import Library
 import Observation
 import os
+import Player
 
 /// Composition root: the library, preferences and the one Bluetooth stack. Created in
 /// `didFinishLaunching`, as state restoration requires.
@@ -21,6 +22,8 @@ final class AppEnvironment {
     private(set) var session: CardSession?
     /// At least one card paired from this phone; false shows the first-use flow.
     private(set) var hasPairedDevice: Bool
+    /// One player for the whole app, so leaving a page does not cut playback off.
+    let player: RecordingPlayer?
 
     #if DEBUG
     let debugLog = DebugLog()
@@ -40,6 +43,8 @@ final class AppEnvironment {
             libraryError = String(describing: error)
         }
         hasPairedDevice = ((try? library?.pairedDevices()) ?? []).isEmpty == false
+        player = library.map { RecordingPlayer(library: $0) }
+        RecordingExporter.cleanUp()
     }
 
     /// Creates the Bluetooth stack once and returns it.
