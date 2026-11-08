@@ -4,6 +4,7 @@ import CardService
 import CryptoKit
 import Foundation
 import Library
+import Observation
 import os
 
 // Card files to the local library, per the sync state machine (prd.md §4).
@@ -22,6 +23,7 @@ public enum SyncStatus: Equatable, Sendable {
 }
 
 @MainActor
+@Observable
 public final class SyncEngine {
     public struct Options: Sendable {
         /// Off by default (prd.md §4.5).
@@ -66,7 +68,7 @@ public final class SyncEngine {
     }
 
     public var options: Options
-    public var hooks = Hooks()
+    @ObservationIgnored public var hooks = Hooks()
     public private(set) var status: SyncStatus = .idle
     /// Set while a pass downloads files; nil otherwise.
     public private(set) var progress: Progress?
@@ -76,17 +78,20 @@ public final class SyncEngine {
     /// End of the last pass that ran to completion; on launch, the newest stored card recording.
     public private(set) var lastCompletedAt: Date?
 
-    private let service: CardService
-    private let library: RecordingLibrary
-    private let freeSpace: () -> Int64
-    private let now: () -> Date
-    private let log = Logger(subsystem: "revive", category: "SyncEngine")
+    /// A pass is running or queued ("正在检查录音卡", product-spec.md P05).
+    public var isRunning: Bool { pass != nil }
+
+    @ObservationIgnored private let service: CardService
+    @ObservationIgnored private let library: RecordingLibrary
+    @ObservationIgnored private let freeSpace: () -> Int64
+    @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let log = Logger(subsystem: "revive", category: "SyncEngine")
 
     private var pass: Task<Void, Never>?
-    private var rerunRequested = false
-    private var retryTimer: Task<Void, Never>?
+    @ObservationIgnored private var rerunRequested = false
+    @ObservationIgnored private var retryTimer: Task<Void, Never>?
     /// `0x70` said a listed file does not exist: list once more (prd.md §6 `fileNotFound`).
-    private var relistAfterNotFound = false
+    @ObservationIgnored private var relistAfterNotFound = false
 
     /// Recovers from a previous crash before anything else touches the library (prd.md §4.3).
     public init(service: CardService, library: RecordingLibrary, options: Options = Options(),
@@ -414,7 +419,7 @@ public final class SyncEngine {
 
     /// Card file names are `YYYYMMDDHHmmss.opus` in the card's clock, which the app sets to
     /// the phone's local time (prd.md §5.2).
-    static func startDate(fileName: String) -> Date? {
+    nonisolated public static func startDate(fileName: String) -> Date? {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = .current

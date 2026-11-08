@@ -37,6 +37,10 @@ public final class CardSession {
     public private(set) var connectedDevice: Device?
     /// Recording state of `connectedDevice`; nil until `0x56` has been read after connecting.
     public private(set) var recordingState: RecordingState?
+    /// Card file being recorded (`YYYYMMDDHHmmss.opus`), when the card has named it.
+    public private(set) var recordingName: String?
+    /// Latest `0x80` of `connectedDevice`: battery and card storage for the home screen.
+    public private(set) var cardInfo: DeviceInfo?
     /// Recorded time as of `recordedAt`: the card's `recd`, advanced locally while recording
     /// (product-spec.md P05 RecordingStatusCard). Nil when not known yet.
     public private(set) var recordedMs: Int?
@@ -103,10 +107,11 @@ public final class CardSession {
 
     public func stopScan() { service.stopScan() }
 
-    /// Registers a pending connect to `device`, unless the link is already busy with a card.
+    /// Registers a pending connect to `device`, unless the link is busy with a card or already
+    /// has one pending (registered by the link itself after a drop).
     public func connectWhenSeen(_ device: Device) throws {
         switch linkState {
-        case .connecting, .connected: return
+        case .connecting, .connected, .disconnected(.lost): return
         default: break
         }
         guard let id = device.peripheralId.flatMap(UUID.init) else { throw CardServiceError.unknownCard }
@@ -123,7 +128,7 @@ public final class CardSession {
     // MARK: - Recording control (prd.md §2.3)
 
     public func startRecording() async throws {
-        _ = try await service.startRecording()
+        recordingName = try await service.startRecording()
         setRecording(.recording, ms: 0)
     }
 
@@ -179,8 +184,12 @@ public final class CardSession {
             forgetCard()
         case .deviceInfo(let info):
             if connectedDevice == nil, linkState == .connected { identify(info) }
-        case .recordingStarted:
-            if connectedDevice != nil { setRecording(.recording, ms: 0) }
+            if connectedDevice != nil { cardInfo = info }
+        case .recordingStarted(let name):
+            if connectedDevice != nil {
+                recordingName = name
+                setRecording(.recording, ms: 0)
+            }
         case .recordingStopped:
             if connectedDevice != nil { setRecording(.idle, ms: nil) }
         default:
@@ -199,6 +208,7 @@ public final class CardSession {
     private func identify(_ info: DeviceInfo) {
         guard let device = pairedDevices.first(where: { $0.sn == info.serial }) else { return }
         connectedDevice = device
+        cardInfo = info
         // The DEBUG card screen sends its own requests; stay silent while it is open.
         guard autoSyncEnabled else { return }
         Task { [weak self] in
@@ -210,6 +220,8 @@ public final class CardSession {
 
     private func forgetCard() {
         connectedDevice = nil
+        cardInfo = nil
+        recordingName = nil
         recordingState = nil
         recordedMs = nil
         recordedAt = nil
@@ -219,10 +231,12 @@ public final class CardSession {
         guard let status = try? await service.recordingStatus(), connectedDevice != nil else { return }
         // Without `recd`, keep counting locally rather than dropping the timer.
         let ms = status.recordedMs ?? recordedMs.map { _ in elapsedMs(at: now()) }
+        if !status.name.isEmpty { recordingName = status.name }
         setRecording(status.state, ms: status.state == .idle ? nil : ms)
     }
 
     private func setRecording(_ state: RecordingState, ms: Int?) {
+        if state == .idle { recordingName = nil }
         recordingState = state
         recordedMs = ms
         recordedAt = ms == nil ? nil : now()

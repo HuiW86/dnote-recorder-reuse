@@ -7,6 +7,7 @@ public final class Preferences {
     private let defaults: UserDefaults
     private enum Key {
         static let currentDevice = "revive.currentDevice"
+        static let recordingConsent = "revive.recordingConsent"
     }
 
     public init(defaults: UserDefaults = .standard) {
@@ -17,5 +18,11 @@ public final class Preferences {
     public var currentDeviceId: UUID? {
         get { defaults.string(forKey: Key.currentDevice).flatMap(UUID.init) }
         set { defaults.set(newValue?.uuidString, forKey: Key.currentDevice) }
+    }
+
+    /// The user ticked "我已征得对方同意" once; P04 is not shown again (product-spec.md P04).
+    public var recordingConsentGiven: Bool {
+        get { defaults.bool(forKey: Key.recordingConsent) }
+        set { defaults.set(newValue, forKey: Key.recordingConsent) }
     }
 }

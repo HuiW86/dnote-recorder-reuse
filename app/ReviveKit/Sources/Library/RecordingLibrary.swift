@@ -89,6 +89,29 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Recording.order(Column("started_at")).fetchAll($0) }
     }
 
+    /// Recordings newest first, now and after every change (the home list, product-spec.md P05).
+    /// The first value arrives immediately; keep the returned observation to keep observing.
+    @MainActor
+    public func observeRecordings(onError: @escaping @MainActor (Error) -> Void,
+                                  onChange: @escaping @MainActor ([Recording]) -> Void) -> LibraryObservation {
+        let observation = ValueObservation.tracking { db in
+            try Recording.order(Column("started_at").desc).fetchAll(db)
+        }
+        return LibraryObservation(observation.start(in: database.writer, scheduling: .immediate,
+                                                    onError: onError, onChange: onChange))
+    }
+
+    /// Failed files of one card that the user should hear about (product-spec.md P05 SyncStatusCard).
+    public func failureCounts(deviceId: UUID) throws -> FailureCounts {
+        let failed = try database.writer.read { db in
+            try SyncItem.filter(Column("device_id") == deviceId && Column("state") == SyncState.failed.rawValue)
+                .fetchAll(db)
+        }
+        // `SyncFailure.decryptFailed`; SyncEngine sits above Library, so the raw value is spelled out.
+        let undecryptable = failed.filter { $0.lastError == "decryptFailed" }.count
+        return FailureCounts(retryable: failed.count - undecryptable, undecryptable: undecryptable)
+    }
+
     /// When the newest card recording was stored; nil when none was.
     public func lastStoredAt() throws -> Date? {
         try database.writer.read { db in
@@ -123,4 +146,26 @@ public final class RecordingLibrary: Sendable {
         store.removeAudio(recording.audioPath)
         store.removeDecoded(id)
     }
+}
+
+/// Failed sync items: `retryable` are retried automatically, `undecryptable` never are.
+public struct FailureCounts: Equatable, Sendable {
+    public var retryable: Int
+    public var undecryptable: Int
+
+    public init(retryable: Int, undecryptable: Int) {
+        self.retryable = retryable
+        self.undecryptable = undecryptable
+    }
+}
+
+/// Keeps a library observation alive; observing stops when this is released or cancelled.
+public final class LibraryObservation: @unchecked Sendable {
+    private let cancellable: AnyDatabaseCancellable
+
+    init(_ cancellable: AnyDatabaseCancellable) {
+        self.cancellable = cancellable
+    }
+
+    public func cancel() { cancellable.cancel() }
 }
