@@ -27,7 +27,11 @@ struct PairingView: View {
             }
             model?.start()
         }
-        .onDisappear { model?.stop() }
+        .onDisappear {
+            model?.stop()
+            // Pairing can finish after the user went back; the root then moves on to home.
+            env.refreshDevices()
+        }
     }
 }
 
@@ -48,9 +52,9 @@ private struct PairingContent: View {
                 }
             }
         }
-        .alert("此卡已被其他设备绑定", isPresented: Binding(
-            get: { model.rebindPending },
-            set: { if !$0 && model.rebindPending { model.answerRebind(false) } })) {
+        // Both buttons answer; the setter must not, or a dismissal ordered before the button
+        // action would decline a confirmed re-bind.
+        .alert("此卡已被其他设备绑定", isPresented: Binding(get: { model.rebindPending }, set: { _ in })) {
             Button("重新绑定", role: .destructive) { model.answerRebind(true) }
             Button("取消", role: .cancel) { model.answerRebind(false) }
         } message: {

@@ -67,6 +67,8 @@ public final class PairingModel {
     @ObservationIgnored private var rebindAnswer: CheckedContinuation<Bool, Never>?
     @ObservationIgnored private var listener: UUID?
     @ObservationIgnored private var started = false
+    /// One pairing at a time: a second tap must not write a second bondId (prd.md §3).
+    @ObservationIgnored private var pairTask: Task<Void, Never>?
 
     public init(session: CardSession, preferences: Preferences, scanTimeout: Duration = .seconds(15),
                 now: @escaping () -> Date = Date.init) {
@@ -103,6 +105,7 @@ public final class PairingModel {
 
     /// "再试一次" after nothing was found, and "重试" back to the list.
     public func scan() {
+        guard pairTask == nil else { return }
         selected = nil
         phase = .scanning
         scanTimer?.cancel()
@@ -126,16 +129,30 @@ public final class PairingModel {
     // MARK: - Pairing
 
     public func select(_ card: CardCandidate) {
+        guard pairTask == nil else { return }
         scanTimer?.cancel()
         session.stopScan()
         selected = card
-        Task { await pair(card) }
+        startPairing(card)
     }
 
     /// "重试" on a failed step: starts over from connecting, on a fresh link.
     public func retry() {
+        guard pairTask == nil else { return }
         guard let card = selected else { return scan() }
-        Task { await pair(card) }
+        startPairing(card)
+    }
+
+    private func startPairing(_ card: CardCandidate) {
+        // Set before the task runs, so the list and the retry button are gone on the next frame.
+        phase = .working(.connecting)
+        pairTask = Task { [weak self] in
+            let declined = await self?.pair(card) ?? false
+            guard let self else { return }
+            self.pairTask = nil
+            // Declined re-binding: back to the list, if the page is still shown.
+            if declined, self.started { self.scan() }
+        }
     }
 
     public func answerRebind(_ yes: Bool) {
@@ -144,11 +161,11 @@ public final class PairingModel {
         rebindAnswer = nil
     }
 
-    private func pair(_ card: CardCandidate) async {
+    /// Returns true when the user declined re-binding a card bonded elsewhere.
+    private func pair(_ card: CardCandidate) async -> Bool {
         let service = session.service
         var step = Step.connecting
         do {
-            phase = .working(.connecting)
             let info = try await service.connect(card.id)
 
             step = .readingInfo
@@ -174,11 +191,12 @@ public final class PairingModel {
             session.syncEngine.requestSync()
         } catch CardServiceError.pairCancelled {
             service.disconnect()
-            if started { scan() }
+            return true
         } catch {
             service.disconnect()
             phase = .failed(step, (error as? CardServiceError) ?? .bondStorageFailed)
         }
+        return false
     }
 
     /// Writes the paired card to the library. A storage error is reported like a Keychain one.

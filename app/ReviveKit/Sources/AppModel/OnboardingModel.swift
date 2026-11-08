@@ -27,6 +27,7 @@ public final class OnboardingModel {
     private let authorization: () -> BluetoothAuthorization
     private let startBluetooth: () -> CardSession?
     @ObservationIgnored private var listener: (session: CardSession, token: UUID)?
+    @ObservationIgnored private var poll: Task<Void, Never>?
 
     /// - Parameters:
     ///   - authorization: current permission, read again on every check.
@@ -54,6 +55,15 @@ public final class OnboardingModel {
                 if case .disconnected = event { self?.refresh() }
             }
             listener = (session, token)
+            // With Bluetooth on, the first report after "允许" may not change the link state
+            // (it starts as idle), so also poll the permission while the prompt is up.
+            poll = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    guard let self, self.phase == .requesting else { return }
+                    self.refresh()
+                }
+            }
             refresh()
         }
     }
@@ -73,6 +83,8 @@ public final class OnboardingModel {
     private func finish(_ next: Phase) {
         if let listener { listener.session.removeListener(listener.token) }
         listener = nil
+        poll?.cancel()
+        poll = nil
         phase = next
     }
 }

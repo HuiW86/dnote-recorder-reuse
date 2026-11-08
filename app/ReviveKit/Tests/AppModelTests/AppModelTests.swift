@@ -189,6 +189,23 @@ struct PairingModelTests {
         #expect(h.pairing.bluetoothProblem == nil)
     }
 
+    /// A double tap (or tapping 重试 twice) must not run two pairings that write two bondIds.
+    @Test func secondTapWhilePairingIsIgnored() async throws {
+        let h = try Harness()
+        h.pairing.start()
+        await waitUntil("card listed") { !h.pairing.candidates.isEmpty }
+        let card = try #require(h.pairing.candidates.first)
+        h.pairing.select(card)
+        #expect(h.pairing.phase == .working(.connecting))
+        h.pairing.select(card)
+        h.pairing.retry()
+        h.pairing.scan()
+        await waitUntil("done") { h.isDone }
+        #expect(h.sent(.bond) == 1)
+        #expect(h.bonds.bonds[h.card.serial] == h.card.bondId)
+        h.checkNoForbiddenWrites()
+    }
+
     @Test func leavingThePageDropsAnUnfinishedLink() async throws {
         let card = FakeCard(paired: true)
         let h = try Harness(card: card)
@@ -224,8 +241,38 @@ struct CardSessionTests {
     }
 }
 
+extension CardSessionTests {
+    /// The DEBUG card screen turns auto-sync off so its evidence logs stay clean.
+    @Test func autoSyncOffSkipsReconnectSync() async throws {
+        let card = FakeCard(files: [.init(name: "a.opus", content: Data(repeating: 0x08, count: 400))], paired: true)
+        let h = try Harness(card: card, bonds: InMemoryBondStore([card.serial: card.bondId!]))
+        try await h.scanAndSelect()
+        await waitUntil("done") { h.isDone }
+        await waitUntil("stored") { (try? h.library.recordings().count) == 1 }
+        await h.session.syncEngine.idle()
+        h.session.autoSyncEnabled = false
+        let lists = h.sent(.listFiles)
+        card.dropLink()
+        card.advertise()
+        await waitUntil("reconnected") { h.session.linkState == .connected }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(h.sent(.listFiles) == lists)
+    }
+}
+
 @MainActor
 struct OnboardingModelTests {
+    /// Bluetooth already on: answering the prompt need not change the link state at all.
+    @Test func proceedsWithoutAnyStateEvent() async throws {
+        let h = try Harness()
+        var auth = BluetoothAuthorization.notDetermined
+        let model = OnboardingModel(authorization: { auth }, startBluetooth: { h.session })
+        model.continueTapped()
+        #expect(model.phase == .requesting)
+        auth = .allowed
+        await waitUntil("proceed") { model.phase == .proceed }
+    }
+
     @Test func asksOnlyAfterContinueThenProceeds() async throws {
         let h = try Harness()
         var auth = BluetoothAuthorization.notDetermined

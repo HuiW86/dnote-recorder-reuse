@@ -70,8 +70,12 @@ private struct DebugEntry: ViewModifier {
                 .accessibilityLabel("调试")
                 .padding(.trailing, 4)
             }
-            .sheet(isPresented: $showing) {
+            .sheet(isPresented: $showing, onDismiss: { env.session?.autoSyncEnabled = true }) {
                 if let model { CardDebugView(model: model) }
+            }
+            .onChange(of: showing) { _, shown in
+                // Keep #38 evidence logs to the requests the debug screen sends.
+                if shown { env.session?.autoSyncEnabled = false }
             }
     }
 }
