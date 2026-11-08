@@ -65,7 +65,7 @@ sha256 12a6b71a145f22ab6e21e06aadc8ac670d16dd1d2dc8b3a4764adabb15681132
 
 调试时发现：macOS 27 的系统 Opus 解码器（16 kHz）会自己去掉开头 40 个采样（2.5 ms），`primeInfo` 却报告为 0。如果再按文件头的 pre-skip（312/48000 s = 104 个采样）全砍一遍，结果会短 2.5 ms。所以解码前先用前 10 个包测出解码器自己裁掉多少，pre-skip 只补差额。旧版系统的解码器如果不裁剪，测出来是 0，就按 pre-skip 全砍。用扫频信号对比，回退结果与 `AVAudioFile` 直接读取的结果长度一致（16216 个采样），偏移 1 个采样（对比时把 48 kHz 直接抽成 16 kHz 带来的相位差）。
 
-## 真机检查步骤（2026-11-08：P1、P2、P3、P6 已跑，P4、P5 待跑）
+## 真机检查步骤（2026-11-08 跑 P1、P2、P3、P6；2026-11-09 跑 P4、P5）
 
 入口：Debug 构建的 Card Debug 页。在「文件」区点按一个文件下载，校验通过后它会按 SyncEngine 的方式（解密 → 分帧 → 封装 OGG）存进单独的调试录音库（Application Support/`debug-library/`），出现在「播放」区。播放器的每次状态变化，以及系统的打断、线路变更通知，都会写进 `card-debug.log`。
 
@@ -91,4 +91,15 @@ sha256 12a6b71a145f22ab6e21e06aadc8ac670d16dd1d2dc8b3a4764adabb15681132
 
 P3 之后 20:54:24 有一行 `player idle at 0.00 s`，前后没有 `force decode`、`library: deleted`、`▶ play`，按代码只可能来自「停止」按钮（`CardDebugModel.stopPlayback`），不是暂停状态自己跳回 idle。
 
-日志存为 `01-device-playback.log`，放进本目录前先按硬规则 4 检索原始 `sn`、`btaddr`。
+### 结果（P4、P5）
+
+环境：同一台 iPhone 12、同一张卡，Debug 包由 `2063641` 构建；录音同上，P4 用 AirPods。
+
+| 编号 | 结果 | 日志要点 |
+|---|---|---|
+| P4 | 通过 | 00:59:31.430 播放时 `route change reason 8`，输出为 `BluetoothA2DPOutput`；AirPods 放回盒子后 01:00:23.838 `session route change reason 2, outputs ["Speaker"]` → 01:00:23.849 `player paused at 52.38 s`，间隔 11 ms，没有转到扬声器继续播放 |
+| P5 | 通过 | 长按出现「删除手机上的录音」，点后 01:02:46.124 `library: deleted 20261106034311.opus`，列表里这条消失；它正是播放器当前加载的录音，所以 36 ms 后 `player idle at 0.00 s`。只删了调试录音库里的副本，卡上原件还在 |
+
+另：正式详情页（P06）在 AirPods 断开后也停在 00:38，App 开着后台音频，切到「设置」不会让它停，所以应是线路变更导致的暂停；但正式播放器不写日志，这一条只作旁证。
+
+日志摘录存为 `01-device-playback.log`（文件头写明取自原日志的行号，去掉了 `rx 70` 数据分片行）。入库前按硬规则 4 用卡上读出的原始 `sn`、`btaddr` 检索本目录和 `v38-card-link/`，命中 0 次。
