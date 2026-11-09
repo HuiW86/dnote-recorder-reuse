@@ -8,13 +8,16 @@ Tests:
             measure duration to tell whether the paused span was recorded
   offset    0x70 with a non-zero offset: compare against a full download, both
             on the same connection and after a mid-transfer disconnect
+  reconcile Issue #47: send each recording command (0x51/0x52/0x53/0x50) and,
+            without waiting for its reply, send 0x56 at once; check the card
+            answers 0x56 while the command is in flight and reports the target
 
 Every notification is logged to <out>/<test>.jsonl. Per ADR-006 the logs never
 contain the raw sn, btaddr or bondId: 0x80/0xA1 payloads are redacted and not
 hex-dumped. Audio is never written to <out>; only sizes and sha256 are logged.
 
 Usage:
-  python probe_m1.py --address <addr> --out <dir> switches|pause|offset [--name F]
+  python probe_m1.py --address <addr> --out <dir> switches|pause|offset|reconcile [--name F]
 """
 
 from __future__ import annotations
@@ -70,6 +73,7 @@ class Probe:
         self.file_cb = None
         self.list_items: list = []
         self.list_done: asyncio.Event | None = None
+        self.counts: dict[int, int] = {}
 
     def note(self, kind: str, **kw):
         rec = {"t": round(time.monotonic() - self.t0, 3), "kind": kind, **kw}
@@ -83,6 +87,7 @@ class Probe:
         if not fr.valid:
             self.note("notify-invalid", hex=data.hex())
             return
+        self.counts[fr.cmd] = self.counts.get(fr.cmd, 0) + 1
         if fr.cmd == P.Cmd.REQUEST_FILE_DATA:
             if self.file_cb:
                 self.file_cb(fr.payload)
@@ -309,11 +314,80 @@ async def test_offset(addr, out, name):
         await client.disconnect()
 
 
+# ------------------------------------------------------------------ reconcile
+
+# (step, command frame, reply cmd, rec value the app expects afterwards)
+RECONCILE_STEPS = [
+    ("start", P.frame_start_recording(False), P.Cmd.START_RECORDING, 1),
+    ("pause", P.build_frame(P.Cmd.PAUSE_RECORDING), P.Cmd.PAUSE_RECORDING, 2),
+    ("resume", P.build_frame(P.Cmd.RESUME_RECORDING), P.Cmd.RESUME_RECORDING, 1),
+    ("stop", P.frame_stop_recording(), P.Cmd.STOP_RECORDING, 0),
+]
+
+
+async def test_reconcile(addr, out, gap=3.0, timeout=8.0):
+    """Mirror CardSession.recordingCommand (#47): the app reads 0x56 when a recording
+    command's reply does not come. Here 0x56 goes out right behind the command, the
+    harshest case, so the log shows whether the card answers it mid-command."""
+    client, p = await connect(addr, os.path.join(out, "reconcile.jsonl"))
+    results = []
+    recording = False
+    try:
+        st = await p.request(P.frame_query_rec_status(), P.Cmd.QUERY_REC_STATUS)
+        if not isinstance(st, dict) or st.get("rec") != 0:
+            p.note("abort", reason="card not idle", status=st)
+            return
+        loop = asyncio.get_event_loop()
+        for step, frame, reply_cmd, target in RECONCILE_STEPS:
+            reply = loop.create_future()
+            status = loop.create_future()
+            p.waiters[reply_cmd] = reply
+            p.waiters[P.Cmd.QUERY_REC_STATUS] = status
+            order = []
+            t_cmd = time.monotonic()
+            for name, fut in (("reply", reply), ("0x56", status)):
+                fut.add_done_callback(lambda _f, n=name: order.append((n, round(time.monotonic() - t_cmd, 3))))
+            n56 = p.counts.get(P.Cmd.QUERY_REC_STATUS, 0)
+            await p.write(frame)
+            recording = step != "stop"
+            await p.write(P.frame_query_rec_status())
+            done, _ = await asyncio.wait({reply, status}, timeout=timeout)
+            p.waiters.pop(reply_cmd, None)
+            p.waiters.pop(P.Cmd.QUERY_REC_STATUS, None)
+            immediate = status.result() if status in done else None
+            await asyncio.sleep(1.0)
+            # The card also pushes 0x56 on its own (e.g. rec 0 on stop); count them so a
+            # push is not taken as the answer to our query.
+            n56 = p.counts.get(P.Cmd.QUERY_REC_STATUS, 0) - n56
+            settled = await p.request(P.frame_query_rec_status(), P.Cmd.QUERY_REC_STATUS)
+            rec_now = immediate.get("rec") if isinstance(immediate, dict) else None
+            rec_settled = settled.get("rec") if isinstance(settled, dict) else None
+            r = {"step": step, "target": target,
+                 "reply": jsonable(reply.result()) if reply in done else None,
+                 "arrival_order": order,
+                 "status_answered_in_flight": status in done, "status_notifies": n56,
+                 "rec_in_flight": rec_now, "rec_after_1s": rec_settled,
+                 "in_flight_reached": rec_now == target, "settled_reached": rec_settled == target}
+            results.append(r)
+            p.note("result", **r)
+            if step == "stop":
+                recording = False
+            await asyncio.sleep(gap)
+    finally:
+        # Never leave the card recording if a step failed part-way.
+        if recording and client.is_connected:
+            await p.request(P.frame_stop_recording(), P.Cmd.STOP_RECORDING, timeout=3)
+        p.note("summary", results=results,
+               passed=len(results) == len(RECONCILE_STEPS)
+               and all(r["status_answered_in_flight"] and r["settled_reached"] for r in results))
+        await client.disconnect()
+
+
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--address", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("test", choices=["switches", "pause", "offset"])
+    ap.add_argument("test", choices=["switches", "pause", "offset", "reconcile"])
     ap.add_argument("--name", help="file for the offset test")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -321,6 +395,8 @@ async def main():
         await test_switches(a.address, a.out)
     elif a.test == "pause":
         await test_pause(a.address, a.out)
+    elif a.test == "reconcile":
+        await test_reconcile(a.address, a.out)
     else:
         if not a.name:
             raise SystemExit("--name is required for offset")
