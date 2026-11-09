@@ -299,6 +299,22 @@ struct HomeModelTests {
         #expect(model.status == .recording)
     }
 
+    /// A button press while the 0x56 after a timeout is pending beats that 0x56's answer.
+    @Test func buttonPressBeatsALateReconcileAnswer() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.preferences.recordingConsentGiven = true
+        h.card.faults = [.noResponse(.startRecording), .delayReply(.recordingStatus, milliseconds: 300)]
+        let reads = h.sent(.recordingStatus)
+        model.startTapped()
+        await waitUntil("0x56 sent", timeout: .seconds(4)) { h.sent(.recordingStatus) > reads }  // answers idle, late
+        h.card.pressButtonToRecord()
+        await waitUntil("done") { model.pendingCommand == nil }
+        #expect(model.status == .recording)
+        #expect(model.toast == nil)
+    }
+
     /// The DEBUG card screen (autoSyncEnabled off) sends its own requests only.
     @Test func deviceInfoSendsNothingWhileDebugScreenIsOpen() async throws {
         let (h, model) = try await recordingHome()
