@@ -28,6 +28,8 @@ public final class FakeCard: CardLink {
         case noResponse(Command)
         /// Carry out this command but lose its reply; the pushes it triggers (`0x56` on stop) still arrive.
         case dropReply(Command)
+        /// Answer this command as of now, but deliver the reply this many milliseconds later.
+        case delayReply(Command, milliseconds: Int)
         /// Replace chunk number `index` (0-based) of the next download with this status byte, then stop.
         case chunkStatus(index: Int, status: UInt8)
         /// Send chunk number `index` with a body shorter than the 5-byte header, then stop.
@@ -158,6 +160,16 @@ public final class FakeCard: CardLink {
         if let i = faults.firstIndex(of: .disconnectAfter(request.command)) {
             faults.remove(at: i)
             replies.append(.drop)
+        }
+        if let delay = faults.lazy.compactMap({ f -> Int? in
+            if case .delayReply(request.command, let ms) = f { ms } else { nil }
+        }).first {
+            let frames = replies.compactMap { if case .frame(let f) = $0 { f } else { nil } }
+            Task {
+                try? await Task.sleep(for: .milliseconds(delay))
+                for f in frames { continuation.yield(.notification(f)) }
+            }
+            return
         }
         if faults.contains(.reorderNotifications) {
             for i in stride(from: 0, to: replies.count - 1, by: 2) { replies.swapAt(i, i + 1) }

@@ -282,6 +282,23 @@ struct HomeModelTests {
         #expect(model.status == .recording)
     }
 
+    /// Same, when the 0x56 answer itself is stale: it was taken before the button press but
+    /// is handled after it.
+    @Test func newerStateBeatsALateStatusAnswer() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+
+        h.card.faults = [.delayReply(.recordingStatus, milliseconds: 300)]
+        h.card.pushDeviceInfo()                      // says paused; 0x56 answers paused, late
+        try await Task.sleep(for: .milliseconds(100))
+        h.card.pressButtonToRecord()                 // newer: recording again
+        await waitUntil("recording") { model.status == .recording && model.recordedSeconds(at: Date()) == 0 }
+        try await Task.sleep(for: .milliseconds(500)) // past the late answer
+        #expect(model.status == .recording)
+    }
+
     /// The DEBUG card screen (autoSyncEnabled off) sends its own requests only.
     @Test func deviceInfoSendsNothingWhileDebugScreenIsOpen() async throws {
         let (h, model) = try await recordingHome()

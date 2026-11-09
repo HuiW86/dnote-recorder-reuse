@@ -373,9 +373,12 @@ public final class CardSession {
     }
 
     /// Reads `0x56` and applies it; false when the card did not answer or has left the link.
+    /// With `revision`, an answer is dropped when the state changed or a command started meanwhile:
+    /// the reply may be handled after a newer push (still true, the card did answer).
     @discardableResult
-    private func readRecordingStatus() async -> Bool {
+    private func readRecordingStatus(unlessChangedSince revision: Int? = nil) async -> Bool {
         guard let status = try? await service.recordingStatus(), connectedDevice != nil else { return false }
+        if let revision, revision != stateRevision || commandRunning { return true }
         // Without `recd`, keep counting locally rather than dropping the timer.
         let ms = status.recordedMs ?? recordedMs.map { _ in elapsedMs(at: now()) }
         if !status.name.isEmpty { recordingName = status.name }
@@ -393,8 +396,8 @@ public final class CardSession {
         let revision = stateRevision
         Task { [weak self] in
             // Anything newer that arrived during the read (a push, a command) beats this 0x80.
-            guard let self, await !self.readRecordingStatus(), self.stateRevision == revision,
-                  !self.commandRunning else { return }
+            guard let self, await !self.readRecordingStatus(unlessChangedSince: revision),
+                  self.stateRevision == revision, !self.commandRunning else { return }
             self.setRecording(state, ms: state == .idle ? nil : self.recordedMs.map { _ in self.elapsedMs(at: self.now()) })
         }
     }
