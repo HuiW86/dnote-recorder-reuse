@@ -21,6 +21,8 @@ public enum SyncCard: Equatable, Sendable {
 
     public enum Action: Equatable, Sendable {
         case retry
+        /// "导出诊断信息": undecryptable files are not retried, the user reports them (product-spec.md §7.1).
+        case exportDiagnostics
     }
 
     public struct Input: Equatable, Sendable {
@@ -108,7 +110,11 @@ public enum SyncCard: Equatable, Sendable {
     }
 
     public var action: Action? {
-        if case .failed = self { .retry } else { nil }
+        switch self {
+        case .failed: .retry
+        case .undecryptable: .exportDiagnostics
+        default: nil
+        }
     }
 
     /// Text for a pass that stopped early; codes are `SyncFailure` raw values (prd.md §6).

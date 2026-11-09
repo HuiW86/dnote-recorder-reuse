@@ -32,7 +32,7 @@ struct HomeView: View {
                 switch route {
                 case .recording(let id): RecordingDetailView(env: env, recordingId: id)
                 case .device(let id): DeviceView(env: env, deviceId: id)
-                case .settings: SettingsView()
+                case .settings: SettingsView(diagnostics: env.diagnostics)
                 case .about: AboutView()
                 case .privacy: PrivacyView()
                 case .permissions: PermissionsView()
@@ -125,7 +125,7 @@ private struct HomeContent: View {
                     RecordingStatusCard(model: model)
                 }
                 if let card = model.syncCard, !(isDone(card) && doneCollapsed) {
-                    SyncStatusCard(card: card) { model.retrySync() }
+                    SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
                 }
             }
             .listRowSeparator(.hidden)

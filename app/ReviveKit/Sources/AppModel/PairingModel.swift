@@ -191,12 +191,15 @@ public final class PairingModel {
             let device = try save(card, info: service.lastInfo ?? info)
             preferences.currentDeviceId = device.id
             phase = .done(deviceId: device.id)
+            session.diagnostics?.add("pair", alreadyPaired ? "already paired" : "paired")
             // The session holds back sync for unknown cards; this card is known now.
             session.refreshDevices()
         } catch CardServiceError.pairCancelled {
+            session.diagnostics?.add("pair", "re-bind declined")
             service.disconnect()
             return true
         } catch {
+            session.diagnostics?.add("pair", "failed at \(step): \(error)")
             service.disconnect()
             phase = .failed(step, (error as? CardServiceError) ?? .bondStorageFailed)
         }

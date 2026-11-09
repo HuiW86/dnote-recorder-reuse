@@ -52,8 +52,10 @@ struct SyncCardTests {
         #expect(failed == .failed(count: 2))
         #expect(failed?.title == "2 条录音同步失败，稍后自动重试")
         #expect(failed?.action == .retry)
-        #expect(SyncCard.make(.init(connected: true, status: .idle, failures: .init(retryable: 0, undecryptable: 1)))
-            == .undecryptable(count: 1))
+        let undecryptable = SyncCard.make(.init(connected: true, status: .idle,
+                                                failures: .init(retryable: 0, undecryptable: 1)))
+        #expect(undecryptable == .undecryptable(count: 1))
+        #expect(undecryptable?.action == .exportDiagnostics)
         #expect(SyncCard.make(.init(connected: true, status: .idle, lastCompletedAt: t, cardFree: 700, cardTotal: 7671))
             == .cardSpaceLow)
         #expect(SyncCard.make(.init(connected: true, status: .idle, lastCompletedAt: t, cardFree: 7653, cardTotal: 7671))

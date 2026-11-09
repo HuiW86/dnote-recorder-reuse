@@ -108,6 +108,7 @@ struct RecordingStatusCard: View {
 /// Sync state (product-spec.md P05 SyncStatusCard).
 struct SyncStatusCard: View {
     let card: SyncCard
+    let diagnostics: DiagnosticLog?
     let retry: () -> Void
 
     var body: some View {
@@ -127,8 +128,15 @@ struct SyncStatusCard: View {
                         .font(.subheadline.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
-                if card.action == .retry {
+                switch card.action {
+                case .retry?:
                     Button("立即重试", action: retry).font(.subheadline)
+                case .exportDiagnostics?:
+                    if let diagnostics {
+                        DiagnosticShareLink(log: diagnostics).font(.subheadline)
+                    }
+                case nil:
+                    EmptyView()
                 }
             }
             if case .syncing(_, _, let fraction) = card {

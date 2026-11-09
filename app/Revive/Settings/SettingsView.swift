@@ -1,12 +1,19 @@
+import AppModel
 import SwiftUI
 
 /// P09 settings (product-spec.md §4.2). M1 has no global settings: "同步后删除" is per card on P07.
-/// "导出诊断信息" joins the help section with the diagnostic log (batch 3c).
 struct SettingsView: View {
+    let diagnostics: DiagnosticLog
+
     var body: some View {
         List {
-            Section("帮助") {
+            Section {
                 NavigationLink("权限说明", value: Route.permissions)
+                DiagnosticShareLink(log: diagnostics)
+            } header: {
+                Text("帮助")
+            } footer: {
+                Text("诊断信息记录连接和同步的过程，不含录音，序列号已脱敏。只在你分享时离开这部手机。")
             }
             Section("关于") {
                 NavigationLink("关于", value: Route.about)

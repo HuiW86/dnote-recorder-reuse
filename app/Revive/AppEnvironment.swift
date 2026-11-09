@@ -24,6 +24,10 @@ final class AppEnvironment {
     private(set) var hasPairedDevice: Bool
     /// One player for the whole app, so leaving a page does not cut playback off.
     let player: RecordingPlayer?
+    /// Exported from P09; written by the card session (product-spec.md §8).
+    let diagnostics = DiagnosticLog(
+        fileURL: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("diagnostics.log"))
 
     #if DEBUG
     let debugLog = DebugLog()
@@ -41,6 +45,7 @@ final class AppEnvironment {
         } catch {
             library = nil
             libraryError = String(describing: error)
+            diagnostics.add("app", "library unavailable: \(error)")
         }
         hasPairedDevice = ((try? library?.pairedDevices()) ?? []).isEmpty == false
         player = library.map { RecordingPlayer(library: $0) }
@@ -59,7 +64,8 @@ final class AppEnvironment {
         link = TappedLink(link, log: debugLog)
         #endif
         do {
-            session = try CardSession(link: link, bondStore: KeychainBondStore(), library: library)
+            session = try CardSession(link: link, bondStore: KeychainBondStore(), library: library,
+                                      diagnostics: diagnostics)
             session?.deleteAfterSync = { [preferences] in preferences.deleteAfterSync(for: $0) }
         } catch {
             log.error("card session unavailable: \(String(describing: error), privacy: .public)")

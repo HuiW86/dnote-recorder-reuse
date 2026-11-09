@@ -64,16 +64,23 @@ public final class CardSession {
         }
     }
 
+    /// Exported from P09; nil in tests that do not check it.
+    @ObservationIgnored public let diagnostics: DiagnosticLog?
+
     @ObservationIgnored private var listeners: [UUID: (CardEvent) -> Void] = [:]
     @ObservationIgnored private let now: () -> Date
+    /// When the sync pass being logged started.
+    @ObservationIgnored private var passStartedAt: Date?
 
     public init(link: any CardLink, bondStore: any BondStore, library: RecordingLibrary,
                 timing: CardService.Timing = CardService.Timing(),
                 syncOptions: SyncEngine.Options = SyncEngine.Options(),
+                diagnostics: DiagnosticLog? = nil,
                 now: @escaping () -> Date = Date.init) throws {
         service = CardService(link: link, bondStore: bondStore, timing: timing)
         syncEngine = try SyncEngine(service: service, library: library, options: syncOptions)
         self.library = library
+        self.diagnostics = diagnostics
         self.now = now
         linkState = link.state
         pairedDevices = (try? library.pairedDevices()) ?? []
@@ -81,6 +88,8 @@ public final class CardSession {
         Task { [weak self] in
             for await event in events { self?.handle(event) }
         }
+        diagnostics?.add("app", "session started, \(pairedDevices.count) paired, link \(linkState)")
+        if diagnostics != nil { observeSyncStatus() }
     }
 
     /// Bluetooth itself is unusable (off, no permission, unsupported); nil when it is on.
@@ -123,6 +132,7 @@ public final class CardSession {
     /// Registers a pending connect to `device`, unless the link is busy with a card or already
     /// has one pending (registered by the link itself after a drop).
     public func connectWhenSeen(_ device: Device) throws {
+        diagnostics?.add("link", "connect when seen, link \(linkState)")
         userDisconnected = false
         switch linkState {
         case .connecting, .connected, .disconnected(.lost): return
@@ -134,6 +144,7 @@ public final class CardSession {
 
     /// "断开连接" on P07.
     public func disconnect() {
+        diagnostics?.add("link", "disconnect requested")
         userDisconnected = true
         service.disconnect()
     }
@@ -143,6 +154,7 @@ public final class CardSession {
     public func unpair(_ device: Device) async throws {
         guard connectedDevice?.id == device.id else { throw CardServiceError.disconnected }
         try await service.unpair()
+        diagnostics?.add("card", "unpaired")
         try library.markUnpaired(id: device.id)
         disconnect()
         refreshDevices()
@@ -215,21 +227,27 @@ public final class CardSession {
                 discovered.append(card)
             }
         case .stateChanged(let state):
+            diagnostics?.add("link", "state \(state)")
             linkState = state
             if state != .connected { forgetCard() }
         case .disconnected(let reason):
+            diagnostics?.add("link", "disconnected: \(reason)")
             linkState = .disconnected(reason)
             forgetCard()
         case .deviceInfo(let info):
             if connectedDevice == nil, linkState == .connected { identify(info) }
             if connectedDevice != nil { cardInfo = info }
         case .recordingStarted(let name):
+            diagnostics?.add("card", "recording started \(name)")
             if connectedDevice != nil {
                 recordingName = name
                 setRecording(.recording, ms: 0)
             }
         case .recordingStopped:
+            diagnostics?.add("card", "recording stopped")
             if connectedDevice != nil { setRecording(.idle, ms: nil) }
+        case .firmwareUnverified(let version):
+            diagnostics?.add("card", "firmware \(version) not verified")
         default:
             break
         }
@@ -244,7 +262,9 @@ public final class CardSession {
     /// The first `0x80` after connecting names the card: match it to a paired one by serial,
     /// since a peripheral id can change (another phone, Bluetooth reset).
     private func identify(_ info: DeviceInfo) {
+        // Not logged for an unpaired card: its periodic 0x80 would repeat the line; pairing logs its own.
         guard let device = pairedDevices.first(where: { $0.sn == info.serial }) else { return }
+        diagnostics?.add("card", "paired card on the link: \(DiagnosticLog.describe(info))")
         connectedDevice = device
         // A paired card is on the link again (re-paired on P03): the P07 disconnect is over.
         userDisconnected = false
@@ -256,6 +276,33 @@ public final class CardSession {
         // The DEBUG card screen sends its own requests; stay silent while it is open.
         guard autoSyncEnabled else { return }
         Task { [weak self] in await self?.catchUp(device) }
+    }
+
+    /// Logs each sync pass: when it starts, how it ends and how long it took.
+    private func observeSyncStatus() {
+        withObservationTracking { _ = syncEngine.status } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.logSyncStatus(self.syncEngine.status)
+                self.observeSyncStatus()
+            }
+        }
+    }
+
+    private func logSyncStatus(_ status: SyncStatus) {
+        switch status {
+        case .syncing:
+            // One line per pass, not per chunk.
+            guard passStartedAt == nil else { return }
+            passStartedAt = now()
+            diagnostics?.add("sync", "downloading, \(syncEngine.pendingCount) pending")
+        default:
+            let took = passStartedAt.map { String(format: " after %.1f s", now().timeIntervalSince($0)) } ?? ""
+            passStartedAt = nil
+            let failures = syncEngine.failures
+            diagnostics?.add("sync", "\(status)\(took), failures retryable \(failures.retryable) "
+                + "undecryptable \(failures.undecryptable)")
+        }
     }
 
     private func catchUp(_ device: Device) async {

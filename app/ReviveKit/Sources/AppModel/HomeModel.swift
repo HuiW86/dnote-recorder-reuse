@@ -149,7 +149,10 @@ public final class HomeModel {
         withObservationTracking { _ = session.syncEngine.status } onChange: {
             Task { @MainActor [weak self] in
                 guard let self, self.observation != nil else { return }
-                if self.session.syncEngine.status == .stopped(SyncFailure.notPaired.rawValue) { self.prompt = .repair }
+                if self.session.syncEngine.status == .stopped(SyncFailure.notPaired.rawValue) {
+                    self.session.diagnostics?.add("home", "sync found the card not paired")
+                    self.prompt = .repair
+                }
                 self.observeSyncStatus()
             }
         }
@@ -208,8 +211,10 @@ public final class HomeModel {
                 case .stop: try await session.stopRecording()
                 }
             } catch CardServiceError.notPaired {
+                session.diagnostics?.add("home", "\(command) failed: notPaired")
                 prompt = .repair
             } catch {
+                session.diagnostics?.add("home", "\(command) failed: \(error)")
                 let text = (error as? CardServiceError)?.userText ?? "操作失败，请重试"
                 toast = Toast(text)
             }
@@ -243,8 +248,10 @@ public final class HomeModel {
         do {
             try session.connectWhenSeen(device)
         } catch CardServiceError.unknownCard {
+            session.diagnostics?.add("home", "reconnect failed: unknownCard")
             prompt = .rescan
         } catch {
+            session.diagnostics?.add("home", "reconnect failed: \(error)")
             toast = Toast((error as? CardServiceError)?.userText ?? "连接失败，请重试")
         }
     }

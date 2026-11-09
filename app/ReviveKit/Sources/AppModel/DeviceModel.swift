@@ -119,6 +119,7 @@ public final class DeviceModel {
             do {
                 try await retryingOnce { try await self.session.service.set(setting) }
             } catch {
+                session.diagnostics?.add("device", "set \(key) failed: \(error)")
                 switches = switches.map { $0.restoring(key, from: before) }
                 toast = Toast("设置失败，请重试")
             }
@@ -160,6 +161,7 @@ public final class DeviceModel {
             if preferences.currentDeviceId == nil { preferences.currentDeviceId = session.pairedDevices.first?.id }
             return true
         } catch {
+            session.diagnostics?.add("device", "unpair failed: \(error)")
             toast = Toast((error as? CardServiceError)?.userText ?? "解绑失败，请重试")
             return false
         }
