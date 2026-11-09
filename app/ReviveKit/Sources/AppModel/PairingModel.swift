@@ -99,6 +99,8 @@ public final class PairingModel {
         scanTimer = nil
         session.stopScan()
         if rebindPending { answerRebind(false) }
+        // A pairing still under way must not write a bond or switch the card once the page is gone.
+        pairTask?.cancel()
         if case .done = phase { return }
         if selected != nil { session.service.disconnect() }
     }
@@ -170,11 +172,14 @@ public final class PairingModel {
         let service = session.service
         var step = Step.connecting
         do {
+            try Task.checkCancellation()
             let info = try await service.connect(card.id)
+            try Task.checkCancellation()
 
             step = .readingInfo
             phase = .working(.readingInfo)
             let alreadyPaired = try await service.isPairedWithThisPhone()
+            try Task.checkCancellation()
 
             if !alreadyPaired {
                 step = .pairing
@@ -188,12 +193,16 @@ public final class PairingModel {
                 }
             }
 
+            try Task.checkCancellation()
             let device = try save(card, info: service.lastInfo ?? info)
             preferences.currentDeviceId = device.id
             phase = .done(deviceId: device.id)
             session.diagnostics?.add("pair", alreadyPaired ? "already paired" : "paired")
             // The session holds back sync for unknown cards; this card is known now.
             session.refreshDevices()
+        } catch is CancellationError {
+            session.diagnostics?.add("pair", "left the page at \(step)")
+            service.disconnect()
         } catch CardServiceError.pairCancelled {
             session.diagnostics?.add("pair", "re-bind declined")
             service.disconnect()

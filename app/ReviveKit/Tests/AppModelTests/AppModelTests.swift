@@ -224,6 +224,20 @@ struct PairingModelTests {
         await waitUntil("disconnected") { h.session.linkState == .disconnected(.requested) }
         #expect(h.sent(.bond) == 0)
     }
+
+    /// Leaving right after the tap, before the pairing task runs: it must not connect and pair later.
+    @Test func leavingRightAfterTheTapDoesNotPair() async throws {
+        let h = try Harness()
+        h.pairing.start()
+        await waitUntil("card listed") { !h.pairing.candidates.isEmpty }
+        h.pairing.select(try #require(h.pairing.candidates.first))
+        h.pairing.stop()
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(h.sent(.bond) == 0)
+        #expect(try h.library.pairedDevices().isEmpty)
+        #expect(h.preferences.currentDeviceId == nil)
+        #expect(h.session.linkState != .connected)
+    }
 }
 
 @MainActor
