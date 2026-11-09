@@ -292,9 +292,11 @@ struct HomeModelTests {
         await waitUntil("idle") { model.status == .idle }
         await h.session.syncEngine.idle()
         let second = try addSecondCard(h, peripheral: nil)
-        #expect(model.selectDevice(second))
+        // P08 stays open with its own Modal; home's would not show under the sheet.
+        #expect(!model.selectDevice(second))
         #expect(model.currentDevice?.id == second)
-        #expect(model.prompt == .rescan)
+        #expect(model.switcherPrompt == .rescan)
+        #expect(model.prompt == nil)
     }
 
     /// product-spec.md §5.3: switching away from a recording card asks first.
@@ -313,7 +315,7 @@ struct HomeModelTests {
         #expect(model.pendingSwitch?.reason == .recording)
         #expect(model.pendingSwitch?.message == "卡会继续录音，切回来后再同步。")
         #expect(model.currentDevice?.id == first)
-        model.confirmSwitch()
+        #expect(model.confirmSwitch())
         #expect(model.pendingSwitch == nil)
         #expect(model.currentDevice?.id == second)
     }

@@ -31,11 +31,13 @@ public final class DiagnosticLog {
             guard let size = try? handle.seekToEnd() else { return }
             try? handle.write(contentsOf: data)
             if Int(size) + data.count > maxBytes { trim() }
-        } else {
+        } else if !FileManager.default.fileExists(atPath: fileURL.path) {
             try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
                                                      withIntermediateDirectories: true)
             try? data.write(to: fileURL, options: .atomic)
         }
+        // Otherwise the file is there but cannot be opened (protected before the first unlock):
+        // drop the line rather than replace the log with it.
     }
 
     /// The log as it is now, for the share sheet; nil when nothing has been written yet.

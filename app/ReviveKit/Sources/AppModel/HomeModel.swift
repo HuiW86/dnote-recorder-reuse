@@ -150,6 +150,9 @@ public final class HomeModel {
     // MARK: - Switch cards (P08)
 
     public var pendingSwitch: PendingSwitch?
+    /// `unknownCard` while switching, shown on P08 itself: home cannot present a Modal while
+    /// the sheet is up (product-spec.md §7.1, P08).
+    public var switcherPrompt: HomePrompt?
 
     /// Paired cards, oldest first, from the local database only (product-spec.md P08).
     public var deviceRows: [DeviceRow] {
@@ -160,8 +163,8 @@ public final class HomeModel {
         }
     }
 
-    /// A tap on a row. Returns true when P08 can close: the card is current now, or a
-    /// Modal has to answer first (`pendingSwitch`) and P08 stays.
+    /// A tap on a row. Returns true when P08 can close; false when a Modal on P08 has to answer
+    /// first (`pendingSwitch`, `switcherPrompt`).
     public func selectDevice(_ id: UUID) -> Bool {
         guard let current = currentDevice, id != current.id else { return true }
         switch status {
@@ -172,29 +175,33 @@ public final class HomeModel {
             pendingSwitch = PendingSwitch(deviceId: id, reason: .syncing)
             return false
         default:
-            switchDevice(to: id)
-            return true
+            return switchDevice(to: id)
         }
     }
 
-    /// "切换" in the Modal.
-    public func confirmSwitch() {
-        guard let pending = pendingSwitch else { return }
+    /// "切换" in the Modal; returns true when P08 can close, like `selectDevice`.
+    public func confirmSwitch() -> Bool {
+        guard let pending = pendingSwitch else { return true }
         pendingSwitch = nil
-        switchDevice(to: pending.deviceId)
+        return switchDevice(to: pending.deviceId)
     }
 
-    /// Drops the current card and waits for the new one (product-spec.md §3.3).
-    private func switchDevice(to id: UUID) {
-        guard let device = session.pairedDevices.first(where: { $0.id == id }) else { return }
+    /// Drops the current card and waits for the new one (product-spec.md §3.3). The new card
+    /// is current even when CoreBluetooth does not know it: "重新搜索" then finds it again.
+    private func switchDevice(to id: UUID) -> Bool {
+        guard let device = session.pairedDevices.first(where: { $0.id == id }) else { return true }
         preferences.currentDeviceId = id
         do {
             try session.switchTo(device)
         } catch CardServiceError.unknownCard {
-            prompt = .rescan
+            session.diagnostics?.add("home", "switch failed: unknownCard")
+            switcherPrompt = .rescan
+            return false
         } catch {
+            session.diagnostics?.add("home", "switch failed: \(error)")
             toast = Toast((error as? CardServiceError)?.userText ?? "连接失败，请重试")
         }
+        return true
     }
 
     // MARK: - Sync

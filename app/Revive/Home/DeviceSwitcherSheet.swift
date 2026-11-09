@@ -49,15 +49,28 @@ struct DeviceSwitcherSheet: View {
             }
             .alert(model.pendingSwitch?.title ?? "", isPresented: switchBinding, presenting: model.pendingSwitch) { _ in
                 Button("切换") {
-                    model.confirmSwitch()
-                    dismiss()
+                    if model.confirmSwitch() { dismiss() }
                 }
                 Button("取消", role: .cancel) {}
             } message: { pending in
                 Text(pending.message)
             }
+            .alert(model.switcherPrompt?.title ?? "", isPresented: promptBinding,
+                   presenting: model.switcherPrompt) { prompt in
+                Button(prompt.actionTitle) {
+                    model.switcherPrompt = nil
+                    path.append(.connectGuide)
+                }
+                Button("取消", role: .cancel) {}
+            } message: { prompt in
+                Text(prompt.message)
+            }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private var promptBinding: Binding<Bool> {
+        Binding(get: { model.switcherPrompt != nil }, set: { if !$0 { model.switcherPrompt = nil } })
     }
 
     private var switchBinding: Binding<Bool> {
