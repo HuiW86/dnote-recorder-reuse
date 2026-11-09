@@ -387,7 +387,9 @@ public final class CardSession {
         // Without `recd`, keep counting locally rather than dropping the timer.
         let ms = status.recordedMs ?? recordedMs.map { _ in elapsedMs(at: now()) }
         if !status.name.isEmpty { recordingName = status.name }
+        let stopped = isActive && status.state == .idle
         setRecording(status.state, ms: status.state == .idle ? nil : ms)
+        if stopped { syncAfterRecoveredStop() }
         return true
     }
 
@@ -404,8 +406,20 @@ public final class CardSession {
             guard let self, await !self.readRecordingStatus(droppedIfCommandStarts: true),
                   self.stateRevision == revision, self.deviceInfoCount == infoCount,
                   !self.commandRunning else { return }
+            let stopped = self.isActive && state == .idle
             self.setRecording(state, ms: state == .idle ? nil : self.recordedMs.map { _ in self.elapsedMs(at: self.now()) })
+            if stopped { self.syncAfterRecoveredStop() }
         }
+    }
+
+    private var isActive: Bool { recordingState != nil && recordingState != .idle }
+
+    /// A stop found by reading the state instead of from the card's `0x56`/`0x55` pushes: those
+    /// are what start the sync after recording, so start it here.
+    private func syncAfterRecoveredStop() {
+        diagnostics?.add("card", "stop found without its push, syncing")
+        guard autoSyncEnabled, connectedDevice != nil else { return }
+        syncEngine.requestSync()
     }
 
     private func setRecording(_ state: RecordingState, ms: Int?) {

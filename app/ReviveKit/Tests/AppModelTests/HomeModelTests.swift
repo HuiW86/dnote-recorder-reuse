@@ -347,6 +347,16 @@ struct HomeModelTests {
         await waitUntil("second stop") { stops == 2 }
     }
 
+    /// A stop whose pushes were lost, found through 0x80 and 0x56, still syncs the recording.
+    @Test func stopFoundWithoutItsPushStillSyncs() async throws {
+        let (h, model) = try await recordingHome()
+        let before = model.recordings.count
+        h.card.stopWithPushesLost()
+        h.card.pushDeviceInfo()
+        await waitUntil("idle") { model.status == .idle }
+        await waitUntil("synced") { model.recordings.count == before + 1 }
+    }
+
     /// The DEBUG card screen (autoSyncEnabled off) sends its own requests only.
     @Test func deviceInfoSendsNothingWhileDebugScreenIsOpen() async throws {
         let (h, model) = try await recordingHome()

@@ -216,6 +216,11 @@ public final class FakeCard: CardLink {
         for f in finishRecording() { continuation.yield(.notification(f)) }
     }
 
+    /// The recording ends but its `0x56`/`0x55` pushes are lost.
+    public func stopWithPushesLost() {
+        _ = finishRecording()
+    }
+
     /// Periodic `0x80` push (about every 4 minutes on the real card).
     public func pushDeviceInfo() {
         continuation.yield(.notification(deviceInfoFrame()))
