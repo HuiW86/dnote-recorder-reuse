@@ -39,6 +39,9 @@ targets:
         NSBluetoothAlwaysUsageDescription: 连接录音卡，控制录音并把录音同步到手机
         UIBackgroundModes: [bluetooth-central, audio]
         LSSupportsOpeningDocumentsInPlace: false
+        # Export compliance answered in App Store Connect for 0.1.0 (1): standard algorithms only
+        # (ChaCha20 to read the card's own audio), not distributed in France; skips the question on later uploads.
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.huiw86.revive
