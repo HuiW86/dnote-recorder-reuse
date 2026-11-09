@@ -1,0 +1,32 @@
+{"t": 0.055, "kind": "write", "hex": "a05600"}
+{"t": 0.115, "kind": "notify", "cmd": "0x56", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 0.115, "kind": "write", "hex": "a0510100"}
+{"t": 0.175, "kind": "write", "hex": "a05600"}
+{"t": 0.417, "kind": "notify", "cmd": "0x51", "payload": {"name": "20261109163736.opus"}, "hex": "a0511e7b226e616d65223a2232303236313130393136333733362e6f707573227d"}
+{"t": 0.446, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261109163736.opus", "size": 0, "recd": 0, "rec": 1, "upload": 0}, "hex": "a056437b226e616d65223a2232303236313130393136333733362e6f707573222c2273697a65223a302c2272656364223a302c22726563223a312c2275706c6f6164223a307d"}
+{"t": 1.447, "kind": "write", "hex": "a05600"}
+{"t": 1.495, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261109163736.opus", "size": 0, "recd": 0, "rec": 1, "upload": 0}, "hex": "a056437b226e616d65223a2232303236313130393136333733362e6f707573222c2273697a65223a302c2272656364223a302c22726563223a312c2275706c6f6164223a307d"}
+{"t": 1.495, "kind": "result", "step": "start", "target": 1, "reply": {"name": "20261109163736.opus"}, "arrival_order": [["reply", 0.302], ["0x56", 0.331]], "status_answered_in_flight": true, "status_notifies": 1, "rec_in_flight": 1, "rec_after_1s": 1, "in_flight_reached": true, "settled_reached": true}
+{"t": 4.497, "kind": "write", "hex": "a05200"}
+{"t": 4.554, "kind": "write", "hex": "a05600"}
+{"t": 4.556, "kind": "notify", "cmd": "0x52", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0520101"}
+{"t": 4.615, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261109163736.opus", "size": 6000, "recd": 3000, "rec": 2, "upload": 0}, "hex": "a056497b226e616d65223a2232303236313130393136333733362e6f707573222c2273697a65223a363030302c2272656364223a333030302c22726563223a322c2275706c6f6164223a307d"}
+{"t": 5.617, "kind": "write", "hex": "a05600"}
+{"t": 5.666, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261109163736.opus", "size": 6000, "recd": 3000, "rec": 2, "upload": 0}, "hex": "a056497b226e616d65223a2232303236313130393136333733362e6f707573222c2273697a65223a363030302c2272656364223a333030302c22726563223a322c2275706c6f6164223a307d"}
+{"t": 5.666, "kind": "result", "step": "pause", "target": 2, "reply": {"len": 1, "sha256": "4bf5122f344554c5"}, "arrival_order": [["reply", 0.059], ["0x56", 0.119]], "status_answered_in_flight": true, "status_notifies": 1, "rec_in_flight": 2, "rec_after_1s": 2, "in_flight_reached": true, "settled_reached": true}
+{"t": 8.668, "kind": "write", "hex": "a05300"}
+{"t": 8.724, "kind": "write", "hex": "a05600"}
+{"t": 8.725, "kind": "notify", "cmd": "0x53", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0530101"}
+{"t": 8.784, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261109163736.opus", "size": 6000, "recd": 3000, "rec": 1, "upload": 0}, "hex": "a056497b226e616d65223a2232303236313130393136333733362e6f707573222c2273697a65223a363030302c2272656364223a333030302c22726563223a312c2275706c6f6164223a307d"}
+{"t": 9.786, "kind": "write", "hex": "a05600"}
+{"t": 9.837, "kind": "notify", "cmd": "0x56", "payload": {"name": "20261109163736.opus", "size": 8000, "recd": 4000, "rec": 1, "upload": 0}, "hex": "a056497b226e616d65223a2232303236313130393136333733362e6f707573222c2273697a65223a383030302c2272656364223a343030302c22726563223a312c2275706c6f6164223a307d"}
+{"t": 9.837, "kind": "result", "step": "resume", "target": 1, "reply": {"len": 1, "sha256": "4bf5122f344554c5"}, "arrival_order": [["reply", 0.058], ["0x56", 0.117]], "status_answered_in_flight": true, "status_notifies": 1, "rec_in_flight": 1, "rec_after_1s": 1, "in_flight_reached": true, "settled_reached": true}
+{"t": 12.838, "kind": "write", "hex": "a05000"}
+{"t": 12.894, "kind": "write", "hex": "a05600"}
+{"t": 12.895, "kind": "notify", "cmd": "0x56", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 12.955, "kind": "notify", "cmd": "0x50", "payload": {"len": 1, "sha256": "4bf5122f344554c5"}, "hex": "a0500101"}
+{"t": 12.955, "kind": "notify", "cmd": "0x56", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 13.957, "kind": "write", "hex": "a05600"}
+{"t": 14.005, "kind": "notify", "cmd": "0x56", "payload": {"name": "", "size": 0, "recd": 0, "rec": 0, "upload": 0}, "hex": "a056307b226e616d65223a22222c2273697a65223a302c2272656364223a302c22726563223a302c2275706c6f6164223a307d"}
+{"t": 14.005, "kind": "result", "step": "stop", "target": 0, "reply": {"len": 1, "sha256": "4bf5122f344554c5"}, "arrival_order": [["0x56", 0.057], ["reply", 0.117]], "status_answered_in_flight": true, "status_notifies": 2, "rec_in_flight": 0, "rec_after_1s": 0, "in_flight_reached": true, "settled_reached": true}
+{"t": 17.007, "kind": "summary", "results": [{"step": "start", "target": 1, "reply": {"name": "20261109163736.opus"}, "arrival_order": [["reply", 0.302], ["0x56", 0.331]], "status_answered_in_flight": true, "status_notifies": 1, "rec_in_flight": 1, "rec_after_1s": 1, "in_flight_reached": true, "settled_reached": true}, {"step": "pause", "target": 2, "reply": {"len": 1, "sha256": "4bf5122f344554c5"}, "arrival_order": [["reply", 0.059], ["0x56", 0.119]], "status_answered_in_flight": true, "status_notifies": 1, "rec_in_flight": 2, "rec_after_1s": 2, "in_flight_reached": true, "settled_reached": true}, {"step": "resume", "target": 1, "reply": {"len": 1, "sha256": "4bf5122f344554c5"}, "arrival_order": [["reply", 0.058], ["0x56", 0.117]], "status_answered_in_flight": true, "status_notifies": 1, "rec_in_flight": 1, "rec_after_1s": 1, "in_flight_reached": true, "settled_reached": true}, {"step": "stop", "target": 0, "reply": {"len": 1, "sha256": "4bf5122f344554c5"}, "arrival_order": [["0x56", 0.057], ["reply", 0.117]], "status_answered_in_flight": true, "status_notifies": 2, "rec_in_flight": 0, "rec_after_1s": 0, "in_flight_reached": true, "settled_reached": true}], "passed": true}
