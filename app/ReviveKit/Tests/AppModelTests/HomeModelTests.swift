@@ -184,7 +184,7 @@ struct HomeModelTests {
         h.card.faults = [.noResponse(.startRecording)]
         model.startTapped()
         await waitUntil("toast") { model.toast != nil }
-        #expect(model.toast?.text == "录音卡没有响应，请重试")
+        #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
         #expect(model.prompt == nil)
     }
 

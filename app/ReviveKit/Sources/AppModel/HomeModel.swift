@@ -304,6 +304,11 @@ public final class HomeModel {
             } catch CardServiceError.notPaired {
                 session.diagnostics?.add("home", "\(command) failed: notPaired")
                 prompt = .repair
+            } catch CardServiceError.requestTimeout {
+                // The command may have taken effect with only the reply lost; resending is
+                // unverified, so do not ask the user to repeat it (product-spec.md §7.1).
+                session.diagnostics?.add("home", "\(command) failed: requestTimeout")
+                toast = Toast("录音卡没有响应，录音状态未确认")
             } catch {
                 session.diagnostics?.add("home", "\(command) failed: \(error)")
                 let text = (error as? CardServiceError)?.userText ?? "操作失败，请重试"
