@@ -39,11 +39,12 @@ final class Harness {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("appmodel-\(UUID().uuidString)")
 
     init(card: FakeCard = FakeCard(paired: false), bonds: InMemoryBondStore = InMemoryBondStore(),
-         scanTimeout: Duration = .seconds(5), diagnostics: DiagnosticLog? = nil) throws {
+         scanTimeout: Duration = .seconds(5), diagnostics: DiagnosticLog? = nil,
+         bondStore: (any BondStore)? = nil) throws {
         self.card = card
         self.bonds = bonds
         library = RecordingLibrary(database: try AppDatabase.inMemory(), store: try AudioStore(root: root))
-        session = try CardSession(link: card, bondStore: bonds, library: library, timing: fastTiming,
+        session = try CardSession(link: card, bondStore: bondStore ?? bonds, library: library, timing: fastTiming,
                                   syncOptions: syncOptions, diagnostics: diagnostics)
         pairing = PairingModel(session: session, preferences: preferences, scanTimeout: scanTimeout)
     }

@@ -459,7 +459,7 @@ public final class SyncEngine {
 /// Item failure codes, stored in `sync_item.last_error` (prd.md §6).
 public enum SyncFailure: String, Error, Sendable {
     case disconnected, transferFailed, fileNotFound, decryptFailed, phoneStorageFull, storeFailed
-    case notPaired, cardBusyRecording, cardBusy, requestTimeout, other
+    case notPaired, cardBusyRecording, cardBusy, requestTimeout, unexpectedReply, other
 
     init(_ error: CardServiceError) {
         switch error {
@@ -469,6 +469,7 @@ public enum SyncFailure: String, Error, Sendable {
         case .fileNotFound: self = .fileNotFound
         case .transferFailed: self = .transferFailed
         case .requestTimeout: self = .requestTimeout
+        case .unexpectedReply: self = .unexpectedReply
         case .disconnected, .bluetoothOff, .bluetoothUnauthorized, .bluetoothUnsupported,
              .connectTimeout, .connectFailed, .unknownCard: self = .disconnected
         default: self = .other

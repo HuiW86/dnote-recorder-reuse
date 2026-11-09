@@ -16,6 +16,8 @@ public enum SyncCard: Equatable, Sendable {
     case phoneStorageFull
     case undecryptable(count: Int)
     case cardSpaceLow
+    /// The card answered something the protocol does not allow; the user can send the log.
+    case unexpectedReply
     /// The pass stopped for another reason; the text says what to do.
     case stopped(String)
 
@@ -71,6 +73,8 @@ public enum SyncCard: Equatable, Sendable {
             break  // back on the link; the next pass starts by itself
         case .stopped(SyncFailure.phoneStorageFull.rawValue):
             return .phoneStorageFull
+        case .stopped(SyncFailure.unexpectedReply.rawValue):
+            return .unexpectedReply
         case .stopped(let code):
             return .stopped(stoppedText(code))
         case .idle, .syncing:
@@ -96,6 +100,7 @@ public enum SyncCard: Equatable, Sendable {
         case .phoneStorageFull: "手机空间不足，同步已暂停"
         case .undecryptable(let count): "\(count) 条录音无法解密，已保留在卡上"
         case .cardSpaceLow: "录音卡剩余空间不足 10%"
+        case .unexpectedReply: "录音卡返回了无法识别的数据，下拉可重试"
         case .stopped(let text): text
         }
     }
@@ -112,7 +117,7 @@ public enum SyncCard: Equatable, Sendable {
     public var action: Action? {
         switch self {
         case .failed: .retry
-        case .undecryptable: .exportDiagnostics
+        case .undecryptable, .unexpectedReply: .exportDiagnostics
         default: nil
         }
     }
