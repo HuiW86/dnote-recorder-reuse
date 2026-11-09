@@ -268,7 +268,7 @@ App 发 `0x51 [1]` → 卡通过 `0x68` 推 Opus 音频块 → App 解码为 16k
 
 后端语言、框架、数据库、任务队列、云厂商在技术选型文档中定。选型要点：国内云厂商 ASR 和大模型 SDK 的支持、异步任务和 WebSocket 的成熟度、对象存储直传。
 
-已定（2026-11-06，#26）：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（[ADR-002](adr/002-backend-python-fastapi-postgres.md)）；云厂商腾讯云（[ADR-003](adr/003-cloud-tencent.md)）。App 用 Swift 原生（[ADR-001](adr/001-ios-app-native-swift.md)），先用 TestFlight 分发（[ADR-004](adr/004-distribution-testflight.md)），代号 Revive（[ADR-005](adr/005-naming-codename.md)），显示名「声笺」（[ADR-008](adr/008-display-name-and-icon.md)）。
+已定（2026-11-06，#26）：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（[ADR-002](adr/002-backend-python-fastapi-postgres.md)）；云厂商腾讯云（[ADR-003](adr/003-cloud-tencent.md)）。App 用 Swift 原生（[ADR-001](adr/001-ios-app-native-swift.md)），先用 TestFlight 分发（[ADR-004](adr/004-distribution-testflight.md)），代号 Revive（[ADR-005](adr/005-naming-codename.md)），显示名「闻笺」（[ADR-008](adr/008-display-name-and-icon.md)）。
 
 ### 5.4 先例
 

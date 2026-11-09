@@ -28,7 +28,7 @@ targets:
     info:
       path: Revive/Info.plist
       properties:
-        CFBundleDisplayName: 声笺
+        CFBundleDisplayName: 闻笺
         CFBundleDevelopmentRegion: zh-Hans
         CFBundleLocalizations: [zh-Hans]
         # Take versions from build settings so TestFlight build numbers can be bumped in one place.
