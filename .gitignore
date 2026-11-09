@@ -11,3 +11,6 @@ recordings/
 
 # realtime audio captured in the room; keep local, checksums in SHA256SUMS
 evidence/**/live.bin
+
+# Codex CLI session state
+.context/
