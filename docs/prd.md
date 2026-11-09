@@ -14,15 +14,17 @@
 ```
 界面（SwiftUI）
   │
-  ├─ CardService ──── 设备业务：配对、录音控制、设置、文件列表与下载
-  │     └─ CardProtocol ── 帧编解码、命令白名单、固件差异适配
-  │           └─ CardLink ──── CoreBluetooth：扫描、连接、写、通知、断线恢复
-  │
-  ├─ SyncEngine ───── 卡上文件 → 本地录音库，按 §4 状态机
-  │
-  ├─ Library ──────── 本地数据库与音频文件（§5）
-  │
-  └─ Player / Exporter ── 解密后的 OGG 播放与分享
+  └─ AppModel ─────── 页面状态，不含视图；CardSession 持有设备会话，消费设备事件并驱动同步
+        │
+        ├─ CardService ──── 设备业务：配对、录音控制、设置、文件列表与下载
+        │     ├─ CardLink ──── CoreBluetooth：扫描、连接、写、通知、断线恢复
+        │     └─ CardProtocol ── 帧编解码、命令白名单、固件差异适配（CardLink 也依赖它）
+        │
+        ├─ SyncEngine ───── 卡上文件 → 本地录音库，按 §4 状态机（依赖 CardService、Library）
+        │
+        ├─ Library ──────── 本地数据库与音频文件（§5）
+        │
+        └─ Player ───────── 解密后的 OGG 播放；导出分享（Exporter）也在这个模块里（依赖 Library）
 ```
 
 规则：
@@ -30,7 +32,7 @@
 - **M1 各层不引用任何网络库**。M2 的同步与 AI 模块单独成层，只读写 Library，不被设备层调用（`CLAUDE.md` 硬规则 3）。
 - 协议细节（命令字、帧格式、JSON 字段）只出现在 CardProtocol，上层只看到 Swift 类型。固件版本差异也在这一层处理。
 - 协议层从 `ios-prototype/Sources/DNoteProtocol.swift` 起步，原型的单元测试和样本一并迁移。
-- 代码位置：每层是 `app/ReviveKit/` 里的一个 Swift Package 目标，依赖方向在 `Package.swift` 里声明；App 目标 `app/Revive/` 只负责界面（#36）。
+- 代码位置：每层是 `app/ReviveKit/` 里的一个 Swift Package 目标，依赖方向在 `Package.swift` 里声明，以它为准；App 目标 `app/Revive/` 只负责界面（#36）。界面只和 AppModel 打交道，AppModel 直接依赖 CardLink、CardService、Library、SyncEngine、Player。
 
 ## 2. 设备层接口契约（M1）
 
@@ -85,9 +87,9 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 | `stopRecording()` | `0x50` | — | 录音中 |
 | `pause()` / `resume()` | `0x52` / `0x53`，各回 1 字节 `0x01` | — | 录音中 / 已暂停；暂停段不写入文件（#34 已验证） |
 | `recordingStatus()` | `0x56` | `{name, size, rec}`；`rec` 0 空闲 / 1 录音中 / 2 已暂停 | 已连接 |
-| `listFiles()` | `0x90`，收到 `end=1` 结束 | `[CardFile(name, size)]` | 已配对；**录音中卡会回空列表，不代表卡上没有文件**：列表为空时再查 `0x56`，录音中或已暂停则报 `cardBusyRecording`（#38） |
-| `download(name, size, from)` | `0x70 {cmd:1, name, offset:from}`，拼接分片直到 EOF | 从 `from` 开始的原始文件字节 | 已配对；超时 = (size − from) ÷ 15 KB/s + 10 s；每个分片的 `offset` 必须等于已收到的位置（#34 证实是分片在文件中的绝对位置），跳号或总长不符报 `transferFailed` |
-| `delete(name)` | `0x91 {name}` | — | 已配对；**只由 SyncEngine 调用**（§4） |
+| `listFiles()` | `0x90`，收到 `end=1` 结束 | `[CardFile(name, size)]` | 已连接（同步前的绑定检查见本节末）；**录音中卡会回空列表，不代表卡上没有文件**：列表为空时再查 `0x56`，录音中或已暂停则报 `cardBusyRecording`（#38） |
+| `download(name, size, from)` | `0x70 {cmd:1, name, offset:from}`，拼接分片直到 EOF | 从 `from` 开始的原始文件字节 | 已连接（同上）；超时 = (size − from) ÷ 15 KB/s + 10 s；每个分片的 `offset` 必须等于已收到的位置（#34 证实是分片在文件中的绝对位置），跳号或总长不符报 `transferFailed` |
+| `delete(name)` | `0x91 {name}` | — | 已连接；**只由 SyncEngine 调用**（§4），调用前已确认本机绑定 |
 
 **设备主动推送**（转成事件流 `events`）：
 
@@ -98,7 +100,7 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 | `0x80`（约每 4 分钟一次） | `deviceInfo(DeviceInfo)` | 更新电量与空间 |
 | 断开 | `disconnected(reason)` | 进入挂起连接 |
 
-**未配对的识别**：`0x51` 回 `NULL`，或 `0xA1` 显示卡没有绑定本机，都映射为 `notPaired` 错误，引导用户重新配对。未配对的卡照常响应 `0x90`、`0x70`、`0x91`（#38），所以同步任务每一轮开始前先用 `0xA1` 确认，卡已绑定到别的手机时不下载、不删除。
+**未配对的识别**：`0x51` 回 JSON `{"name":"NULL"}`（不是 ASCII `NULL`，卡不会开始录音），或 `0xA1` 显示卡没有绑定本机，都映射为 `notPaired` 错误，引导用户重新配对。未配对的卡照常响应 `0x90`、`0x70`、`0x91`（#38；只测过一张设过密钥的 v1.50 卡，从未设过密钥的卡未验证），所以同步任务每一轮开始前先用 `0xA1` 确认，卡已绑定到别的手机时不下载、不删除。
 
 **下载断点续传**：`0x70` 的 `offset` 可以是任意值，跨连接续传结果与完整下载一致（#34 已验证）。下载中途断开时，保留已收到的字节，重连后从该位置续传。
 
@@ -120,7 +122,7 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 | 读取信息 | `0x80` 取 `sn`、`v` | 重试 1 次，仍失败则 `requestTimeout` |
 | 查询绑定 | `0xA1` | 已绑定且 bondId 与 Keychain 中该 `sn` 的一致：已配对，直接返回，不发任何写命令。已绑定但 bondId 不同：见下方「卡已被其他手机绑定」，用户不确认则 `pairCancelled`，不发任何写命令 |
 | 校时 | `0x87` | 失败不阻断，记日志 |
-| 设置密钥 | `0xA2 [1] + HMAC-SHA256(DEVICE_KEY_SECRET, sn)` | 无回包则终止，提示重试。回包内容尚无真机证据，收到任何 `0xA2` 回包都算成功（解密用文件头里的密钥材料，不依赖这一步）；真机确认后收紧（`test-spec.md` §2） |
+| 设置密钥 | `0xA2 [1] + HMAC-SHA256(DEVICE_KEY_SECRET, sn)` | v1.50 回 1 字节 `0x01`（#38 D）。回包不是 `0x01` 报 `unexpectedReply`，无回包则超时；两种情况都终止，不再发绑定命令，提示重试 |
 | 解绑 | `0xA0 [0]`，回 `0x01` | 只在卡已被其他设备绑定且用户确认后发送 |
 | 绑定 | `0xA0 [1] + bondId`；bondId 为本地随机生成的 16 字节 | 失败则终止，提示重试 |
 | 确认 | `0xA1` 返回 `isBonded=1` 且 bondId 一致 | 不一致则 `pairVerifyFailed` |
@@ -190,7 +192,7 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 
 录音中或已暂停（`rec` 不为 0）不触发，因为录音中列表为空（H5）；暂停时的列表行为未测，按录音中处理。同步过程中开始录音：当前文件下载完后暂停，等录音停止再继续。实现上，每下载一个文件前查一次 `0x56`（#39）。
 
-CardService 的事件流只有一个消费者，SyncEngine 不直接订阅：由消费事件流的一方（App 层）把事件转给 `SyncEngine.handle(_:)`。
+CardService 的事件流只有一个消费者，SyncEngine 不直接订阅：由消费事件流的 AppModel（`CardSession`）把事件转给 `SyncEngine.handle(_:)`。
 
 ### 4.5 「同步后删除」默认关闭
 
