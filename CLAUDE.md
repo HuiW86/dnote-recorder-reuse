@@ -61,4 +61,6 @@ python3 app/ReviveKit/scripts/make_fixtures.py    # 用 Python 客户端重新�
 | 设备背景、逆向方法 | `docs/HANDOFF.md` |
 | 数据模型、接口契约、状态机 | `docs/prd.md` |
 | 测试策略、用例、真机证据格式 | `docs/test-spec.md` |
+| 页面清单、流程、界面状态与错误提示 | `docs/product-spec.md` |
+| 官方 App 的页面长什么样 | `docs/official-ui-walkthrough.md` |
 | 当前进度 | GitHub milestone 与 issue |
