@@ -84,7 +84,7 @@ private struct DeviceSwitcherRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(row.name).lineLimit(1)
+                Text(row.name)
                 Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

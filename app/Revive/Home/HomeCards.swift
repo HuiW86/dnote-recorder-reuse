@@ -86,6 +86,7 @@ struct DeviceChip: View {
 struct RecordingStatusCard: View {
     let model: HomeModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let paused = model.status == .paused
@@ -96,7 +97,9 @@ struct RecordingStatusCard: View {
                 .symbolEffect(.variableColor.iterative, isActive: !paused && !reduceMotion)
             VStack(alignment: .leading, spacing: 2) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    HStack(spacing: 8) {
+                    let layout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 8))
+                    layout {
                         Text(paused ? "已暂停" : "录音中").font(.headline)
                         // Before the card has reported recd, show the state only.
                         if let seconds = model.recordedSeconds(at: context.date) {
@@ -184,10 +187,14 @@ struct SyncStatusCard: View {
 /// Bottom recording controls (product-spec.md P05 RecordControlBar).
 struct RecordControlBar: View {
     let model: HomeModel
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        // Accessibility text sizes stack the two buttons; side by side their titles wrap per character (#49).
+        let buttons = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 12))
         VStack(spacing: 6) {
-            HStack(spacing: 12) {
+            buttons {
                 switch model.status {
                 case .recording:
                     button("暂停", symbol: "pause.fill", command: .pause) { model.pause() }

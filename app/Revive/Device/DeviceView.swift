@@ -31,6 +31,7 @@ private struct DeviceContent: View {
     let env: AppEnvironment
     @Bindable var model: DeviceModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var renaming = false
     @State private var newName = ""
     @State private var confirmingUnpair = false
@@ -134,7 +135,7 @@ private struct DeviceContent: View {
                 toggle("指示灯", .led, s.led) { .led($0) }
                 toggle("振动", .motor, s.motor) { .motor($0) }
                 row("空闲自动关机", .autoOff) {
-                    Picker("", selection: autoOffBinding(s.autoOffSeconds)) {
+                    Picker("空闲自动关机", selection: autoOffBinding(s.autoOffSeconds)) {
                         ForEach(Self.autoOffChoices(current: s.autoOffSeconds), id: \.self) {
                             Text(Self.minutes($0)).tag($0)
                         }
@@ -192,11 +193,16 @@ private struct DeviceContent: View {
     /// A settings row with a spinner while its value is being sent.
     private func row(_ title: String, _ key: DeviceModel.Setting,
                      @ViewBuilder trailing: () -> some View) -> some View {
-        HStack {
+        // Accessibility text sizes put the value under the title; side by side it shrinks to "1…" (#49).
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout())
+        return layout {
             Text(title)
-            Spacer()
-            if model.pending.contains(key) { ProgressView() }
-            trailing()
+            if !stacked { Spacer() }
+            HStack {
+                if model.pending.contains(key) { ProgressView() }
+                trailing()
+            }
         }
     }
 

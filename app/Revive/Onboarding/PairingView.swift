@@ -94,52 +94,62 @@ private struct PairingContent: View {
     }
 
     private var done: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
-            Text("配对完成").font(.title2.bold())
-            if let name = model.selected?.displayName {
-                Text(name).foregroundStyle(.secondary)
+        ScrollingPage {
+            VStack(spacing: 24) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.green)
+                    .accessibilityHidden(true)
+                Text("配对完成").font(.title2.bold())
+                if let name = model.selected?.displayName {
+                    Text(name).foregroundStyle(.secondary)
+                }
             }
-            Spacer()
+            .multilineTextAlignment(.center)
+            .padding(.vertical, 24)
+        } footer: {
             Button(action: onFinished) {
                 Text("开始使用").frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }
-        .padding(24)
     }
 }
 
 private struct CandidateRow: View {
     let card: CardCandidate
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "rectangle.portrait")
-                .font(.title2)
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+        // Accessibility text sizes stack the row: side by side it squeezes into a narrow column (#49).
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 12))
+        layout {
+            if !stacked {
+                Image(systemName: "rectangle.portrait")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(card.displayName).font(.body)
                 Text("电量 \(card.battery)% · 固件 \(card.firmware)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
+            if !stacked { Spacer() }
             if card.firmwareUnverified {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.yellow)
                     .accessibilityLabel(FirmwareText.unverified)
             }
-            Image(systemName: "chevron.right")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
+            if !stacked {
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)

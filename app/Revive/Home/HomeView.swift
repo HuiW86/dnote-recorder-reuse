@@ -206,12 +206,20 @@ private struct RecordingRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(RecordingText.title(recording))
                 .font(.body)
-                .lineLimit(1)
             Text(RecordingText.subtitle(recording, deviceName: deviceName))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    /// The subtitle repeats the title's time; VoiceOver reads it once (#49).
+    private var accessibilityText: String {
+        var parts = [RecordingText.title(recording), RecordingText.duration(ms: recording.durationMs)]
+        if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
+        return parts.joined(separator: "，")
     }
 }
 

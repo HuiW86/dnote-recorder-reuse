@@ -7,22 +7,23 @@ struct ConnectGuideView: View {
     let onContinue: () -> Void
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-            CardSketch()
-                .frame(width: 140, height: 200)
-                .accessibilityHidden(true)
-            Text("把录音卡靠近手机，按住**录音键**，等**白灯闪烁**后松手")
-                .font(.title3)
-                .multilineTextAlignment(.center)
-            Spacer()
+        ScrollingPage {
+            VStack(spacing: 32) {
+                CardSketch()
+                    .frame(width: 140, height: 200)
+                    .accessibilityHidden(true)
+                Text("把录音卡靠近手机，按住**录音键**，等**白灯闪烁**后松手")
+                    .font(.title3)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.vertical, 24)
+        } footer: {
             Button(action: onContinue) {
                 Text("继续").frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }
-        .padding(24)
         .navigationTitle("唤醒录音卡")
         .navigationBarTitleDisplayMode(.inline)
     }
