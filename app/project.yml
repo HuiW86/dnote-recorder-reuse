@@ -28,7 +28,7 @@ targets:
     info:
       path: Revive/Info.plist
       properties:
-        CFBundleDisplayName: Revive
+        CFBundleDisplayName: 声笺
         CFBundleDevelopmentRegion: zh-Hans
         CFBundleLocalizations: [zh-Hans]
         # Take versions from build settings so TestFlight build numbers can be bumped in one place.
@@ -42,6 +42,9 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.huiw86.revive
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # iPhone only: avoids iPad orientation/screenshot requirements; iPad runs it in compatibility mode.
+        TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
 schemes:
   Revive:
