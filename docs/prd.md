@@ -262,7 +262,7 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `connectFailed` | 连接失败，或服务、特征发现失败 | 是 | 同 `connectTimeout` |
 | `unknownCard` | 系统不认识这个外设标识（蓝牙重置后） | 否 | 重新扫描 |
 | `disconnected` | 操作中途断开 | 是 | 自动挂起连接；同步任务重试 |
-| `requestTimeout(cmd)` | 命令无响应 | 是 | 重试 1 次后提示 |
+| `requestTimeout(cmd)` | 命令无响应 | 是 | 重试 1 次后提示；录音控制（`0x51`～`0x53`、`0x50`）例外：不重发（第一次可能已生效、只是回包丢失），改为读一次 `0x56` 按卡上状态更新，细节见 `product-spec.md` §7.1（#47） |
 | `notPaired` | 卡未配对或配对失效 | 否 | 引导重新配对 |
 | `pairVerifyFailed` | 绑定或解绑后查询不一致 | 是 | 提示重试配对 |
 | `pairCancelled` | 卡已被其他设备绑定，用户没有确认重新绑定 | — | 不提示错误，回到设备页 |
