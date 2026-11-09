@@ -33,7 +33,7 @@ struct AboutView: View {
         List {
             Section {
                 VStack(spacing: 6) {
-                    Text("Revive").font(.title2.bold())
+                    Text("闻笺").font(.title2.bold())
                     Text("版本 \(Self.version)").foregroundStyle(.secondary)
                     // The only place the brand may appear (CLAUDE.md rule 5).
                     Text("适用于 D·NOTE 录音卡").foregroundStyle(.secondary)

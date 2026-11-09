@@ -25,7 +25,7 @@ struct WelcomeView: View {
                 ContentUnavailableView {
                     Label(CardServiceError.bluetoothUnauthorized.userText ?? "", systemImage: "antenna.radiowaves.left.and.right.slash")
                 } description: {
-                    Text("在「设置」里允许 Revive 使用蓝牙，然后回到这里。")
+                    Text("在「设置」里允许闻笺使用蓝牙，然后回到这里。")
                 } actions: {
                     Button("去设置") { openSettings() }
                         .buttonStyle(.borderedProminent)

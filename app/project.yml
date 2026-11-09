@@ -28,7 +28,7 @@ targets:
     info:
       path: Revive/Info.plist
       properties:
-        CFBundleDisplayName: Revive
+        CFBundleDisplayName: 闻笺
         CFBundleDevelopmentRegion: zh-Hans
         CFBundleLocalizations: [zh-Hans]
         # Take versions from build settings so TestFlight build numbers can be bumped in one place.
@@ -39,9 +39,15 @@ targets:
         NSBluetoothAlwaysUsageDescription: 连接录音卡，控制录音并把录音同步到手机
         UIBackgroundModes: [bluetooth-central, audio]
         LSSupportsOpeningDocumentsInPlace: false
+        # Export compliance answered in App Store Connect for 0.1.0 (1): standard algorithms only
+        # (ChaCha20 to read the card's own audio), not distributed in France; skips the question on later uploads.
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.huiw86.revive
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # iPhone only: avoids iPad orientation/screenshot requirements; iPad runs it in compatibility mode.
+        TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
 schemes:
   Revive:

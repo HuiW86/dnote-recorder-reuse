@@ -11,7 +11,7 @@ struct DiagnosticShareLink: View {
 
     var body: some View {
         ShareLink(item: DiagnosticExport(header: Self.header, contents: { log.contents() }),
-                  preview: SharePreview("Revive 诊断信息")) {
+                  preview: SharePreview("闻笺诊断信息")) {
             Text("导出诊断信息")
         }
     }
@@ -21,7 +21,7 @@ struct DiagnosticShareLink: View {
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") "
             + "(\(info?["CFBundleVersion"] as? String ?? "?"))"
         let device = UIDevice.current
-        return "Revive \(version), \(device.systemName) \(device.systemVersion), \(device.model)\n"
+        return "闻笺 \(version), \(device.systemName) \(device.systemVersion), \(device.model)\n"
     }
 }
 
