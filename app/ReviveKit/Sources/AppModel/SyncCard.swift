@@ -12,7 +12,8 @@ public enum SyncCard: Equatable, Sendable {
     case waitingForRecording
     case disconnected
     case done(at: Date)
-    case failed(count: Int)
+    /// `retrying`: some of them still have automatic retries left.
+    case failed(count: Int, retrying: Bool)
     case phoneStorageFull
     case undecryptable(count: Int)
     case cardSpaceLow
@@ -80,7 +81,7 @@ public enum SyncCard: Equatable, Sendable {
         case .idle, .syncing:
             break
         }
-        if s.failures.retryable > 0 { return .failed(count: s.failures.retryable) }
+        if s.failures.retryable > 0 { return .failed(count: s.failures.retryable, retrying: s.failures.autoRetrying > 0) }
         if s.failures.undecryptable > 0 { return .undecryptable(count: s.failures.undecryptable) }
         if !s.deleteAfterSync, let free = s.cardFree, let total = s.cardTotal, total > 0,
            Double(free) / Double(total) < 0.1 {
@@ -96,7 +97,8 @@ public enum SyncCard: Equatable, Sendable {
         case .waitingForRecording: "录音中，结束后自动同步"
         case .disconnected: "连接已断开，连上后继续同步"
         case .done: "全部录音已存入手机"
-        case .failed(let count): "\(count) 条录音同步失败，稍后自动重试"
+        case .failed(let count, true): "\(count) 条录音同步失败，稍后自动重试"
+        case .failed(let count, false): "\(count) 条录音同步失败，下拉可重试"
         case .phoneStorageFull: "手机空间不足，同步已暂停"
         case .undecryptable(let count): "\(count) 条录音无法解密，已保留在卡上"
         case .cardSpaceLow: "录音卡剩余空间不足 10%"

@@ -48,10 +48,15 @@ struct SyncCardTests {
 
     @Test func failuresBeforeCardSpaceBeforeDone() {
         let failed = SyncCard.make(.init(connected: true, status: .idle, lastCompletedAt: t,
-                                         failures: .init(retryable: 2, undecryptable: 1)))
-        #expect(failed == .failed(count: 2))
+                                         failures: .init(retryable: 2, undecryptable: 1, autoRetrying: 1)))
+        #expect(failed == .failed(count: 2, retrying: true))
         #expect(failed?.title == "2 条录音同步失败，稍后自动重试")
         #expect(failed?.action == .retry)
+        // product-spec.md §7.1: no automatic retries left, so the text points to pull-to-refresh.
+        let exhausted = SyncCard.make(.init(connected: true, status: .idle,
+                                            failures: .init(retryable: 2, undecryptable: 0)))
+        #expect(exhausted?.title == "2 条录音同步失败，下拉可重试")
+        #expect(exhausted?.action == .retry)
         let undecryptable = SyncCard.make(.init(connected: true, status: .idle,
                                                 failures: .init(retryable: 0, undecryptable: 1)))
         #expect(undecryptable == .undecryptable(count: 1))

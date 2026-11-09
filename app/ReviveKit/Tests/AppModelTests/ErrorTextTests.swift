@@ -47,8 +47,11 @@ struct ErrorTextTests {
         // A pass stopped by the phone's own storage is not retried by the timer, so it does not
         // promise an automatic retry; files that failed to store count as failed below.
         #expect(row("storeFailed")?.title == "同步中断，下拉可重试")
-        let failed = SyncCard.make(.init(connected: true, status: .idle, failures: .init(retryable: 3, undecryptable: 0)))
+        let failed = SyncCard.make(.init(connected: true, status: .idle,
+                                         failures: .init(retryable: 3, undecryptable: 0, autoRetrying: 3)))
         #expect(failed?.title == "3 条录音同步失败，稍后自动重试")
+        let exhausted = SyncCard.make(.init(connected: true, status: .idle, failures: .init(retryable: 3, undecryptable: 0)))
+        #expect(exhausted?.title == "3 条录音同步失败，下拉可重试")
         let undecryptable = SyncCard.make(.init(connected: true, status: .idle,
                                                 failures: .init(retryable: 0, undecryptable: 2)))
         #expect(undecryptable?.title == "2 条录音无法解密，已保留在卡上")

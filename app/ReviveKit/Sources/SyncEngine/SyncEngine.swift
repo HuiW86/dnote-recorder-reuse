@@ -237,7 +237,8 @@ public final class SyncEngine {
             $0.state == .failed && $0.lastError != SyncFailure.fileNotFound.rawValue && listed.contains(Key($0))
         }
         let undecryptable = failed.filter { $0.lastError == SyncFailure.decryptFailed.rawValue }.count
-        return FailureCounts(retryable: failed.count - undecryptable, undecryptable: undecryptable)
+        return FailureCounts(retryable: failed.count - undecryptable, undecryptable: undecryptable,
+                             autoRetrying: failed.filter(retriesLeft).count)
     }
 
     private func cardIsIdle() async throws -> Bool {
@@ -422,10 +423,7 @@ public final class SyncEngine {
     private func scheduleRetry(_ device: Device) {
         guard retryTimer == nil,
               let items = try? library.syncItems(deviceId: device.id) else { return }
-        let retryable = items.filter {
-            $0.state == .failed && $0.attempts > 0 && $0.attempts <= options.retryDelays.count
-                && SyncFailure(rawValue: $0.lastError ?? "")?.retriesAutomatically == true
-        }
+        let retryable = items.filter(retriesLeft)
         guard let attempts = retryable.map(\.attempts).min() else { return }
         let delay = options.retryDelays[attempts - 1]
         retryTimer = Task { [weak self] in
@@ -434,6 +432,12 @@ public final class SyncEngine {
             self.retryTimer = nil
             self.requestSync()
         }
+    }
+
+    /// A failed item that `scheduleRetry` will still pick up (product-spec.md §7.1: 3 tries).
+    private func retriesLeft(_ item: SyncItem) -> Bool {
+        item.state == .failed && item.attempts > 0 && item.attempts <= options.retryDelays.count
+            && SyncFailure(rawValue: item.lastError ?? "")?.retriesAutomatically == true
     }
 
     // MARK: - Naming

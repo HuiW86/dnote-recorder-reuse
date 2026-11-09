@@ -189,7 +189,7 @@ struct SyncEngineTests {
                                           .init(name: "bad.opus", content: corrupt)],
                                   faults: [.chunkStatus(index: 1, status: 0x40)])
         #expect(try h.items.filter { $0.state == .failed }.count == 2)
-        #expect(h.engine.failures == FailureCounts(retryable: 1, undecryptable: 1))
+        #expect(h.engine.failures == FailureCounts(retryable: 1, undecryptable: 1, autoRetrying: 1))
 
         h.card.files.removeAll()
         await h.engine.syncNow()
@@ -425,6 +425,21 @@ struct SyncEngineTests {
         try await waitUntil("stored after retry") { try h.items.first?.state == .stored }
         await h.engine.idle()
         #expect(try h.recordings.count == 1)
+        h.checkNoForbiddenWrites()
+    }
+
+    /// product-spec.md §7.1: after 3 automatic retries a failed file waits for the user, and
+    /// the count says so instead of promising another retry.
+    @Test func exhaustedRetriesStopCountingAsAutomatic() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)],
+                                  faults: [.chunkStatus(index: 2, status: 0x40)])
+        #expect(h.engine.failures == FailureCounts(retryable: 1, undecryptable: 0, autoRetrying: 1))
+        for _ in 0..<testOptions.retryDelays.count {
+            h.card.faults = [.chunkStatus(index: 2, status: 0x40)]
+            await h.engine.syncNow()
+        }
+        #expect(try h.items.first?.attempts == 4)
+        #expect(h.engine.failures == FailureCounts(retryable: 1, undecryptable: 0, autoRetrying: 0))
         h.checkNoForbiddenWrites()
     }
 

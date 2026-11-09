@@ -156,14 +156,17 @@ public final class RecordingLibrary: Sendable {
     }
 }
 
-/// Failed sync items: `retryable` are retried automatically, `undecryptable` never are.
+/// Failed sync items: `retryable` can be retried, `undecryptable` never are. `autoRetrying` is
+/// the part of `retryable` that still has automatic retries left; the rest wait for the user.
 public struct FailureCounts: Equatable, Sendable {
     public var retryable: Int
     public var undecryptable: Int
+    public var autoRetrying: Int
 
-    public init(retryable: Int, undecryptable: Int) {
+    public init(retryable: Int, undecryptable: Int, autoRetrying: Int = 0) {
         self.retryable = retryable
         self.undecryptable = undecryptable
+        self.autoRetrying = autoRetrying
     }
 }
 
