@@ -13,7 +13,7 @@ import Testing
 // No test here waits for a request to time out; the margin keeps tests that briefly hold the
 // main actor (player setup) from failing unrelated requests when suites run in parallel.
 let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
-                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .milliseconds(500))
+                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(2))
 let syncOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
                                              recordingStoppedDelay: .milliseconds(10), spaceMargin: 0)
 

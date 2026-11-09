@@ -10,7 +10,7 @@ import Testing
 /// Room for the slow start of a parallel run on CI (every request timed out at 100 ms there).
 /// The two tests that wait for a timeout shorten only the timeout they wait for.
 private let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
-                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .milliseconds(200))
+                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(2))
 
 @MainActor
 private final class EventReader {

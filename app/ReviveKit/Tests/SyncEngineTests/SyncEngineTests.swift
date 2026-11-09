@@ -27,7 +27,7 @@ private func plainOpus(frames: Int, seed: UInt8) -> Data {
 // Room for the slow start of a parallel run on CI (every request timed out at 200 ms there);
 // no test here waits for a request to time out.
 private let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
-                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .milliseconds(500))
+                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(2))
 /// Long retry delays so no timer fires during a test unless the test asks for it.
 private let testOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
                                              recordingStoppedDelay: .milliseconds(10), spaceMargin: 0)
