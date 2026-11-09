@@ -76,7 +76,7 @@ private struct PairingContent: View {
                 }
                 .textCase(nil)
             } footer: {
-                Text("看不到你的卡？按一下录音键")
+                Text("看不到你的卡？按住录音键，白灯闪烁后松手")
             }
         }
         .listStyle(.insetGrouped)
@@ -86,7 +86,7 @@ private struct PairingContent: View {
         ContentUnavailableView {
             Label("没有找到录音卡", systemImage: "magnifyingglass")
         } description: {
-            Text("请把卡靠近手机，按一下录音键")
+            Text("请把卡靠近手机，按住录音键，白灯闪烁后松手")
         } actions: {
             Button("再试一次") { model.scan() }
                 .buttonStyle(.borderedProminent)

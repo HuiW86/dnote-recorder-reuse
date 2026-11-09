@@ -16,7 +16,6 @@ struct ErrorTextTests {
             (.bluetoothOff, "蓝牙已关闭，请在控制中心或设置中打开"),
             (.bluetoothUnauthorized, "需要蓝牙权限才能连接录音卡"),
             (.bluetoothUnsupported, "蓝牙暂时不可用，请稍后再试"),
-            // The spec says "按一下"; a card asleep for 15 min needs a long press (evidence/v38-card-link 03c).
             (.connectTimeout, "连接超时。按住卡上的录音键，白灯闪烁后重试"),
             (.connectFailed, "连接超时。按住卡上的录音键，白灯闪烁后重试"),
             (.unknownCard, "找不到这张录音卡，请重新搜索"),
