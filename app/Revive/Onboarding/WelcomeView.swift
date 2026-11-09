@@ -43,34 +43,37 @@ struct WelcomeView: View {
     }
 
     private var intro: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "rectangle.portrait.on.rectangle.portrait")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
-            VStack(spacing: 8) {
-                Text("让你的录音卡重新可用")
-                    .font(.title2.bold())
-                Text("不用登录、不用联网，录音只保存在这部手机上")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+        ScrollingPage {
+            VStack(spacing: 24) {
+                Image(systemName: "rectangle.portrait.on.rectangle.portrait")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                VStack(spacing: 8) {
+                    Text("让你的录音卡重新可用")
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                    Text("不用登录、不用联网，录音只保存在这部手机上")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                VStack(alignment: .leading, spacing: 16) {
+                    PermissionRow(symbol: "dot.radiowaves.left.and.right", title: "蓝牙",
+                                  detail: "连接录音卡、同步录音")
+                    PermissionRow(symbol: "lock.iphone", title: "后台",
+                                  detail: "锁屏时保持连接，录音结束后自动同步")
+                }
+                .padding(.top, 8)
+                HStack(spacing: 4) {
+                    Button("隐私政策") { path.append(.privacy) }
+                    Text("·").foregroundStyle(.secondary)
+                    Button("权限说明") { path.append(.permissions) }
+                }
+                .font(.footnote)
             }
-            VStack(alignment: .leading, spacing: 16) {
-                PermissionRow(symbol: "dot.radiowaves.left.and.right", title: "蓝牙",
-                              detail: "连接录音卡、同步录音")
-                PermissionRow(symbol: "lock.iphone", title: "后台",
-                              detail: "锁屏时保持连接，录音结束后自动同步")
-            }
-            .padding(.top, 8)
-            Spacer()
-            HStack(spacing: 4) {
-                Button("隐私政策") { path.append(.privacy) }
-                Text("·").foregroundStyle(.secondary)
-                Button("权限说明") { path.append(.permissions) }
-            }
-            .font(.footnote)
+            .padding(.vertical, 24)
+        } footer: {
             Button {
                 model.continueTapped()
                 if model.phase == .proceed { goToGuide() }
@@ -88,7 +91,6 @@ struct WelcomeView: View {
             .controlSize(.large)
             .disabled(model.phase == .requesting)
         }
-        .padding(24)
     }
 
     /// Idempotent: the phase can reach `.proceed` from the button and from `onChange`.
