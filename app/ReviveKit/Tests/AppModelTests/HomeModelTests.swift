@@ -176,16 +176,200 @@ struct HomeModelTests {
         #expect(h.sent(.startRecording) == 1)
     }
 
-    @Test func failedCommandShowsToast() async throws {
+    /// #47: no reply and the card did not start either (0x56 says idle): safe to ask for a retry.
+    @Test func unansweredStartThatDidNothingAsksToRetry() async throws {
         let (h, model) = try await home(FakeCard(paired: true))
         await waitUntil("idle") { model.status == .idle }
         await h.session.syncEngine.idle()
         h.preferences.recordingConsentGiven = true
         h.card.faults = [.noResponse(.startRecording)]
         model.startTapped()
-        await waitUntil("toast") { model.toast != nil }
-        #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        #expect(model.toast?.text == "录音卡没有响应，请重试")
+        #expect(model.status == .idle)
         #expect(model.prompt == nil)
+        #expect(h.sent(.startRecording) == 1)
+    }
+
+    private func recordingHome() async throws -> (Harness, HomeModel) {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.preferences.recordingConsentGiven = true
+        model.startTapped()
+        await waitUntil("recording") { model.status == .recording && model.pendingCommand == nil }
+        return (h, model)
+    }
+
+    /// #47: the pause took effect but its reply was lost; 0x56 settles the state, no Toast.
+    @Test func lostPauseReplyFollowsTheCard() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording)]
+        model.pause()
+        // Controls stay locked until the card's state is known.
+        model.resume()
+        model.stopRecording()
+        await waitUntil("paused", timeout: .seconds(6)) { model.status == .paused && model.pendingCommand == nil }
+        #expect(model.toast == nil)
+        #expect(h.sent(.pauseRecording) == 1)
+        #expect(h.sent(.resumeRecording) == 0)
+        #expect(h.sent(.stopRecording) == 0)
+    }
+
+    @Test func lostStartReplyFollowsTheCard() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.preferences.recordingConsentGiven = true
+        h.card.faults = [.dropReply(.startRecording)]
+        model.startTapped()
+        await waitUntil("recording", timeout: .seconds(6)) { model.status == .recording && model.pendingCommand == nil }
+        #expect(model.toast == nil)
+        #expect(model.recordingStartedAt != nil)
+        #expect(h.sent(.startRecording) == 1)
+    }
+
+    /// #47: neither the reply nor 0x56 comes back: the Toast stays, nothing is sent again, and
+    /// the next 0x80 push corrects the state through 0x56.
+    @Test func unansweredStatusKeepsToastUntilTheNextDeviceInfo() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
+        #expect(model.status == .recording)
+        #expect(h.sent(.pauseRecording) == 1)
+
+        h.card.faults = []
+        h.card.pushDeviceInfo()
+        await waitUntil("paused") { model.status == .paused }
+    }
+
+    /// When 0x56 stays silent, the 0x80 state itself is used.
+    @Test func deviceInfoStateIsUsedWhenStatusStaysSilent() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        h.card.pushDeviceInfo()
+        await waitUntil("paused", timeout: .seconds(4)) { model.status == .paused }
+    }
+
+    /// An unrecognised `rec` in 0x56 does not settle a timed-out command.
+    @Test func unknownStatusCodeKeepsTheCommandUnconfirmed() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording)]
+        h.card.recordingCodeOverride = 7
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
+        #expect(h.sent(.pauseRecording) == 1)
+    }
+
+    /// A button press while the 0x56 behind a 0x80 is pending beats that 0x80's state.
+    @Test func newerStateBeatsTheDeviceInfoFallback() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        #expect(model.status == .recording)
+
+        h.card.pushDeviceInfo()                      // says paused; its 0x56 goes unanswered
+        try await Task.sleep(for: .milliseconds(100))
+        h.card.pressButtonToRecord()                 // newer: recording again
+        await waitUntil("recording") { model.status == .recording && model.recordedSeconds(at: Date()) == 0 }
+        try await Task.sleep(for: .seconds(2.5))     // past the 0x56 timeout
+        #expect(model.status == .recording)
+    }
+
+    /// Same, when the 0x56 answer itself is stale: it was taken before the button press but
+    /// is handled after it.
+    @Test func newerStateBeatsALateStatusAnswer() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+
+        h.card.faults = [.delayReply(.recordingStatus, milliseconds: 300)]
+        h.card.pushDeviceInfo()                      // says paused; 0x56 answers paused, late
+        try await Task.sleep(for: .milliseconds(100))
+        h.card.pressButtonToRecord()                 // newer: recording again
+        await waitUntil("recording") { model.status == .recording && model.recordedSeconds(at: Date()) == 0 }
+        try await Task.sleep(for: .milliseconds(500)) // past the late answer
+        #expect(model.status == .recording)
+    }
+
+    /// A button press while the 0x56 after a timeout is pending beats that 0x56's answer.
+    @Test func buttonPressBeatsALateReconcileAnswer() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.preferences.recordingConsentGiven = true
+        h.card.faults = [.noResponse(.startRecording), .delayReply(.recordingStatus, milliseconds: 300)]
+        let reads = h.sent(.recordingStatus)
+        model.startTapped()
+        await waitUntil("0x56 sent", timeout: .seconds(4)) { h.sent(.recordingStatus) > reads }  // answers idle, late
+        h.card.pressButtonToRecord()
+        await waitUntil("done") { model.pendingCommand == nil }
+        #expect(model.status == .recording)
+        #expect(model.toast == nil)
+    }
+
+    /// A newer 0x80 that agrees with the app supersedes an older one's pending fallback.
+    @Test func newerDeviceInfoBeatsAnOlderFallback() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+
+        h.card.pushDeviceInfo()                      // says paused; its 0x56 goes unanswered
+        try await Task.sleep(for: .milliseconds(100))
+        h.card.recordingCodeOverride = 1
+        h.card.pushDeviceInfo()                      // newer: says recording, as the app shows
+        try await Task.sleep(for: .seconds(2.5))     // past the first 0x56 timeout
+        #expect(model.status == .recording)
+    }
+
+    /// #47: a start confirmed by 0x56 after a lost reply still gets its stop reported, which
+    /// is what starts the sync after recording.
+    @Test func stopAfterARecoveredStartIsReported() async throws {
+        let (h, model) = try await recordingHome()
+        var stops = 0
+        h.session.addListener { if $0 == .recordingStopped { stops += 1 } }
+        model.stopRecording()
+        await waitUntil("first stop") { stops == 1 && model.pendingCommand == nil }
+
+        h.card.faults = [.dropReply(.startRecording)]
+        model.startTapped()
+        await waitUntil("recovered", timeout: .seconds(6)) { model.status == .recording && model.pendingCommand == nil }
+        h.card.faults = []
+        h.card.pressButtonToStop()
+        await waitUntil("second stop") { stops == 2 }
+    }
+
+    /// A stop whose pushes were lost, found through 0x80 and 0x56, still syncs the recording.
+    @Test func stopFoundWithoutItsPushStillSyncs() async throws {
+        let (h, model) = try await recordingHome()
+        let before = model.recordings.count
+        h.card.stopWithPushesLost()
+        h.card.pushDeviceInfo()
+        await waitUntil("idle") { model.status == .idle }
+        await waitUntil("synced") { model.recordings.count == before + 1 }
+    }
+
+    /// The DEBUG card screen (autoSyncEnabled off) sends its own requests only.
+    @Test func deviceInfoSendsNothingWhileDebugScreenIsOpen() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        h.card.faults = []
+        h.session.autoSyncEnabled = false
+        let reads = h.sent(.recordingStatus)
+        h.card.pushDeviceInfo()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(h.sent(.recordingStatus) == reads)
+        #expect(model.status == .recording)
     }
 
     /// product-spec.md §7.1: `notPaired` from a command is a Modal, not a Toast.

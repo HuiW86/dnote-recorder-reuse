@@ -75,6 +75,15 @@ public struct PendingSwitch: Equatable, Sendable {
 public final class HomeModel {
     public enum Command: Equatable, Sendable {
         case start, pause, resume, stop
+
+        /// Whether the card is where this command takes it.
+        func isReached(by status: DeviceStatus) -> Bool {
+            switch self {
+            case .start, .resume: status == .recording
+            case .pause: status == .paused
+            case .stop: status == .idle
+            }
+        }
     }
 
     public let session: CardSession
@@ -300,6 +309,12 @@ public final class HomeModel {
                 case .pause: try await session.pauseRecording()
                 case .resume: try await session.resumeRecording()
                 case .stop: try await session.stopRecording()
+                }
+                // After a timeout 0x56 decided the state (#47): the command did not take effect,
+                // so repeating it is safe.
+                if !command.isReached(by: status) {
+                    session.diagnostics?.add("home", "\(command) not taken effect, card is \(status)")
+                    toast = Toast("录音卡没有响应，请重试")
                 }
             } catch CardServiceError.notPaired {
                 session.diagnostics?.add("home", "\(command) failed: notPaired")

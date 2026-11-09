@@ -126,7 +126,10 @@ public final class CardService {
     }
 
     public func recordingStatus() async throws -> RecordingStatus {
-        try await request(.recordingStatus, parse: RecordingStatus.parse)
+        let status = try await request(.recordingStatus, parse: RecordingStatus.parse)
+        // A recording known only from here (a start whose reply was lost, #47) still needs its stop reported.
+        if status.state != .idle { stopReported = false }
+        return status
     }
 
     // MARK: - Recording
@@ -324,6 +327,7 @@ public final class CardService {
     private func handle(_ frame: Frame) {
         if frame.command == .deviceInfo, let info = DeviceInfo.parse(frame) {
             lastInfo = info
+            if info.recordingState != .idle { stopReported = false }
             continuation.yield(.deviceInfo(info))
         }
         if let waiter = waiters[frame.cmd] {

@@ -26,6 +26,10 @@ public final class FakeCard: CardLink {
         case disconnectAfterChunks(Int)
         /// Never answer this command (the write itself succeeds).
         case noResponse(Command)
+        /// Carry out this command but lose its reply; the pushes it triggers (`0x56` on stop) still arrive.
+        case dropReply(Command)
+        /// Answer this command as of now, but deliver the reply this many milliseconds later.
+        case delayReply(Command, milliseconds: Int)
         /// Replace chunk number `index` (0-based) of the next download with this status byte, then stop.
         case chunkStatus(index: Int, status: UInt8)
         /// Send chunk number `index` with a body shorter than the 5-byte header, then stop.
@@ -60,6 +64,8 @@ public final class FakeCard: CardLink {
     public private(set) var recording: (name: String, state: RecordingState)?
     /// `recd` in `0x56` replies while recording.
     public var recordedMs = 0
+    /// Reported as `rec` in `0x56` and `0x80` instead of the real state (an unrecognised code).
+    public var recordingCodeOverride: Int?
     public var faults: [Fault] = []
     public var chunkSize = 200
     /// False: the card is asleep and scans do not find it.
@@ -147,9 +153,23 @@ public final class FakeCard: CardLink {
             return
         }
         var replies = reply(to: request)
+        if faults.contains(.dropReply(request.command)) {
+            let cmd = request.command.rawValue
+            replies.removeAll { if case .frame(let f) = $0 { f.count > 1 && f[f.startIndex + 1] == cmd } else { false } }
+        }
         if let i = faults.firstIndex(of: .disconnectAfter(request.command)) {
             faults.remove(at: i)
             replies.append(.drop)
+        }
+        if let delay = faults.lazy.compactMap({ f -> Int? in
+            if case .delayReply(request.command, let ms) = f { ms } else { nil }
+        }).first {
+            let frames = replies.compactMap { if case .frame(let f) = $0 { f } else { nil } }
+            Task {
+                try? await Task.sleep(for: .milliseconds(delay))
+                for f in frames { continuation.yield(.notification(f)) }
+            }
+            return
         }
         if faults.contains(.reorderNotifications) {
             for i in stride(from: 0, to: replies.count - 1, by: 2) { replies.swapAt(i, i + 1) }
@@ -194,6 +214,11 @@ public final class FakeCard: CardLink {
     /// Card button stops the recording: pushes `0x56 {rec:0}` then an empty `0x55`.
     public func pressButtonToStop() {
         for f in finishRecording() { continuation.yield(.notification(f)) }
+    }
+
+    /// The recording ends but its `0x56`/`0x55` pushes are lost.
+    public func stopWithPushesLost() {
+        _ = finishRecording()
     }
 
     /// Periodic `0x80` push (about every 4 minutes on the real card).
@@ -375,7 +400,8 @@ public final class FakeCard: CardLink {
     }
 
     private var recordingCode: Int {
-        switch recording?.state {
+        if let recordingCodeOverride { return recordingCodeOverride }
+        return switch recording?.state {
         case .recording: 1
         case .paused: 2
         default: 0
