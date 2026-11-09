@@ -246,6 +246,8 @@ public final class CardSession {
     private func identify(_ info: DeviceInfo) {
         guard let device = pairedDevices.first(where: { $0.sn == info.serial }) else { return }
         connectedDevice = device
+        // A paired card is on the link again (re-paired on P03): the P07 disconnect is over.
+        userDisconnected = false
         cardInfo = info
         syncEngine.options.deleteAfterSync = deleteAfterSync(device.id)
         // 0x80 carries the recording state too; 0x56 then adds recd. Without this, a failed 0x56

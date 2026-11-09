@@ -174,11 +174,59 @@ struct HomeModelTests {
         await waitUntil("idle") { model.status == .idle }
         await h.session.syncEngine.idle()
         h.preferences.recordingConsentGiven = true
-        h.card.bondId = nil
+        h.card.faults = [.noResponse(.startRecording)]
         model.startTapped()
         await waitUntil("toast") { model.toast != nil }
-        #expect(model.toast?.text == "这张卡需要重新配对")
+        #expect(model.toast?.text == "录音卡没有响应，请重试")
+        #expect(model.prompt == nil)
+    }
+
+    /// product-spec.md §7.1: `notPaired` from a command is a Modal, not a Toast.
+    @Test func notPairedCommandAsksToRepair() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.preferences.recordingConsentGiven = true
+        h.card.bondId = nil
+        model.startTapped()
+        await waitUntil("prompt") { model.prompt != nil }
+        #expect(model.prompt == .repair)
+        #expect(model.prompt?.title == "这张卡需要重新配对")
+        #expect(model.toast == nil)
         #expect(model.status == .idle)
+    }
+
+    /// A sync pass finding the card unpaired raises the Modal; "重新配对" drops the link so the
+    /// card advertises for P03, and home does not reconnect meanwhile.
+    @Test func notPairedSyncAsksToRepairAndDropsLink() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.card.bondId = nil
+        model.retrySync()
+        await waitUntil("prompt") { model.prompt == .repair }
+        #expect(model.syncCard?.title == "这张卡需要重新配对")
+
+        model.repairTapped()
+        #expect(model.prompt == nil)
+        await waitUntil("dropped") { model.status == .waiting }
+        #expect(h.session.userDisconnected)
+        #expect(h.session.linkState == .disconnected(.requested))
+    }
+
+    /// product-spec.md §7.1: a card the phone cannot find any more asks to search again.
+    @Test func unknownCardAsksToRescan() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        let device = try #require(model.currentDevice)
+        _ = try h.library.upsertDevice(sn: device.sn) { $0.peripheralId = UUID().uuidString }
+        h.session.refreshDevices()
+        h.session.disconnect()
+        await waitUntil("waiting") { model.status == .waiting }
+        await model.refresh()
+        #expect(model.prompt == .rescan)
+        #expect(model.prompt?.actionTitle == "重新搜索")
+        #expect(model.toast == nil)
     }
 
     @Test func pullToRefreshWhenNotConnectedToasts() async throws {

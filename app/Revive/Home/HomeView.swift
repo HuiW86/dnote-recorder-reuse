@@ -8,18 +8,21 @@ enum Route: Hashable {
     case recording(UUID)
     case device(UUID)
     case settings, about, privacy, permissions
+    /// P02 → P03 from home: "重新搜索" after `unknownCard`; "重新配对" goes to P03 directly.
+    case connectGuide, pairing
 }
 
 /// P05 home: recording list with device, recording and sync status (product-spec.md §4.2).
 struct HomeView: View {
     let env: AppEnvironment
     @State private var model: HomeModel?
+    @State private var path: [Route] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if let model {
-                    HomeContent(model: model)
+                    HomeContent(model: model, path: $path)
                 } else {
                     ContentUnavailableView(CardServiceError.bluetoothUnsupported.userText ?? "",
                                            systemImage: "exclamationmark.triangle")
@@ -33,6 +36,8 @@ struct HomeView: View {
                 case .about: AboutView()
                 case .privacy: PrivacyView()
                 case .permissions: PermissionsView()
+                case .connectGuide: ConnectGuideView { path.append(.pairing) }
+                case .pairing: PairingView(env: env) { path.removeAll() }
                 }
             }
         }
@@ -47,6 +52,7 @@ struct HomeView: View {
 
 private struct HomeContent: View {
     @Bindable var model: HomeModel
+    @Binding var path: [Route]
     @State private var pendingDelete: Recording?
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
@@ -83,6 +89,21 @@ private struct HomeContent: View {
                 Button("删除录音", role: .destructive) { model.delete(recording.id) }
             } message: { _ in
                 Text("只删除手机上的这条录音，录音卡不受影响。")
+            }
+            .alert(model.prompt?.title ?? "", isPresented: promptBinding, presenting: model.prompt) { prompt in
+                Button(prompt.actionTitle) {
+                    switch prompt {
+                    case .repair:
+                        model.repairTapped()
+                        path.append(.pairing)
+                    case .rescan:
+                        model.prompt = nil
+                        path.append(.connectGuide)
+                    }
+                }
+                Button("取消", role: .cancel) {}
+            } message: { prompt in
+                Text(prompt.message)
             }
             .toast($model.toast)
             .task(id: model.syncCard) {
@@ -165,6 +186,10 @@ private struct HomeContent: View {
 
     private func isDone(_ card: SyncCard) -> Bool {
         if case .done = card { true } else { false }
+    }
+
+    private var promptBinding: Binding<Bool> {
+        Binding(get: { model.prompt != nil }, set: { if !$0 { model.prompt = nil } })
     }
 
     private var deleteBinding: Binding<Bool> {

@@ -15,6 +15,30 @@ public struct Toast: Equatable, Identifiable, Sendable {
     public init(_ text: String) { self.text = text }
 }
 
+/// An error the user has to act on, shown as a Modal (product-spec.md §7.1).
+public enum HomePrompt: Equatable, Sendable {
+    /// `notPaired`: "重新配对" → P03.
+    case repair
+    /// `unknownCard`: "重新搜索" → P02.
+    case rescan
+
+    public var title: String {
+        switch self {
+        case .repair: CardServiceError.notPaired.userText ?? ""
+        case .rescan: CardServiceError.unknownCard.userText ?? ""
+        }
+    }
+
+    public var message: String { "卡上的录音和已同步到手机的录音都会保留。" }
+
+    public var actionTitle: String {
+        switch self {
+        case .repair: "重新配对"
+        case .rescan: "重新搜索"
+        }
+    }
+}
+
 /// Home screen state: recording list, device status, sync card and recording control
 /// (product-spec.md P05, P04).
 @MainActor
@@ -34,6 +58,7 @@ public final class HomeModel {
     public var toast: Toast?
     /// P04 is shown before the first recording started from the app.
     public var showsConsent = false
+    public var prompt: HomePrompt?
 
     @ObservationIgnored private let preferences: Preferences
     @ObservationIgnored private let player: RecordingPlayer?
@@ -62,6 +87,7 @@ public final class HomeModel {
                 if event == .stateChanged(.idle) { self?.reconnect() }
             }
         }
+        observeSyncStatus()
         reconnect()
     }
 
@@ -118,6 +144,26 @@ public final class HomeModel {
 
     public func retrySync() { session.syncEngine.requestSync() }
 
+    /// A pass that finds the card no longer paired with this phone raises the Modal once.
+    private func observeSyncStatus() {
+        withObservationTracking { _ = session.syncEngine.status } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self, self.observation != nil else { return }
+                if self.session.syncEngine.status == .stopped(SyncFailure.notPaired.rawValue) { self.prompt = .repair }
+                self.observeSyncStatus()
+            }
+        }
+    }
+
+    // MARK: - Prompts
+
+    /// "重新配对": the card is still on the link but does not advertise there, so drop it for
+    /// P03's scan. Home does not reconnect meanwhile; pairing it again connects it.
+    public func repairTapped() {
+        prompt = nil
+        session.disconnect()
+    }
+
     // MARK: - Recording control
 
     /// Recorded seconds at `date` while recording or paused; nil until the card has reported it.
@@ -161,6 +207,8 @@ public final class HomeModel {
                 case .resume: try await session.resumeRecording()
                 case .stop: try await session.stopRecording()
                 }
+            } catch CardServiceError.notPaired {
+                prompt = .repair
             } catch {
                 let text = (error as? CardServiceError)?.userText ?? "操作失败，请重试"
                 toast = Toast(text)
@@ -194,8 +242,10 @@ public final class HomeModel {
         guard let device = currentDevice, status == .waiting, force || !session.userDisconnected else { return }
         do {
             try session.connectWhenSeen(device)
+        } catch CardServiceError.unknownCard {
+            prompt = .rescan
         } catch {
-            toast = Toast((error as? CardServiceError)?.userText ?? "找不到这张录音卡，请重新搜索")
+            toast = Toast((error as? CardServiceError)?.userText ?? "连接失败，请重试")
         }
     }
 }
