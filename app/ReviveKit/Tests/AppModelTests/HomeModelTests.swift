@@ -292,6 +292,20 @@ struct HomeModelTests {
         #expect(!h.session.userDisconnected)
     }
 
+    /// product-spec.md P08 "上次连接" follows every pass, one with no new files included, without
+    /// a pairing screen re-reading the list (evidence/v46-merge-smoke S4).
+    @Test func lastSeenFollowsEachPass() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        let before = try #require(model.deviceRows.first?.lastSeenAt)
+        try await Task.sleep(for: .milliseconds(20))
+        h.session.syncEngine.requestSync()
+        await h.session.syncEngine.idle()
+        let after = try #require(model.deviceRows.first?.lastSeenAt)
+        #expect(after > before)
+    }
+
     @Test func switchingToAnUnknownCardAsksToRescan() async throws {
         let (h, model) = try await home(FakeCard(paired: true))
         await waitUntil("idle") { model.status == .idle }

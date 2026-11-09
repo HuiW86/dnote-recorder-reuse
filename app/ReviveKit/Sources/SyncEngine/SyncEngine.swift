@@ -69,6 +69,9 @@ public final class SyncEngine {
 
     public var options: Options
     @ObservationIgnored public var hooks = Hooks()
+    /// Runs after each pass saves the card's row (`lastSeenAt`, battery, space), so cached
+    /// copies of the paired cards can be re-read (product-spec.md P08 "上次连接").
+    @ObservationIgnored public var onDeviceSaved: (@MainActor (Device) -> Void)?
     public private(set) var status: SyncStatus = .idle
     /// Set while a pass downloads files; nil otherwise.
     public private(set) var progress: Progress?
@@ -271,7 +274,7 @@ public final class SyncEngine {
         if let last = service.lastInfo { info = last } else { info = try await service.info() }
         let peripheral = service.peripheralId?.uuidString
         let seen = now()
-        return try library.upsertDevice(sn: info.serial) { d in
+        let device = try library.upsertDevice(sn: info.serial) { d in
             // Pairing names the card first; the card's own Bluetooth name is the brand (ADR-005).
             if d.name.isEmpty { d.name = "录音卡" }
             d.firmware = info.firmware
@@ -281,6 +284,8 @@ public final class SyncEngine {
             d.freeMb = info.freeSpace
             d.totalMb = info.totalSpace
         }
+        onDeviceSaved?(device)
+        return device
     }
 
     // MARK: - One file (prd.md §4.1, §4.2)

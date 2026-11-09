@@ -84,6 +84,12 @@ public final class CardSession {
         self.now = now
         linkState = link.state
         pairedDevices = (try? library.pairedDevices()) ?? []
+        // Each pass stamps the card's row; re-read only the list here, not `refreshDevices`,
+        // which would also forget or identify the card on the link.
+        syncEngine.onDeviceSaved = { [weak self] _ in
+            guard let self else { return }
+            self.pairedDevices = (try? self.library.pairedDevices()) ?? self.pairedDevices
+        }
         let events = service.events
         Task { [weak self] in
             for await event in events { self?.handle(event) }
