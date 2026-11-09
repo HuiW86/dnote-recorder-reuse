@@ -130,13 +130,16 @@ final class CardDebugModel {
 
     // MARK: Downloads (checksums only in the log; audio never goes into evidence)
 
-    /// Files downloaded, checked and saved on the phone in this session; only these may be deleted.
-    private(set) var storedLocally: Set<CardFile> = []
+    /// Files downloaded, checked and saved on the phone in this session, per card; only these may
+    /// be deleted, and only on the card they came from (another card may hold the same names).
+    private var storedByCard: [UUID: Set<CardFile>] = [:]
+    var storedLocally: Set<CardFile> { service.peripheralId.flatMap { storedByCard[$0] } ?? [] }
     private static let downloads = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("downloads", isDirectory: true)
 
     func download(_ file: CardFile) {
         run("download \(file.name)") { [self] in
+            guard let card = service.peripheralId else { throw CardServiceError.disconnected }
             let start = Date()
             let data = try await fetch(file, from: 0)
             let seconds = Date().timeIntervalSince(start)
@@ -146,7 +149,7 @@ final class CardDebugModel {
             if data.count == file.size {
                 try FileManager.default.createDirectory(at: Self.downloads, withIntermediateDirectories: true)
                 try data.write(to: Self.downloads.appendingPathComponent(file.name), options: .atomic)
-                storedLocally.insert(file)
+                if service.peripheralId == card { storedByCard[card, default: []].insert(file) }
                 // A library failure must not turn the #38 download check into a failure.
                 do {
                     try await addToLibrary(file, data)
@@ -190,10 +193,15 @@ final class CardDebugModel {
     /// `0x91` only for a file already saved on the phone (CLAUDE.md rule 2). The card does not
     /// reply; list again to see whether it is gone.
     func delete(_ file: CardFile) {
-        guard storedLocally.contains(file) else {
+        guard storedLocally.contains(file),
+              FileManager.default.fileExists(atPath: Self.downloads.appendingPathComponent(file.name).path) else {
             return log.add("refused: delete \(file.name) before it is downloaded and saved")
         }
-        run("delete \(file.name)") { [self] in try await service.delete(file.name) }
+        let card = service.peripheralId
+        run("delete \(file.name)") { [self] in
+            guard service.peripheralId == card else { throw CardServiceError.disconnected }
+            try await service.delete(file.name)
+        }
     }
 
     private func fetch(_ file: CardFile, from offset: Int) async throws -> Data {
