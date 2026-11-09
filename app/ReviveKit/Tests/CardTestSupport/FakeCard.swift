@@ -62,6 +62,8 @@ public final class FakeCard: CardLink {
     public private(set) var recording: (name: String, state: RecordingState)?
     /// `recd` in `0x56` replies while recording.
     public var recordedMs = 0
+    /// Reported as `rec` in `0x56` and `0x80` instead of the real state (an unrecognised code).
+    public var recordingCodeOverride: Int?
     public var faults: [Fault] = []
     public var chunkSize = 200
     /// False: the card is asleep and scans do not find it.
@@ -381,7 +383,8 @@ public final class FakeCard: CardLink {
     }
 
     private var recordingCode: Int {
-        switch recording?.state {
+        if let recordingCodeOverride { return recordingCodeOverride }
+        return switch recording?.state {
         case .recording: 1
         case .paused: 2
         default: 0

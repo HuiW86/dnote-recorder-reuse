@@ -71,6 +71,8 @@ public final class CardSession {
     @ObservationIgnored private let now: () -> Date
     /// A recording command is waiting for its reply or for the `0x56` read after a timeout.
     @ObservationIgnored private var commandRunning = false
+    /// Bumped on every recording state change, so a late fallback can tell it is stale.
+    @ObservationIgnored private var stateRevision = 0
     /// When the sync pass being logged started.
     @ObservationIgnored private var passStartedAt: Date?
 
@@ -236,7 +238,10 @@ public final class CardSession {
             try await body()
         } catch CardServiceError.requestTimeout(let command) {
             diagnostics?.add("card", "\(command) timed out, reading 0x56")
-            guard await readRecordingStatus() else { throw CardServiceError.requestTimeout(command) }
+            // An unrecognised code says nothing about whether the command took effect.
+            guard await readRecordingStatus(), !(recordingState?.isUnknown ?? true) else {
+                throw CardServiceError.requestTimeout(command)
+            }
             diagnostics?.add("card", "0x56 after timeout: \(recordingState.map { "\($0)" } ?? "none")")
         }
     }
@@ -358,6 +363,7 @@ public final class CardSession {
     }
 
     private func forgetCard() {
+        stateRevision += 1
         connectedDevice = nil
         cardInfo = nil
         recordingName = nil
@@ -380,18 +386,21 @@ public final class CardSession {
     /// A later `0x80` (polled or the periodic push) that disagrees with the recording state,
     /// e.g. after a command timeout that `0x56` could not settle (#47). Its event may be handled
     /// after a newer command reply, so `0x56` decides; the `0x80` state only when that fails.
+    /// Not while the DEBUG card screen is open: it sends its own requests only.
     private func correctRecordingState(_ state: RecordingState) {
-        guard !commandRunning, state != recordingState else { return }
-        if case .unknown = state { return }
+        guard autoSyncEnabled, !commandRunning, state != recordingState, !state.isUnknown else { return }
         diagnostics?.add("card", "0x80 says \(state), reading 0x56")
+        let revision = stateRevision
         Task { [weak self] in
-            guard let self, await !self.readRecordingStatus(), !self.commandRunning,
-                  self.connectedDevice != nil else { return }
+            // Anything newer that arrived during the read (a push, a command) beats this 0x80.
+            guard let self, await !self.readRecordingStatus(), self.stateRevision == revision,
+                  !self.commandRunning else { return }
             self.setRecording(state, ms: state == .idle ? nil : self.recordedMs.map { _ in self.elapsedMs(at: self.now()) })
         }
     }
 
     private func setRecording(_ state: RecordingState, ms: Int?) {
+        stateRevision += 1
         if state == .idle { recordingName = nil }
         recordingState = state
         recordedMs = ms
@@ -402,5 +411,11 @@ public final class CardSession {
         let base = recordedMs ?? 0
         guard recordingState == .recording, let since = recordedAt else { return base }
         return base + max(0, Int(date.timeIntervalSince(since) * 1000))
+    }
+}
+
+private extension RecordingState {
+    var isUnknown: Bool {
+        if case .unknown = self { true } else { false }
     }
 }
