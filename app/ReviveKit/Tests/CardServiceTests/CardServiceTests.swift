@@ -7,8 +7,9 @@ import Testing
 
 // CardService against the fake card (prd.md §2.3, §3; test-spec.md T-M1-10…15).
 
-/// Short timeouts so no-response cases finish quickly.
-private let fastTiming = CardService.Timing(request: .milliseconds(100), listFiles: .milliseconds(100),
+/// Room for the slow start of a parallel run on CI (every request timed out at 100 ms there).
+/// The two tests that wait for a timeout shorten only the timeout they wait for.
+private let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
                                             downloadBytesPerSecond: 1_000_000, downloadSlack: .milliseconds(200))
 
 @MainActor
@@ -104,7 +105,7 @@ struct CardServiceTests {
 
     @Test func noResponseIsRequestTimeout() async throws {
         let card = FakeCard()
-        let service = try await connected(card)
+        let service = try await connected(card, timing: .init(request: .milliseconds(500), listFiles: .seconds(2)))
         card.faults = [.noResponse(.switches)]
         await #expect(throws: CardServiceError.requestTimeout(.switches)) { try await service.switches() }
     }
@@ -204,7 +205,7 @@ struct CardServiceTests {
     /// A list that never ends is a timeout, not "not paired".
     @Test func listTimeoutIsRequestTimeout() async throws {
         let card = FakeCard(files: [.init(name: "a.opus", content: Data(count: 10))])
-        let service = try await connected(card)
+        let service = try await connected(card, timing: .init(request: .seconds(2), listFiles: .milliseconds(100)))
         card.faults = [.noResponse(.listFiles)]
         await #expect(throws: CardServiceError.requestTimeout(.listFiles)) { try await service.listFiles() }
     }

@@ -24,7 +24,9 @@ private func plainOpus(frames: Int, seed: UInt8) -> Data {
     Data((0..<(frames * 40)).map { UInt8(truncatingIfNeeded: $0) &+ seed })
 }
 
-private let fastTiming = CardService.Timing(request: .milliseconds(200), listFiles: .milliseconds(200),
+// Room for the slow start of a parallel run on CI (every request timed out at 200 ms there);
+// no test here waits for a request to time out.
+private let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
                                             downloadBytesPerSecond: 1_000_000, downloadSlack: .milliseconds(500))
 /// Long retry delays so no timer fires during a test unless the test asks for it.
 private let testOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
