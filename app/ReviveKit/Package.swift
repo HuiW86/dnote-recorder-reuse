@@ -9,7 +9,7 @@ let package = Package(
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "ReviveKit", targets: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player",
+            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "AppModel",
         ]),
     ],
     dependencies: [
@@ -28,6 +28,9 @@ let package = Package(
         .target(name: "SyncEngine", dependencies: ["CardService", "Library"]),
         // Playback and export of stored OGG files.
         .target(name: "Player", dependencies: ["Library"]),
+        // Screen state for the SwiftUI app (no views): one session over the device stack,
+        // onboarding, pairing, home and recording detail (product-spec.md). Tested against the fake card.
+        .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player"]),
 
         // Fake card and evidence replay for integration tests (test-spec.md §2). Lives under
         // Tests/ and is not part of the product, so it never ships in the app.
@@ -39,9 +42,19 @@ let package = Package(
             resources: [.copy("Fixtures")]
         ),
         .testTarget(name: "CardLinkTests", dependencies: ["CardProtocol", "CardLink", "CardTestSupport"]),
+        .testTarget(name: "CardServiceTests", dependencies: [
+            "CardProtocol", "CardLink", "CardService", "CardTestSupport",
+        ]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
+        .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
+        .testTarget(name: "SyncEngineTests", dependencies: [
+            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "CardTestSupport",
+        ]),
+        .testTarget(name: "AppModelTests", dependencies: [
+            "AppModel", "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "CardTestSupport",
+        ]),
         .testTarget(name: "ArchitectureTests", dependencies: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player",
+            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "AppModel",
         ]),
     ]
 )

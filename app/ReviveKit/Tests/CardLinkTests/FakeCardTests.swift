@@ -72,14 +72,19 @@ struct FakeCardTests {
         #expect(card.wroteOnlyWhitelistedCommands)
     }
 
-    @Test func unpairedCardRefusesRecordingAndIgnoresList() async throws {
+    /// #38 E: the real card refuses only recording when unpaired.
+    @Test func unpairedCardRefusesRecordingButServesFiles() async throws {
         let card = FakeCard(files: [file], paired: false)
         let reader = try await connected(card)
 
         try await card.send(.startRecording)
         #expect(StartRecordingReply.parse(try await reader.frame()) == .notPaired)
         try await card.send(.listFiles)
-        #expect(await framesUntilSentinel(card, reader).isEmpty, "0x90 gets no response when unpaired")
+        let listed = await framesUntilSentinel(card, reader).compactMap(FileListMessage.parse)
+        #expect(listed == [.file(CardFile(name: file.name, size: 1050)), .end])
+        try await card.send(.delete(name: file.name))
+        #expect(await reader.nextFrame()?.isAck == true)
+        #expect(card.files.isEmpty)
         #expect(card.wroteOnlyWhitelistedCommands)
     }
 

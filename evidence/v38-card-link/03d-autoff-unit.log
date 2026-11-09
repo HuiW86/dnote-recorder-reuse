@@ -1,0 +1,133 @@
+2026-11-09 01:05:01.553 [fg] link disconnected(CardLink.DisconnectReason.requested)
+2026-11-09 01:05:01.567 [fg] event disconnected(CardLink.DisconnectReason.requested)
+2026-11-09 01:08:23.825 [fg] session interruption began
+2026-11-09 01:19:36.163 [fg] pending connect registered
+2026-11-09 01:19:36.180 [fg] link connecting
+2026-11-09 01:19:36.195 [fg] event stateChanged(CardLink.LinkState.connecting)
+2026-11-09 01:23:51.398 [fg] link connected
+2026-11-09 01:23:51.436 [fg] tx 80 len=0 
+2026-11-09 01:23:51.437 [fg] event stateChanged(CardLink.LinkState.connected)
+2026-11-09 01:23:51.497 [fg] rx 80 len=180 {"bat":64,"bt":"D·NOTE","btaddr":"…162f","df":7647,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-09 01:23:51","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-09 01:23:51.507 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 64% free 7647/7671 time 2026-11-09 01:23:51
+2026-11-09 01:23:51.509 [fg] tx 87 len=25 {"time":"20261109012351"}
+2026-11-09 01:23:51.556 [fg] rx 87 len=1 01
+2026-11-09 01:23:58.590 [fg] scan start
+2026-11-09 01:24:12.416 [fg] ▶ switches
+2026-11-09 01:24:12.446 [fg] tx 81 len=0 
+2026-11-09 01:24:12.480 [fg] rx 81 len=78 {"ms":0,"led":1,"motor":1,"nc":1,"wav":0,"vad":0,"gain":4,"nn":4,"autoff":600}
+2026-11-09 01:24:12.490 [fg] DeviceSwitches(usbStorage: Optional(false), led: true, motor: true, noiseCancel: true, saveWav: Optional(false), vad: false, gain: 4, noiseLevel: 4, autoOffSeconds: 600)
+2026-11-09 01:24:12.490 [fg] ✔ switches 0.04 s
+2026-11-09 01:24:23.303 [fg] ▶ info
+2026-11-09 01:24:23.325 [fg] tx 80 len=0 
+2026-11-09 01:24:23.357 [fg] rx 80 len=180 {"bat":64,"bt":"D·NOTE","btaddr":"…162f","df":7647,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-09 01:24:23","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-09 01:24:23.366 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 64% free 7647/7671 time 2026-11-09 01:24:23
+2026-11-09 01:24:23.367 [fg] sn sha256:7036aa3b fw 1.50 rec idle bat 64% free 7647/7671 time 2026-11-09 01:24:23
+2026-11-09 01:24:23.367 [fg] ✔ info 0.04 s
+2026-11-09 01:24:33.992 [fg] rx 54 len=30 {"name":"20261109012433.opus"}
+2026-11-09 01:24:34.018 [fg] event recordingStarted(name: "20261109012433.opus")
+2026-11-09 01:24:38.928 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-09 01:24:38.963 [fg] event recordingStopped
+2026-11-09 01:24:39.001 [fg] rx 55 len=0 
+2026-11-09 01:25:38.428 [bg] launch: bluetoothCentrals=[] state=2
+2026-11-09 01:25:38.630 [bg] restore: peripherals=1 states=[2] scanning=false
+2026-11-09 01:25:38.650 [fg] link connecting
+2026-11-09 01:25:38.685 [fg] link connected
+2026-11-09 01:25:38.685 [fg] tx 80 len=0 
+2026-11-09 01:25:38.717 [fg] rx 80 len=180 {"bat":64,"bt":"D·NOTE","btaddr":"…162f","df":7647,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-09 01:25:38","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-09 01:25:38.737 [fg] tx 87 len=25 {"time":"20261109012538"}
+2026-11-09 01:25:38.737 [fg] tx 56 len=0 
+2026-11-09 01:25:38.775 [fg] rx 87 len=1 01
+2026-11-09 01:25:38.791 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-09 01:25:38.804 [fg] tx A1 len=0 
+2026-11-09 01:25:38.836 [fg] rx A1 len=17 01 <bondId 16 B>
+2026-11-09 01:25:38.845 [fg] tx 56 len=0 
+2026-11-09 01:25:38.881 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-09 01:25:38.882 [fg] tx 90 len=0 
+2026-11-09 01:25:38.911 [fg] rx 90 len=61 {"name":"20261105203844.opus","size":22060,"index":0,"end":0}
+2026-11-09 01:25:38.912 [fg] rx 90 len=62 {"name":"20261106034311.opus","size":202060,"index":1,"end":0}
+2026-11-09 01:25:38.943 [fg] rx 90 len=61 {"name":"20261106034454.opus","size":18060,"index":2,"end":0}
+2026-11-09 01:25:38.972 [fg] rx 90 len=61 {"name":"20261106034556.opus","size":18060,"index":3,"end":0}
+2026-11-09 01:25:38.972 [fg] rx 90 len=62 {"name":"20261106034631.opus","size":118060,"index":4,"end":0}
+2026-11-09 01:25:38.985 [fg] rx 90 len=62 {"name":"20261106034742.opus","size":118060,"index":5,"end":0}
+2026-11-09 01:25:39.002 [fg] rx 90 len=62 {"name":"20261106034852.opus","size":118060,"index":6,"end":0}
+2026-11-09 01:25:39.016 [fg] rx 90 len=60 {"name":"20261106035009.opus","size":8060,"index":7,"end":0}
+2026-11-09 01:25:39.031 [fg] rx 90 len=61 {"name":"20261106035334.opus","size":18060,"index":8,"end":0}
+2026-11-09 01:25:39.047 [fg] rx 90 len=64 {"name":"20261106040350.opus","size":15180060,"index":9,"end":0}
+2026-11-09 01:25:39.063 [fg] rx 90 len=63 {"name":"20261106080407.opus","size":948060,"index":10,"end":0}
+2026-11-09 01:25:39.094 [fg] rx 90 len=62 {"name":"20261106082737.opus","size":14060,"index":11,"end":0}
+2026-11-09 01:25:39.109 [fg] rx 90 len=62 {"name":"20261106082830.opus","size":14060,"index":12,"end":0}
+2026-11-09 01:25:39.109 [fg] rx 90 len=62 {"name":"20261106082853.opus","size":18060,"index":13,"end":0}
+2026-11-09 01:25:39.120 [fg] rx 90 len=62 {"name":"20261106083002.opus","size":18060,"index":14,"end":0}
+2026-11-09 01:25:39.149 [fg] rx 90 len=62 {"name":"20261106083028.opus","size":20060,"index":15,"end":0}
+2026-11-09 01:25:39.150 [fg] rx 90 len=62 {"name":"20261106083051.opus","size":18060,"index":16,"end":0}
+2026-11-09 01:25:39.226 [fg] rx 90 len=62 {"name":"20261106083150.opus","size":16060,"index":17,"end":0}
+2026-11-09 01:25:39.227 [fg] rx 90 len=62 {"name":"20261106083215.opus","size":24060,"index":18,"end":0}
+2026-11-09 01:25:39.227 [fg] rx 90 len=62 {"name":"20261106083242.opus","size":28060,"index":19,"end":0}
+2026-11-09 01:25:39.227 [fg] rx 90 len=62 {"name":"20261106083311.opus","size":22060,"index":20,"end":0}
+2026-11-09 01:25:39.240 [fg] rx 90 len=62 {"name":"20261106083736.opus","size":24060,"index":21,"end":0}
+2026-11-09 01:25:39.241 [fg] rx 90 len=62 {"name":"20261106215528.opus","size":38060,"index":22,"end":0}
+2026-11-09 01:25:39.270 [fg] rx 90 len=63 {"name":"20261108125253.opus","size":100060,"index":23,"end":0}
+2026-11-09 01:25:39.285 [fg] rx 90 len=61 {"name":"20261108175021.opus","size":8060,"index":24,"end":0}
+2026-11-09 01:25:39.285 [fg] rx 90 len=64 {"name":"20261108191912.opus","size":6344060,"index":25,"end":0}
+2026-11-09 01:25:39.301 [fg] rx 90 len=63 {"name":"20261108232640.opus","size":226060,"index":26,"end":0}
+2026-11-09 01:25:39.330 [fg] rx 90 len=62 {"name":"20261108234831.opus","size":46060,"index":27,"end":0}
+2026-11-09 01:25:39.331 [fg] rx 90 len=61 {"name":"20261109012433.opus","size":8060,"index":28,"end":0}
+2026-11-09 01:25:39.345 [fg] rx 90 len=39 {"name":"","size":0,"index":29,"end":1}
+2026-11-09 01:25:39.385 [fg] tx 70 len=49 {"cmd":1,"name":"20261109012433.opus","offset":0}
+2026-11-09 01:25:39.468 [fg] rx 70 len=205 status=0x00 offset=0 data=<200 B>
+2026-11-09 01:25:39.472 [fg] rx 70 len=205 status=0x11 offset=200 data=<200 B>
+2026-11-09 01:25:39.483 [fg] rx 70 len=205 status=0x12 offset=400 data=<200 B>
+2026-11-09 01:25:39.485 [fg] rx 70 len=205 status=0x13 offset=600 data=<200 B>
+2026-11-09 01:25:39.498 [fg] rx 70 len=205 status=0x14 offset=800 data=<200 B>
+2026-11-09 01:25:39.501 [fg] rx 70 len=205 status=0x15 offset=1000 data=<200 B>
+2026-11-09 01:25:39.512 [fg] rx 70 len=205 status=0x16 offset=1200 data=<200 B>
+2026-11-09 01:25:39.516 [fg] rx 70 len=205 status=0x17 offset=1400 data=<200 B>
+2026-11-09 01:25:39.532 [fg] rx 70 len=205 status=0x18 offset=1600 data=<200 B>
+2026-11-09 01:25:39.533 [fg] rx 70 len=205 status=0x19 offset=1800 data=<200 B>
+2026-11-09 01:25:39.541 [fg] rx 70 len=205 status=0x1A offset=2000 data=<200 B>
+2026-11-09 01:25:39.558 [fg] rx 70 len=205 status=0x1B offset=2200 data=<200 B>
+2026-11-09 01:25:39.561 [fg] rx 70 len=205 status=0x1C offset=2400 data=<200 B>
+2026-11-09 01:25:39.573 [fg] rx 70 len=205 status=0x1D offset=2600 data=<200 B>
+2026-11-09 01:25:39.576 [fg] rx 70 len=205 status=0x1E offset=2800 data=<200 B>
+2026-11-09 01:25:39.587 [fg] rx 70 len=205 status=0x1F offset=3000 data=<200 B>
+2026-11-09 01:25:39.589 [fg] rx 70 len=205 status=0x10 offset=3200 data=<200 B>
+2026-11-09 01:25:39.603 [fg] rx 70 len=205 status=0x11 offset=3400 data=<200 B>
+2026-11-09 01:25:39.603 [fg] rx 70 len=205 status=0x12 offset=3600 data=<200 B>
+2026-11-09 01:25:39.618 [fg] rx 70 len=205 status=0x13 offset=3800 data=<200 B>
+2026-11-09 01:25:39.621 [fg] rx 70 len=205 status=0x14 offset=4000 data=<200 B>
+2026-11-09 01:25:39.633 [fg] rx 70 len=205 status=0x15 offset=4200 data=<200 B>
+2026-11-09 01:25:39.636 [fg] rx 70 len=205 status=0x16 offset=4400 data=<200 B>
+2026-11-09 01:25:39.646 [fg] rx 70 len=205 status=0x17 offset=4600 data=<200 B>
+2026-11-09 01:25:39.650 [fg] rx 70 len=205 status=0x18 offset=4800 data=<200 B>
+2026-11-09 01:25:39.661 [fg] rx 70 len=205 status=0x19 offset=5000 data=<200 B>
+2026-11-09 01:25:39.676 [fg] rx 70 len=205 status=0x1A offset=5200 data=<200 B>
+2026-11-09 01:25:39.679 [fg] rx 70 len=205 status=0x1B offset=5400 data=<200 B>
+2026-11-09 01:25:39.692 [fg] rx 70 len=205 status=0x1C offset=5600 data=<200 B>
+2026-11-09 01:25:39.708 [fg] rx 70 len=205 status=0x1D offset=5800 data=<200 B>
+2026-11-09 01:25:39.711 [fg] rx 70 len=205 status=0x1E offset=6000 data=<200 B>
+2026-11-09 01:25:39.721 [fg] rx 70 len=205 status=0x1F offset=6200 data=<200 B>
+2026-11-09 01:25:39.724 [fg] rx 70 len=205 status=0x10 offset=6400 data=<200 B>
+2026-11-09 01:25:39.739 [fg] rx 70 len=205 status=0x11 offset=6600 data=<200 B>
+2026-11-09 01:25:39.740 [fg] rx 70 len=205 status=0x12 offset=6800 data=<200 B>
+2026-11-09 01:25:39.751 [fg] rx 70 len=205 status=0x13 offset=7000 data=<200 B>
+2026-11-09 01:25:39.754 [fg] rx 70 len=205 status=0x14 offset=7200 data=<200 B>
+2026-11-09 01:25:39.767 [fg] rx 70 len=205 status=0x15 offset=7400 data=<200 B>
+2026-11-09 01:25:39.770 [fg] rx 70 len=205 status=0x16 offset=7600 data=<200 B>
+2026-11-09 01:25:39.784 [fg] rx 70 len=205 status=0x17 offset=7800 data=<200 B>
+2026-11-09 01:25:39.784 [fg] rx 70 len=65 status=0x28 offset=8000 data=<60 B>
+2026-11-09 01:26:06.153 [fg] ▶ autoOff 300
+2026-11-09 01:26:06.180 [fg] tx 8F len=4 00 00 01 2C
+2026-11-09 01:26:06.211 [fg] rx 8F len=1 01
+2026-11-09 01:26:06.217 [fg] tx 81 len=0 
+2026-11-09 01:26:06.244 [fg] rx 81 len=78 {"ms":0,"led":1,"motor":1,"nc":1,"wav":0,"vad":0,"gain":4,"nn":4,"autoff":300}
+2026-11-09 01:26:06.250 [fg] tx 81 len=0 
+2026-11-09 01:26:06.286 [fg] rx 81 len=78 {"ms":0,"led":1,"motor":1,"nc":1,"wav":0,"vad":0,"gain":4,"nn":4,"autoff":300}
+2026-11-09 01:26:06.291 [fg] DeviceSwitches(usbStorage: Optional(false), led: true, motor: true, noiseCancel: true, saveWav: Optional(false), vad: false, gain: 4, noiseLevel: 4, autoOffSeconds: 300)
+2026-11-09 01:26:06.292 [fg] ✔ autoOff 300 0.11 s
+2026-11-09 01:26:38.630 [fg] link disconnected(CardLink.DisconnectReason.requested)
+2026-11-09 01:26:38.644 [fg] event disconnected(CardLink.DisconnectReason.requested)
+2026-11-09 01:30:26.210 [fg] scan start
+2026-11-09 01:33:22.052 [fg] scan start
+2026-11-09 01:34:22.949 [fg] pending connect registered
+2026-11-09 01:34:22.965 [fg] link connecting
+2026-11-09 01:34:22.976 [fg] event stateChanged(CardLink.LinkState.connecting)

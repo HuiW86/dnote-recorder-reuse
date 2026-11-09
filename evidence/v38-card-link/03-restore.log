@@ -1,0 +1,29 @@
+2026-11-08 17:08:49.450 [fg] link disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 17:08:49.468 [fg] link connecting
+2026-11-08 17:08:49.481 [fg] event disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 17:08:49.494 [fg] event stateChanged(CardLink.LinkState.connecting)
+2026-11-08 17:10:06.797 [bg] link connected
+2026-11-08 17:10:06.838 [bg] tx 80 len=0 
+2026-11-08 17:10:06.840 [bg] event stateChanged(CardLink.LinkState.connected)
+2026-11-08 17:10:06.952 [bg] rx 80 len=180 {"bat":90,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 17:10:06","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 17:10:06.971 [bg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 90% free 7653/7671 time 2026-11-08 17:10:06
+2026-11-08 17:10:06.975 [bg] tx 87 len=25 {"time":"20261108171006"}
+2026-11-08 17:10:07.038 [bg] rx 87 len=1 01
+2026-11-08 17:10:59.064 [bg] link disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 17:10:59.081 [bg] link connecting
+2026-11-08 17:10:59.096 [bg] event disconnected(CardLink.DisconnectReason.lost)
+2026-11-08 17:10:59.121 [bg] event stateChanged(CardLink.LinkState.connecting)
+2026-11-08 17:15:21.364 [fg] pending connect registered
+2026-11-08 17:15:21.367 [fg] SIGKILL for restoration test
+2026-11-08 17:15:21.711 [bg] launch: bluetoothCentrals=[] state=2
+2026-11-08 17:15:21.762 [bg] restore: peripherals=1 states=[1] scanning=false
+2026-11-08 17:15:21.841 [bg] link connecting
+2026-11-08 17:19:29.189 [fg] link connected
+2026-11-08 17:19:29.208 [fg] tx 80 len=0 
+2026-11-08 17:19:29.209 [fg] event stateChanged(CardLink.LinkState.connected)
+2026-11-08 17:19:29.256 [fg] rx 80 len=174 {"bat":90,"bt":"D·NOTE","btaddr":"…162f","df":0,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 17:19:29","total_df":0,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 17:19:29.267 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 90% free 0/0 time 2026-11-08 17:19:29
+2026-11-08 17:19:29.269 [fg] tx 87 len=25 {"time":"20261108171929"}
+2026-11-08 17:19:29.327 [fg] rx 87 len=1 01
+2026-11-08 17:19:29.585 [fg] rx 80 len=180 {"bat":90,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 17:19:29","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 17:19:29.599 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 90% free 7653/7671 time 2026-11-08 17:19:29

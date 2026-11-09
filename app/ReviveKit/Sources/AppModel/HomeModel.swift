@@ -1,0 +1,354 @@
+import CardLink
+import CardProtocol
+import CardService
+import Foundation
+import Library
+import Observation
+import Player
+import SyncEngine
+
+/// A short message shown on top for 2 s; a new one replaces the old (product-spec.md §6).
+public struct Toast: Equatable, Identifiable, Sendable {
+    public let id = UUID()
+    public let text: String
+
+    public init(_ text: String) { self.text = text }
+}
+
+/// An error the user has to act on, shown as a Modal (product-spec.md §7.1).
+public enum HomePrompt: Equatable, Sendable {
+    /// `notPaired`: "重新配对" → P03.
+    case repair
+    /// `unknownCard`: "重新搜索" → P02.
+    case rescan
+
+    public var title: String {
+        switch self {
+        case .repair: CardServiceError.notPaired.userText ?? ""
+        case .rescan: CardServiceError.unknownCard.userText ?? ""
+        }
+    }
+
+    public var message: String { "卡上的录音和已同步到手机的录音都会保留。" }
+
+    public var actionTitle: String {
+        switch self {
+        case .repair: "重新配对"
+        case .rescan: "重新搜索"
+        }
+    }
+}
+
+/// One card on P08 (product-spec.md P08).
+public struct DeviceRow: Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let name: String
+    public let isCurrent: Bool
+    public let status: DeviceStatus
+    /// When a sync last reached the card (`Device.lastSeenAt`).
+    public let lastSeenAt: Date?
+}
+
+/// Switching away from a card that is busy asks first (product-spec.md §3.3, §5.3).
+public struct PendingSwitch: Equatable, Sendable {
+    public enum Reason: Equatable, Sendable {
+        case recording, syncing
+    }
+
+    public let deviceId: UUID
+    public let reason: Reason
+
+    public var title: String { "切换到另一张卡？" }
+
+    public var message: String {
+        switch reason {
+        case .recording: "卡会继续录音，切回来后再同步。"
+        case .syncing: "同步会在下次连接时继续。"
+        }
+    }
+}
+
+/// Home screen state: recording list, device status, sync card and recording control
+/// (product-spec.md P05, P04).
+@MainActor
+@Observable
+public final class HomeModel {
+    public enum Command: Equatable, Sendable {
+        case start, pause, resume, stop
+    }
+
+    public let session: CardSession
+    /// Newest first.
+    public private(set) var recordings: [Recording] = []
+    /// The library could not be read (product-spec.md §4.3 P05 error state).
+    public private(set) var loadError: String?
+    /// The recording command waiting for the card's reply; other controls are disabled meanwhile.
+    public private(set) var pendingCommand: Command?
+    public var toast: Toast?
+    /// P04 is shown before the first recording started from the app.
+    public var showsConsent = false
+    public var prompt: HomePrompt?
+
+    @ObservationIgnored private let preferences: Preferences
+    @ObservationIgnored private let player: RecordingPlayer?
+    @ObservationIgnored private var observation: LibraryObservation?
+    @ObservationIgnored private var listener: UUID?
+    /// The live sync status watch; an older one stops at its next change.
+    @ObservationIgnored private var syncWatch: UUID?
+
+    public init(session: CardSession, preferences: Preferences, player: RecordingPlayer? = nil) {
+        self.session = session
+        self.preferences = preferences
+        self.player = player
+    }
+
+    /// Starts watching the library and asks for the current card to reconnect.
+    public func start() {
+        if observation == nil {
+            observation = session.library.observeRecordings(
+                onError: { [weak self] in self?.loadError = String(describing: $0) },
+                onChange: { [weak self] in
+                    self?.recordings = $0
+                    self?.loadError = nil
+                })
+        }
+        if listener == nil {
+            listener = session.addListener { [weak self] event in
+                // Bluetooth back on: CoreBluetooth forgot the pending connect, so register it again.
+                if event == .stateChanged(.idle) { self?.reconnect() }
+            }
+            let watch = UUID()
+            syncWatch = watch
+            observeSyncStatus(watch)
+        }
+        reconnect()
+    }
+
+    public func stop() {
+        observation?.cancel()
+        observation = nil
+        if let listener { session.removeListener(listener) }
+        listener = nil
+        syncWatch = nil
+    }
+
+    // MARK: - Device
+
+    /// The card the home screen is about (product-spec.md §4.4).
+    public var currentDevice: Device? {
+        let paired = session.pairedDevices
+        return paired.first { $0.id == preferences.currentDeviceId } ?? paired.first
+    }
+
+    public var status: DeviceStatus { session.status(of: currentDevice?.id) }
+
+    /// Battery in percent while the current card is connected.
+    public var battery: Int? {
+        session.connectedDevice?.id == currentDevice?.id ? session.cardInfo?.battery : nil
+    }
+
+    // MARK: - Switch cards (P08)
+
+    public var pendingSwitch: PendingSwitch?
+    /// `unknownCard` while switching, shown on P08 itself: home cannot present a Modal while
+    /// the sheet is up (product-spec.md §7.1, P08).
+    public var switcherPrompt: HomePrompt?
+
+    /// Paired cards, oldest first, from the local database only (product-spec.md P08).
+    public var deviceRows: [DeviceRow] {
+        let current = currentDevice?.id
+        return session.pairedDevices.map {
+            DeviceRow(id: $0.id, name: $0.name, isCurrent: $0.id == current, status: session.status(of: $0.id),
+                      lastSeenAt: $0.lastSeenAt)
+        }
+    }
+
+    /// A tap on a row. Returns true when P08 can close; false when a Modal on P08 has to answer
+    /// first (`pendingSwitch`, `switcherPrompt`).
+    public func selectDevice(_ id: UUID) -> Bool {
+        guard let current = currentDevice, id != current.id else { return true }
+        switch status {
+        case .recording, .paused:
+            pendingSwitch = PendingSwitch(deviceId: id, reason: .recording)
+            return false
+        case .idle where session.syncEngine.isRunning:
+            pendingSwitch = PendingSwitch(deviceId: id, reason: .syncing)
+            return false
+        default:
+            return switchDevice(to: id)
+        }
+    }
+
+    /// "切换" in the Modal; returns true when P08 can close, like `selectDevice`.
+    public func confirmSwitch() -> Bool {
+        guard let pending = pendingSwitch else { return true }
+        pendingSwitch = nil
+        return switchDevice(to: pending.deviceId)
+    }
+
+    /// Drops the current card and waits for the new one (product-spec.md §3.3). The new card
+    /// is current even when CoreBluetooth does not know it: "重新搜索" then finds it again.
+    private func switchDevice(to id: UUID) -> Bool {
+        guard let device = session.pairedDevices.first(where: { $0.id == id }) else { return true }
+        preferences.currentDeviceId = id
+        do {
+            try session.switchTo(device)
+        } catch CardServiceError.unknownCard {
+            session.diagnostics?.add("home", "switch failed: unknownCard")
+            switcherPrompt = .rescan
+            return false
+        } catch {
+            session.diagnostics?.add("home", "switch failed: \(error)")
+            toast = Toast((error as? CardServiceError)?.userText ?? "连接失败，请重试")
+        }
+        return true
+    }
+
+    // MARK: - Sync
+
+    public var syncCard: SyncCard? {
+        let engine = session.syncEngine
+        let connected = session.connectedDevice != nil && session.connectedDevice?.id == currentDevice?.id
+        var input = SyncCard.Input(connected: connected, status: engine.status, isRunning: engine.isRunning,
+                                   progress: engine.progress, pendingCount: engine.pendingCount,
+                                   lastCompletedAt: engine.lastCompletedAt,
+                                   cardFree: session.cardInfo?.freeSpace, cardTotal: session.cardInfo?.totalSpace,
+                                   deleteAfterSync: engine.options.deleteAfterSync)
+        // Failures only between passes; during a pass the card shows progress anyway.
+        if connected, engine.status == .idle, !engine.isRunning { input.failures = engine.failures }
+        return SyncCard.make(input)
+    }
+
+    /// Pull to refresh (product-spec.md P05).
+    public func refresh() async {
+        // After "断开连接" on P07, pulling down is how the user asks to connect again.
+        if status == .waiting, session.userDisconnected {
+            reconnect(force: true)
+            return
+        }
+        guard status == .idle || status == .recording || status == .paused else {
+            toast = Toast("录音卡未连接")
+            return
+        }
+        await session.syncEngine.syncNow()
+    }
+
+    public func retrySync() { session.syncEngine.requestSync() }
+
+    /// A pass that finds the card no longer paired with this phone raises the Modal once.
+    private func observeSyncStatus(_ watch: UUID) {
+        withObservationTracking { _ = session.syncEngine.status } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self, self.syncWatch == watch else { return }
+                if self.session.syncEngine.status == .stopped(SyncFailure.notPaired.rawValue) {
+                    self.session.diagnostics?.add("home", "sync found the card not paired")
+                    self.prompt = .repair
+                }
+                self.observeSyncStatus(watch)
+            }
+        }
+    }
+
+    // MARK: - Prompts
+
+    /// "重新配对": the card is still on the link but does not advertise there, so drop it for
+    /// P03's scan. Home does not reconnect meanwhile; pairing it again connects it.
+    public func repairTapped() {
+        prompt = nil
+        session.disconnect()
+    }
+
+    // MARK: - Recording control
+
+    /// Recorded seconds at `date` while recording or paused; nil until the card has reported it.
+    public func recordedSeconds(at date: Date) -> Int? {
+        session.recordedMs(at: date).map { $0 / 1000 }
+    }
+
+    /// When the current recording started, from the card's file name.
+    public var recordingStartedAt: Date? {
+        session.recordingName.flatMap { SyncEngine.startDate(fileName: $0) }
+    }
+
+    public func startTapped() {
+        if preferences.recordingConsentGiven {
+            run(.start)
+        } else {
+            showsConsent = true
+        }
+    }
+
+    /// "开始录音" on P04, after ticking the consent box.
+    public func consentConfirmed() {
+        preferences.recordingConsentGiven = true
+        showsConsent = false
+        run(.start)
+    }
+
+    public func pause() { run(.pause) }
+    public func resume() { run(.resume) }
+    public func stopRecording() { run(.stop) }
+
+    private func run(_ command: Command) {
+        guard pendingCommand == nil else { return }
+        pendingCommand = command
+        Task {
+            defer { pendingCommand = nil }
+            do {
+                switch command {
+                case .start: try await session.startRecording()
+                case .pause: try await session.pauseRecording()
+                case .resume: try await session.resumeRecording()
+                case .stop: try await session.stopRecording()
+                }
+            } catch CardServiceError.notPaired {
+                session.diagnostics?.add("home", "\(command) failed: notPaired")
+                prompt = .repair
+            } catch CardServiceError.requestTimeout {
+                // The command may have taken effect with only the reply lost; resending is
+                // unverified, so do not ask the user to repeat it (product-spec.md §7.1).
+                session.diagnostics?.add("home", "\(command) failed: requestTimeout")
+                toast = Toast("录音卡没有响应，录音状态未确认")
+            } catch {
+                session.diagnostics?.add("home", "\(command) failed: \(error)")
+                let text = (error as? CardServiceError)?.userText ?? "操作失败，请重试"
+                toast = Toast(text)
+            }
+        }
+    }
+
+    // MARK: - Recordings
+
+    /// Deletes the local recording only; nothing is sent to the card (product-spec.md §3.3).
+    public func delete(_ id: UUID) {
+        if player?.recordingId == id { player?.stop() }
+        do {
+            try session.library.deleteRecording(id: id)
+            toast = Toast("已删除")
+        } catch {
+            toast = Toast("删除失败，请重试")
+        }
+    }
+
+    /// Card name for list rows; only shown when more than one card is paired.
+    public func deviceName(for recording: Recording) -> String? {
+        let paired = session.pairedDevices
+        guard paired.count > 1 else { return nil }
+        return paired.first { $0.id == recording.deviceId }?.name
+    }
+
+    // MARK: - Reconnect
+
+    private func reconnect(force: Bool = false) {
+        guard let device = currentDevice, status == .waiting, force || !session.userDisconnected else { return }
+        do {
+            try session.connectWhenSeen(device)
+        } catch CardServiceError.unknownCard {
+            session.diagnostics?.add("home", "reconnect failed: unknownCard")
+            prompt = .rescan
+        } catch {
+            session.diagnostics?.add("home", "reconnect failed: \(error)")
+            toast = Toast((error as? CardServiceError)?.userText ?? "连接失败，请重试")
+        }
+    }
+}

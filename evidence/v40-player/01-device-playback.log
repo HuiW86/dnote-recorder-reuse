@@ -1,0 +1,44 @@
+# iPhone 12 card-debug.log excerpts for #40. Run 1 (P1 P2 P3 P6, debug build b1b41d0): file lines 46-1086, with the 0x70 data chunk lines (rx 70) dropped. Run 2 (P4 P5, debug build 2063641): file lines 120232-120242.
+# --- run 1, 2026-11-08 ---
+2026-11-08 20:16:43.779 [fg] ▶ download 20261106034311.opus
+2026-11-08 20:16:43.793 [fg] tx 70 len=49 {"cmd":1,"name":"20261106034311.opus","offset":0}
+2026-11-08 20:16:51.638 [fg] downloaded 202060 B in 7.8 s, 25.8 KB/s, sha256 57fbab41caddfec1d593e92c04370c0c2e6a3d2b56701c9a1f97e1ae6cd2098f, decrypt OK, 5050 opus frames
+2026-11-08 20:16:51.689 [fg] library: 20261106034311.opus -> ogg 209880 B, 5050 frames
+2026-11-08 20:16:51.689 [fg] ✔ download 20261106034311.opus 7.90 s
+2026-11-08 20:20:08.497 [fg] rx 80 len=180 {"bat":81,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 20:20:08","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 20:20:08.517 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 81% free 7653/7671 time 2026-11-08 20:20:08
+2026-11-08 20:22:06.364 [fg] ▶ play 20261106034311.opus
+2026-11-08 20:22:06.504 [fg] ✔ play 0.11 s to start, duration 100.99 s, OGG opened directly
+2026-11-08 20:22:06.539 [fg] player playing at 0.00 s
+2026-11-08 20:23:47.545 [fg] player idle at 0.00 s
+2026-11-08 20:32:35.012 [fg] force decode on, decoded copies cleared
+2026-11-08 20:33:18.413 [fg] ▶ play 20261106034311.opus
+2026-11-08 20:33:18.620 [fg] ✔ play 0.18 s to start, duration 100.99 s, via decoded PCM copy
+2026-11-08 20:33:18.641 [fg] player playing at 0.00 s
+2026-11-08 20:33:25.934 [fg] player idle at 0.00 s
+2026-11-08 20:33:50.738 [fg] ▶ play 20261106034311.opus
+2026-11-08 20:33:50.803 [fg] ✔ play 0.04 s to start, duration 100.99 s, via decoded PCM copy
+2026-11-08 20:33:50.830 [fg] player playing at 0.00 s
+2026-11-08 20:33:57.708 [fg] player idle at 0.00 s
+2026-11-08 20:37:21.634 [fg] force decode off, decoded copies cleared
+2026-11-08 20:42:12.649 [fg] ▶ play 20261106034311.opus
+2026-11-08 20:42:12.715 [fg] ✔ play 0.05 s to start, duration 100.99 s, OGG opened directly
+2026-11-08 20:42:12.749 [fg] player playing at 0.00 s
+2026-11-08 20:43:06.372 [fg] session interruption began
+2026-11-08 20:43:06.385 [fg] player paused at 53.53 s
+2026-11-08 20:52:48.500 [fg] rx 80 len=180 {"bat":80,"bt":"D·NOTE","btaddr":"…162f","df":7653,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-08 20:52:48","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-08 20:52:48.537 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 80% free 7653/7671 time 2026-11-08 20:52:48
+2026-11-08 20:54:24.746 [fg] player idle at 0.00 s
+2026-11-08 20:58:05.483 [fg] session interruption ended
+# --- run 2, 2026-11-09 ---
+2026-11-09 00:59:10.346 [bg] session route change reason 0, outputs ["BluetoothA2DPOutput"]
+2026-11-09 00:59:31.312 [fg] ▶ play 20261106034311.opus
+2026-11-09 00:59:31.399 [fg] ✔ play 0.06 s to start, duration 100.99 s, OGG opened directly
+2026-11-09 00:59:31.430 [fg] session route change reason 8, outputs ["BluetoothA2DPOutput"]
+2026-11-09 00:59:31.431 [fg] player playing at 0.01 s
+2026-11-09 01:00:23.838 [fg] session route change reason 2, outputs ["Speaker"]
+2026-11-09 01:00:23.849 [fg] player paused at 52.38 s
+2026-11-09 01:02:34.248 [fg] rx 80 len=180 {"bat":64,"bt":"D·NOTE","btaddr":"…162f","df":7647,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-09 01:02:34","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-09 01:02:34.301 [fg] event deviceInfo sn sha256:7036aa3b fw 1.50 rec idle bat 64% free 7647/7671 time 2026-11-09 01:02:34
+2026-11-09 01:02:46.124 [fg] library: deleted 20261106034311.opus
+2026-11-09 01:02:46.160 [fg] player idle at 0.00 s

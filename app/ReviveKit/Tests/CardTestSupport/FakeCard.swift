@@ -32,6 +32,19 @@ public final class FakeCard: CardLink {
         case truncatedChunk(index: Int)
         /// Deliver every reply's notifications with neighbours swapped (1,0,3,2,...).
         case reorderNotifications
+        /// Ack `0xA0` writes without changing the bond, so `0xA1` disagrees.
+        case ignoreBondWrites
+        /// Carry out the next request with this command, then drop the link (once).
+        case disconnectAfter(Command)
+        /// Drop the link on the next request with this command without carrying it out (once).
+        case disconnectInsteadOf(Command)
+        /// Answer every `0x70` with a bare `0x40`, as the real card did after the app was killed
+        /// mid-download (#38); stays until removed, like the card until it restarts.
+        case refuseDownloads
+        /// Answer `0xA2` with `0x00` instead of the `0x01` ack.
+        case rejectEncryptionKey
+        /// Ack setting writes without changing the switches, so the `0x81` read-back disagrees.
+        case ignoreSettings
     }
 
     // MARK: Configuration and observable state
@@ -45,8 +58,12 @@ public final class FakeCard: CardLink {
     public var encryptionKey: Data?
     public var switches: DeviceSwitches
     public private(set) var recording: (name: String, state: RecordingState)?
+    /// `recd` in `0x56` replies while recording.
+    public var recordedMs = 0
     public var faults: [Fault] = []
     public var chunkSize = 200
+    /// False: the card is asleep and scans do not find it.
+    public var advertising = true
 
     /// Every request written, in order, and its encoded bytes (test-spec.md §3.5 gate 2).
     public private(set) var sentRequests: [CardRequest] = []
@@ -76,16 +93,27 @@ public final class FakeCard: CardLink {
     }
 
     public func startScan() {
-        guard state != .connected else { return }  // a connected card does not advertise
+        guard state != .connected, advertising else { return }  // a connected card does not advertise
         continuation.yield(.discovered(DiscoveredCard(id: id, name: "D·NOTE", advertisement: advertisement, rssi: -50)))
     }
 
     public func stopScan() {}
 
     public func connect(_ id: UUID) async throws {
+        switch state {
+        case .poweredOff: throw LinkError.bluetoothOff
+        case .unauthorized: throw LinkError.bluetoothUnauthorized
+        case .unsupported: throw LinkError.bluetoothUnsupported
+        default: break
+        }
         guard id == self.id else { throw LinkError.unknownPeripheral }
         peripheralId = id
         state = .connecting
+        // An asleep card never answers the connect; BluetoothCardLink gives up after 10 s.
+        guard advertising else {
+            state = .disconnected(.requested)
+            throw LinkError.connectTimeout
+        }
         state = .connected
     }
 
@@ -94,6 +122,12 @@ public final class FakeCard: CardLink {
         peripheralId = id
         pendingConnect = true
         state = .connecting
+    }
+
+    /// The link now reaches another card holding the same files, as right after a card switch
+    /// (the worst case: same file names on both cards). The state stays connected.
+    public func switchToAnotherCard() {
+        peripheralId = UUID()
     }
 
     public func disconnect() {
@@ -107,7 +141,16 @@ public final class FakeCard: CardLink {
         sentRequests.append(request)
         writtenFrames.append(frame)
         if faults.contains(.noResponse(request.command)) { return }
+        if let i = faults.firstIndex(of: .disconnectInsteadOf(request.command)) {
+            faults.remove(at: i)
+            dropLink()
+            return
+        }
         var replies = reply(to: request)
+        if let i = faults.firstIndex(of: .disconnectAfter(request.command)) {
+            faults.remove(at: i)
+            replies.append(.drop)
+        }
         if faults.contains(.reorderNotifications) {
             for i in stride(from: 0, to: replies.count - 1, by: 2) { replies.swapAt(i, i + 1) }
         }
@@ -126,6 +169,13 @@ public final class FakeCard: CardLink {
         guard pendingConnect else { return }
         pendingConnect = false
         state = .connected
+    }
+
+    /// Bluetooth on the phone changes: `.poweredOff`, `.unauthorized`, `.unsupported`, or `.idle`
+    /// when it is back. Like CoreBluetooth, losing Bluetooth drops any link.
+    public func setPhoneBluetooth(_ newState: LinkState) {
+        if newState != .idle { pendingConnect = false }
+        state = newState
     }
 
     /// Unexpected link loss; registers a pending connect like `BluetoothCardLink`.
@@ -194,12 +244,13 @@ public final class FakeCard: CardLink {
             // Assumed format: one byte, 1 when a key is set.
             return [.frame(Self.frame(cmd, Data([encryptionKey == nil ? 0 : 1])))]
         case .set(let setting):
-            apply(setting)
+            if !faults.contains(.ignoreSettings) { apply(setting) }
             return [.frame(Self.frame(cmd, Self.ack))]
         case .syncTime:
             return [.frame(Self.frame(cmd, Self.ack))]
         case .startRecording:
-            guard paired else { return [.frame(Self.frame(cmd, Data("NULL".utf8)))] }
+            // Recording is the only thing an unpaired card refuses (#38 E).
+            guard paired else { return [.frame(Self.frame(cmd, json: ["name": "NULL"]))] }
             let name = recording?.name ?? startRecordingFile()
             return [.frame(Self.frame(cmd, json: ["name": name]))]
         case .stopRecording:
@@ -211,28 +262,30 @@ public final class FakeCard: CardLink {
             }
             return [.frame(Self.frame(cmd, Self.ack))]
         case .listFiles:
-            guard paired else { return [] }  // unpaired: no response (#5)
-            let end = Self.frame(cmd, json: ["index": isRecording ? 0 : files.count, "end": 1])
+            // Listed whether or not the card is paired (#38 E).
+            let end = Self.frame(cmd, json: ["name": "", "size": 0, "index": isRecording ? 0 : files.count, "end": 1])
             if isRecording { return [.frame(end)] }  // recording: empty list (#5)
             let items = files.enumerated().map { i, f in
                 Reply.frame(Self.frame(cmd, json: ["index": i, "name": f.name, "size": f.content.count, "end": 0]))
             }
             return items + [.frame(end)]
         case .download(let name, let offset):
-            guard paired else { return [] }  // assumed: same as 0x90
+            // Sent whether or not the card is paired (#38 E).
+            if faults.contains(.refuseDownloads) { return [.frame(Self.frame(cmd, Data([0x40])))] }
             return downloadReplies(name: name, offset: offset)
         case .delete(let name):
-            // No reply (PROTOCOL.md §4.2); the file is gone on the next list.
-            if paired { files.removeAll { $0.name == name } }
-            return []
+            // Deleted and acked with 0x01 whether or not the card is paired (#38 E).
+            files.removeAll { $0.name == name }
+            return [.frame(Self.frame(cmd, Self.ack))]
         case .bond(let id):
-            bondId = id
+            if !faults.contains(.ignoreBondWrites) { bondId = id }
             return [.frame(Self.frame(cmd, Self.ack))]
         case .unbond:
-            bondId = nil
+            if !faults.contains(.ignoreBondWrites) { bondId = nil }
             return [.frame(Self.frame(cmd, Self.ack))]
         case .setEncryptionKey(let enabled, let key):
-            // Assumed reply: single 0x01 like the other settings.
+            // v1.50 acks with a single 0x01 (#38 D).
+            if faults.contains(.rejectEncryptionKey) { return [.frame(Self.frame(cmd, Data([0x00])))] }
             encryptionKey = enabled ? key : nil
             return [.frame(Self.frame(cmd, Self.ack))]
         }
@@ -262,7 +315,9 @@ public final class FakeCard: CardLink {
                 faults.removeAll { $0 == .truncatedChunk(index: index) }
                 return replies + [.frame(Self.frame(cmd, Data([0x00, 0x00])))]
             }
-            let status: UInt8 = end == content.count ? 0x20 : 0x00
+            // v1.50: first chunk 0x00, then 0x1N, the last 0x2N, N = chunk index mod 16 (#38 E).
+            let seq = UInt8(index & 0x0F)
+            let status: UInt8 = end == content.count ? 0x20 | seq : index == 0 ? 0x00 : 0x10 | seq
             replies.append(.frame(Self.chunk(status: status, offset: UInt32(pos), content[pos..<end])))
             pos = end
             index += 1
@@ -315,7 +370,7 @@ public final class FakeCard: CardLink {
 
     private func recordingStatusFrame() -> Data {
         Self.frame(Command.recordingStatus.rawValue, json: [
-            "name": recording?.name ?? "", "size": 0, "recd": 0, "rec": recordingCode, "upload": 0,
+            "name": recording?.name ?? "", "size": 0, "recd": recording == nil ? 0 : recordedMs, "rec": recordingCode, "upload": 0,
         ])
     }
 
@@ -338,16 +393,16 @@ public final class FakeCard: CardLink {
 
     // MARK: Frame builders (card -> phone; any CMD byte, unlike CardRequest)
 
-    public static func frame(_ cmd: UInt8, _ body: Data) -> Data {
+    nonisolated public static func frame(_ cmd: UInt8, _ body: Data) -> Data {
         precondition(body.count <= 255)
         return Data([Frame.pid, cmd, UInt8(body.count)]) + body
     }
 
-    static func frame(_ cmd: UInt8, json: [String: Any]) -> Data {
+    nonisolated static func frame(_ cmd: UInt8, json: [String: Any]) -> Data {
         frame(cmd, try! JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]))
     }
 
-    static func chunk(status: UInt8, offset: UInt32, _ data: Data) -> Data {
+    nonisolated static func chunk(status: UInt8, offset: UInt32, _ data: Data) -> Data {
         frame(Command.fileData.rawValue, Data([status]) + withUnsafeBytes(of: offset.bigEndian) { Data($0) } + data)
     }
 }

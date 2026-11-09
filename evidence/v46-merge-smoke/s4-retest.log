@@ -1,0 +1,30 @@
+2026-11-09 12:57:16.606 [fg] link connecting
+2026-11-09 12:57:16.607 [fg] event stateChanged(CardLink.LinkState.connecting)
+2026-11-09 13:03:27.856 [bg] launch: bluetoothCentrals=[] state=2
+2026-11-09 13:03:28.082 [bg] restore: peripherals=1 states=[1] scanning=false
+2026-11-09 13:03:28.097 [fg] link connecting
+2026-11-09 13:07:20.107 [fg] link connected
+2026-11-09 13:07:20.112 [fg] tx 80 len=0 
+2026-11-09 13:07:20.216 [fg] rx 80 len=180 {"bat":23,"bt":"D·NOTE","btaddr":"…162f","df":7669,"rec":0,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-09 13:07:20","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-09 13:07:20.218 [fg] tx 87 len=25 {"time":"20261109130720"}
+2026-11-09 13:07:20.250 [fg] tx 56 len=0 
+2026-11-09 13:07:20.271 [fg] rx 87 len=1 01
+2026-11-09 13:07:20.286 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-09 13:07:20.311 [fg] tx A1 len=0 
+2026-11-09 13:07:20.344 [fg] rx A1 len=17 01 <bondId 16 B>
+2026-11-09 13:07:20.353 [fg] tx 56 len=0 
+2026-11-09 13:07:20.375 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-09 13:07:20.375 [fg] tx 90 len=0 
+2026-11-09 13:07:20.421 [fg] rx 90 len=62 {"name":"20261108232640.opus","size":226060,"index":0,"end":0}
+2026-11-09 13:07:20.421 [fg] rx 90 len=61 {"name":"20261108234831.opus","size":46060,"index":1,"end":0}
+2026-11-09 13:07:20.451 [fg] rx 90 len=61 {"name":"20261109123631.opus","size":34060,"index":2,"end":0}
+2026-11-09 13:07:20.451 [fg] rx 90 len=38 {"name":"","size":0,"index":3,"end":1}
+2026-11-09 13:09:32.542 [fg] tx A1 len=0 
+2026-11-09 13:09:32.569 [fg] rx A1 len=17 01 <bondId 16 B>
+2026-11-09 13:09:32.570 [fg] tx 56 len=0 
+2026-11-09 13:09:32.598 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-09 13:09:32.599 [fg] tx 90 len=0 
+2026-11-09 13:09:32.644 [fg] rx 90 len=62 {"name":"20261108232640.opus","size":226060,"index":0,"end":0}
+2026-11-09 13:09:32.645 [fg] rx 90 len=61 {"name":"20261108234831.opus","size":46060,"index":1,"end":0}
+2026-11-09 13:09:32.675 [fg] rx 90 len=61 {"name":"20261109123631.opus","size":34060,"index":2,"end":0}
+2026-11-09 13:09:32.675 [fg] rx 90 len=38 {"name":"","size":0,"index":3,"end":1}
