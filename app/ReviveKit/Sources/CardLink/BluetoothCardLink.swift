@@ -132,6 +132,11 @@ public final class BluetoothCardLink: NSObject, CardLink {
             old.delegate = nil
             central.cancelPeripheralConnection(old)
             writeCharacteristic = nil
+            // Its write confirmations will never come; left queued, the new card's would
+            // resume them and its own requests would wait for ever.
+            let writes = pendingWrites
+            pendingWrites = []
+            writes.forEach { $0.resume(throwing: LinkError.notConnected) }
         }
         disconnectRequested = false
         peripheral = p
