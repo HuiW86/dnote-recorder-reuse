@@ -1,10 +1,12 @@
 import Foundation
+import Observation
 
 /// Small app settings kept in UserDefaults. Nothing secret goes here: bondIds live in the
 /// Keychain (prd.md §5.1).
 @MainActor
+@Observable
 public final class Preferences {
-    private let defaults: UserDefaults
+    @ObservationIgnored private let defaults: UserDefaults
     private enum Key {
         static let currentDevice = "revive.currentDevice"
         static let recordingConsent = "revive.recordingConsent"
@@ -15,10 +17,16 @@ public final class Preferences {
         self.defaults = defaults
     }
 
-    /// The device the home screen shows (product-spec.md §4.4, P08).
+    /// The device the home screen shows (product-spec.md §4.4, P08). Observed, so switching
+    /// cards on P08 redraws home.
     public var currentDeviceId: UUID? {
-        get { defaults.string(forKey: Key.currentDevice).flatMap(UUID.init) }
-        set { defaults.set(newValue?.uuidString, forKey: Key.currentDevice) }
+        get {
+            access(keyPath: \.currentDeviceId)
+            return defaults.string(forKey: Key.currentDevice).flatMap(UUID.init)
+        }
+        set {
+            withMutation(keyPath: \.currentDeviceId) { defaults.set(newValue?.uuidString, forKey: Key.currentDevice) }
+        }
     }
 
     /// The user ticked "我已征得对方同意" once; P04 is not shown again (product-spec.md P04).

@@ -4,34 +4,48 @@ import SwiftUI
 
 // Home screen components (product-spec.md §0.2, P05, P04).
 
-/// Card name and connection state at the top left; opens P07 (product-spec.md §2.1).
+/// Card name and connection state at the top left: the name opens P07, the chevron P08
+/// (product-spec.md §2.1, P05).
 struct DeviceChip: View {
     let device: Device?
     let status: DeviceStatus
     let battery: Int?
+    let openDevice: () -> Void
+    let openSwitcher: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "rectangle.portrait")
-                .imageScale(.small)
-            if let device {
-                Text(device.name).lineLimit(1)
-                trailing
-            } else {
-                Text("添加录音卡")
+            Button(action: openDevice) {
+                HStack(spacing: 6) {
+                    Image(systemName: "rectangle.portrait")
+                        .imageScale(.small)
+                    if let device {
+                        Text(device.name).lineLimit(1)
+                        trailing
+                    } else {
+                        Text("添加录音卡")
+                    }
+                }
             }
-            Image(systemName: "chevron.down")
-                .imageScale(.small)
-                .foregroundStyle(.secondary)
+            .disabled(device == nil)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityText)
+            Button(action: openSwitcher) {
+                Image(systemName: "chevron.down")
+                    .imageScale(.small)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 2)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("切换录音卡")
         }
+        .buttonStyle(.plain)
         .font(.subheadline.weight(.medium))
         // The toolbar offers too little width and the name collapses to nothing.
         .fixedSize()
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(.quaternary, in: Capsule())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityText)
     }
 
     @ViewBuilder private var trailing: some View {

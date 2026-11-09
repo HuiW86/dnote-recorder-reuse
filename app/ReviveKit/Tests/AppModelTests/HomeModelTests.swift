@@ -254,6 +254,78 @@ struct HomeModelTests {
         #expect(card.files.count == 1)
     }
 
+    /// A second paired card. `peripheral` nil means one CoreBluetooth no longer knows.
+    private func addSecondCard(_ h: Harness, peripheral: UUID?) throws -> UUID {
+        let device = try h.library.upsertDevice(sn: "SECONDCARD000002") { d in
+            d.name = "第二张卡"
+            d.firmware = "1.50"
+            d.peripheralId = (peripheral ?? UUID()).uuidString
+            d.pairedAt = Date()
+        }
+        h.session.refreshDevices()
+        return device.id
+    }
+
+    /// product-spec.md P08: rows from the local database; picking another card makes it current
+    /// and drops the card on the link for it.
+    @Test func switchingCardsDropsTheLinkAndWaitsForTheOther() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        let first = try #require(model.currentDevice).id
+        let second = try addSecondCard(h, peripheral: h.card.id)
+        #expect(model.deviceRows.map(\.id) == [first, second])
+        #expect(model.deviceRows.map(\.isCurrent) == [true, false])
+        #expect(model.deviceRows.first?.status == .idle)
+
+        #expect(model.selectDevice(second))
+        #expect(model.currentDevice?.id == second)
+        #expect(h.preferences.currentDeviceId == second)
+        await waitUntil("old card dropped") { h.session.connectedDevice == nil }
+        #expect(model.prompt == nil)
+        #expect(model.deviceRows.map(\.isCurrent) == [false, true])
+        #expect(!h.session.userDisconnected)
+    }
+
+    @Test func switchingToAnUnknownCardAsksToRescan() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        let second = try addSecondCard(h, peripheral: nil)
+        #expect(model.selectDevice(second))
+        #expect(model.currentDevice?.id == second)
+        #expect(model.prompt == .rescan)
+    }
+
+    /// product-spec.md §5.3: switching away from a recording card asks first.
+    @Test func switchingWhileRecordingAsksFirst() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        let first = try #require(model.currentDevice).id
+        let second = try addSecondCard(h, peripheral: h.card.id)
+        h.preferences.recordingConsentGiven = true
+        model.startTapped()
+        await waitUntil("recording") { model.status == .recording && model.pendingCommand == nil }
+
+        #expect(!model.selectDevice(second))
+        #expect(model.pendingSwitch?.deviceId == second)
+        #expect(model.pendingSwitch?.reason == .recording)
+        #expect(model.pendingSwitch?.message == "卡会继续录音，切回来后再同步。")
+        #expect(model.currentDevice?.id == first)
+        model.confirmSwitch()
+        #expect(model.pendingSwitch == nil)
+        #expect(model.currentDevice?.id == second)
+    }
+
+    @Test func pickingTheCurrentCardJustCloses() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        let first = try #require(model.currentDevice).id
+        #expect(model.selectDevice(first))
+        #expect(h.session.connectedDevice?.id == first)
+    }
+
     /// Bluetooth off drops the pending connect; turning it back on must register it again.
     @Test func bluetoothBackOnReconnects() async throws {
         let (h, model) = try await home(FakeCard(paired: true))

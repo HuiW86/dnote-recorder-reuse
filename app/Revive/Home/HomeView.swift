@@ -22,7 +22,7 @@ struct HomeView: View {
         NavigationStack(path: $path) {
             Group {
                 if let model {
-                    HomeContent(model: model, path: $path)
+                    HomeContent(model: model, env: env, path: $path)
                 } else {
                     ContentUnavailableView(CardServiceError.bluetoothUnsupported.userText ?? "",
                                            systemImage: "exclamationmark.triangle")
@@ -52,8 +52,10 @@ struct HomeView: View {
 
 private struct HomeContent: View {
     @Bindable var model: HomeModel
+    let env: AppEnvironment
     @Binding var path: [Route]
     @State private var pendingDelete: Recording?
+    @State private var showsSwitcher = false
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -62,15 +64,9 @@ private struct HomeContent: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    // P08 (switch cards from the chevron) comes in batch 3c; the chip opens P07 for now.
-                    if let device = model.currentDevice {
-                        NavigationLink(value: Route.device(device.id)) {
-                            DeviceChip(device: device, status: model.status, battery: model.battery)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        DeviceChip(device: nil, status: model.status, battery: model.battery)
-                    }
+                    DeviceChip(device: model.currentDevice, status: model.status, battery: model.battery,
+                               openDevice: { model.currentDevice.map { path.append(.device($0.id)) } },
+                               openSwitcher: { showsSwitcher = true })
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: Route.settings) {
@@ -83,6 +79,11 @@ private struct HomeContent: View {
             .safeAreaInset(edge: .bottom) { RecordControlBar(model: model) }
             .sheet(isPresented: $model.showsConsent) {
                 ConsentSheet { model.consentConfirmed() }
+            }
+            // Adding a card on P08 drops the current one; if the new one was not paired, wait for
+            // the current card again.
+            .sheet(isPresented: $showsSwitcher, onDismiss: { model.start() }) {
+                DeviceSwitcherSheet(model: model, env: env)
             }
             .confirmationDialog("删除这条录音？", isPresented: deleteBinding, titleVisibility: .visible,
                                 presenting: pendingDelete) { recording in

@@ -142,6 +142,17 @@ public final class CardSession {
         try service.connectWhenSeen(id)
     }
 
+    /// Switching cards on P08: drop the card on the link (or the pending connect) and wait for
+    /// `device` instead. `connectWhenSeen` would keep the old card, as it never replaces a link.
+    public func switchTo(_ device: Device) throws {
+        userDisconnected = false
+        guard connectedDevice?.id != device.id else { return }
+        guard let id = device.peripheralId.flatMap(UUID.init) else { throw CardServiceError.unknownCard }
+        diagnostics?.add("link", "switch card, link \(linkState)")
+        service.disconnect()
+        try service.connectWhenSeen(id)
+    }
+
     /// "断开连接" on P07.
     public func disconnect() {
         diagnostics?.add("link", "disconnect requested")

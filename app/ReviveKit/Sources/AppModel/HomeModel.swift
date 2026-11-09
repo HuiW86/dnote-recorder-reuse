@@ -39,6 +39,35 @@ public enum HomePrompt: Equatable, Sendable {
     }
 }
 
+/// One card on P08 (product-spec.md P08).
+public struct DeviceRow: Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let name: String
+    public let isCurrent: Bool
+    public let status: DeviceStatus
+    /// When a sync last reached the card (`Device.lastSeenAt`).
+    public let lastSeenAt: Date?
+}
+
+/// Switching away from a card that is busy asks first (product-spec.md §3.3, §5.3).
+public struct PendingSwitch: Equatable, Sendable {
+    public enum Reason: Equatable, Sendable {
+        case recording, syncing
+    }
+
+    public let deviceId: UUID
+    public let reason: Reason
+
+    public var title: String { "切换到另一张卡？" }
+
+    public var message: String {
+        switch reason {
+        case .recording: "卡会继续录音，切回来后再同步。"
+        case .syncing: "同步会在下次连接时继续。"
+        }
+    }
+}
+
 /// Home screen state: recording list, device status, sync card and recording control
 /// (product-spec.md P05, P04).
 @MainActor
@@ -64,6 +93,8 @@ public final class HomeModel {
     @ObservationIgnored private let player: RecordingPlayer?
     @ObservationIgnored private var observation: LibraryObservation?
     @ObservationIgnored private var listener: UUID?
+    /// The live sync status watch; an older one stops at its next change.
+    @ObservationIgnored private var syncWatch: UUID?
 
     public init(session: CardSession, preferences: Preferences, player: RecordingPlayer? = nil) {
         self.session = session
@@ -86,8 +117,10 @@ public final class HomeModel {
                 // Bluetooth back on: CoreBluetooth forgot the pending connect, so register it again.
                 if event == .stateChanged(.idle) { self?.reconnect() }
             }
+            let watch = UUID()
+            syncWatch = watch
+            observeSyncStatus(watch)
         }
-        observeSyncStatus()
         reconnect()
     }
 
@@ -96,6 +129,7 @@ public final class HomeModel {
         observation = nil
         if let listener { session.removeListener(listener) }
         listener = nil
+        syncWatch = nil
     }
 
     // MARK: - Device
@@ -111,6 +145,56 @@ public final class HomeModel {
     /// Battery in percent while the current card is connected.
     public var battery: Int? {
         session.connectedDevice?.id == currentDevice?.id ? session.cardInfo?.battery : nil
+    }
+
+    // MARK: - Switch cards (P08)
+
+    public var pendingSwitch: PendingSwitch?
+
+    /// Paired cards, oldest first, from the local database only (product-spec.md P08).
+    public var deviceRows: [DeviceRow] {
+        let current = currentDevice?.id
+        return session.pairedDevices.map {
+            DeviceRow(id: $0.id, name: $0.name, isCurrent: $0.id == current, status: session.status(of: $0.id),
+                      lastSeenAt: $0.lastSeenAt)
+        }
+    }
+
+    /// A tap on a row. Returns true when P08 can close: the card is current now, or a
+    /// Modal has to answer first (`pendingSwitch`) and P08 stays.
+    public func selectDevice(_ id: UUID) -> Bool {
+        guard let current = currentDevice, id != current.id else { return true }
+        switch status {
+        case .recording, .paused:
+            pendingSwitch = PendingSwitch(deviceId: id, reason: .recording)
+            return false
+        case .idle where session.syncEngine.isRunning:
+            pendingSwitch = PendingSwitch(deviceId: id, reason: .syncing)
+            return false
+        default:
+            switchDevice(to: id)
+            return true
+        }
+    }
+
+    /// "切换" in the Modal.
+    public func confirmSwitch() {
+        guard let pending = pendingSwitch else { return }
+        pendingSwitch = nil
+        switchDevice(to: pending.deviceId)
+    }
+
+    /// Drops the current card and waits for the new one (product-spec.md §3.3).
+    private func switchDevice(to id: UUID) {
+        guard let device = session.pairedDevices.first(where: { $0.id == id }) else { return }
+        preferences.currentDeviceId = id
+        do {
+            try session.switchTo(device)
+        } catch CardServiceError.unknownCard {
+            prompt = .rescan
+        } catch {
+            toast = Toast((error as? CardServiceError)?.userText ?? "连接失败，请重试")
+        }
     }
 
     // MARK: - Sync
@@ -145,15 +229,15 @@ public final class HomeModel {
     public func retrySync() { session.syncEngine.requestSync() }
 
     /// A pass that finds the card no longer paired with this phone raises the Modal once.
-    private func observeSyncStatus() {
+    private func observeSyncStatus(_ watch: UUID) {
         withObservationTracking { _ = session.syncEngine.status } onChange: {
             Task { @MainActor [weak self] in
-                guard let self, self.observation != nil else { return }
+                guard let self, self.syncWatch == watch else { return }
                 if self.session.syncEngine.status == .stopped(SyncFailure.notPaired.rawValue) {
                     self.session.diagnostics?.add("home", "sync found the card not paired")
                     self.prompt = .repair
                 }
-                self.observeSyncStatus()
+                self.observeSyncStatus(watch)
             }
         }
     }
