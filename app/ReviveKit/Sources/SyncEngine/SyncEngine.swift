@@ -254,7 +254,8 @@ public final class SyncEngine {
         let peripheral = service.peripheralId?.uuidString
         let seen = now()
         return try library.upsertDevice(sn: info.serial) { d in
-            if d.name.isEmpty { d.name = info.bluetoothName ?? "D·NOTE" }
+            // Pairing names the card first; the card's own Bluetooth name is the brand (ADR-005).
+            if d.name.isEmpty { d.name = "录音卡" }
             d.firmware = info.firmware
             d.peripheralId = peripheral ?? d.peripheralId
             d.lastSeenAt = seen
