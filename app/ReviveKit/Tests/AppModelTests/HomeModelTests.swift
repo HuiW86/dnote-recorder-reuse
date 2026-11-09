@@ -315,6 +315,38 @@ struct HomeModelTests {
         #expect(model.toast == nil)
     }
 
+    /// A newer 0x80 that agrees with the app supersedes an older one's pending fallback.
+    @Test func newerDeviceInfoBeatsAnOlderFallback() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+
+        h.card.pushDeviceInfo()                      // says paused; its 0x56 goes unanswered
+        try await Task.sleep(for: .milliseconds(100))
+        h.card.recordingCodeOverride = 1
+        h.card.pushDeviceInfo()                      // newer: says recording, as the app shows
+        try await Task.sleep(for: .seconds(2.5))     // past the first 0x56 timeout
+        #expect(model.status == .recording)
+    }
+
+    /// #47: a start confirmed by 0x56 after a lost reply still gets its stop reported, which
+    /// is what starts the sync after recording.
+    @Test func stopAfterARecoveredStartIsReported() async throws {
+        let (h, model) = try await recordingHome()
+        var stops = 0
+        h.session.addListener { if $0 == .recordingStopped { stops += 1 } }
+        model.stopRecording()
+        await waitUntil("first stop") { stops == 1 && model.pendingCommand == nil }
+
+        h.card.faults = [.dropReply(.startRecording)]
+        model.startTapped()
+        await waitUntil("recovered", timeout: .seconds(6)) { model.status == .recording && model.pendingCommand == nil }
+        h.card.faults = []
+        h.card.pressButtonToStop()
+        await waitUntil("second stop") { stops == 2 }
+    }
+
     /// The DEBUG card screen (autoSyncEnabled off) sends its own requests only.
     @Test func deviceInfoSendsNothingWhileDebugScreenIsOpen() async throws {
         let (h, model) = try await recordingHome()

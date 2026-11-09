@@ -73,6 +73,8 @@ public final class CardSession {
     @ObservationIgnored private var commandRunning = false
     /// Bumped on every recording state change, so a late fallback can tell it is stale.
     @ObservationIgnored private var stateRevision = 0
+    /// Counts `0x80`s of the connected card; a newer one supersedes an older one's fallback.
+    @ObservationIgnored private var deviceInfoCount = 0
     /// When the sync pass being logged started.
     @ObservationIgnored private var passStartedAt: Date?
 
@@ -286,6 +288,7 @@ public final class CardSession {
                 identify(info)
             } else if connectedDevice != nil {
                 cardInfo = info
+                deviceInfoCount += 1
                 correctRecordingState(info.recordingState)
             }
         case .recordingStarted(let name):
@@ -395,11 +398,12 @@ public final class CardSession {
     private func correctRecordingState(_ state: RecordingState) {
         guard autoSyncEnabled, !commandRunning, state != recordingState, !state.isUnknown else { return }
         diagnostics?.add("card", "0x80 says \(state), reading 0x56")
-        let revision = stateRevision
+        let revision = stateRevision, infoCount = deviceInfoCount
         Task { [weak self] in
             // Anything newer that arrived during the read (a push, a command) beats this 0x80.
             guard let self, await !self.readRecordingStatus(droppedIfCommandStarts: true),
-                  self.stateRevision == revision, !self.commandRunning else { return }
+                  self.stateRevision == revision, self.deviceInfoCount == infoCount,
+                  !self.commandRunning else { return }
             self.setRecording(state, ms: state == .idle ? nil : self.recordedMs.map { _ in self.elapsedMs(at: self.now()) })
         }
     }
