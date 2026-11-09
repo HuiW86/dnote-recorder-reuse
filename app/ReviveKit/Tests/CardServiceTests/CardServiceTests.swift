@@ -105,7 +105,7 @@ struct CardServiceTests {
 
     @Test func noResponseIsRequestTimeout() async throws {
         let card = FakeCard()
-        let service = try await connected(card, timing: .init(request: .milliseconds(500), listFiles: .seconds(2)))
+        let service = try await connected(card, timing: .init(request: .seconds(2), listFiles: .seconds(2)))
         card.faults = [.noResponse(.switches)]
         await #expect(throws: CardServiceError.requestTimeout(.switches)) { try await service.switches() }
     }
