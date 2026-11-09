@@ -97,6 +97,9 @@ public final class SyncEngine {
     @ObservationIgnored private var relistAfterNotFound = false
     /// The card `failures` belongs to.
     @ObservationIgnored private var failuresDeviceId: UUID?
+    /// The card and the "同步后删除" setting a pass started with (see `runPass`).
+    @ObservationIgnored private var passCard: UUID?
+    @ObservationIgnored private var passDeletesAfterSync = false
 
     /// Recovers from a previous crash before anything else touches the library (prd.md §4.3).
     public init(service: CardService, library: RecordingLibrary, options: Options = Options(),
@@ -163,6 +166,10 @@ public final class SyncEngine {
     private func runPass() async {
         guard service.linkState == .connected else { return }
         defer { progress = nil }
+        // A pass belongs to the card it started on: after a switch it must not list, download
+        // or delete on the next card with this card's file names, nor use that card's setting.
+        passCard = service.peripheralId
+        passDeletesAfterSync = options.deleteAfterSync
         do {
             let device = try await currentDevice()
             if failuresDeviceId != device.id {
@@ -193,7 +200,9 @@ public final class SyncEngine {
             for file in files.sorted(by: { $0.name < $1.name }) {
                 var item = try library.syncItem(deviceId: device.id, name: file.name, size: file.size)
                 switch item.state {
-                case .stored where options.deleteAfterSync:
+                case .stored where passDeletesAfterSync:
+                    // Deleted in the app: the card copy is the only one left, so it stays.
+                    guard try library.hasLocalCopy(item) else { break }
                     item.state = .deletePending
                     try library.update(item)
                 case .stored, .deletePending, .deletedOnCard:
@@ -208,6 +217,7 @@ public final class SyncEngine {
             pendingCount = queue.count
             for (index, item) in queue.enumerated() {
                 // Recording started mid-sync: stop after the current file (prd.md §4.4).
+                try checkSameCard()
                 if index > 0, try await !cardIsIdle() { return }
                 progress = Progress(index: index + 1, total: queue.count)
                 if try await sync(item, device: device) { pendingCount -= 1 }
@@ -215,7 +225,7 @@ public final class SyncEngine {
             progress = nil
             failures = try failureCounts(device, listed: listed)
 
-            if options.deleteAfterSync { try await deletePending(device) }
+            if passDeletesAfterSync { try await deletePending(device) }
             status = .idle
             lastCompletedAt = now()
             if relistAfterNotFound {
@@ -247,6 +257,13 @@ public final class SyncEngine {
             return false
         }
         return true
+    }
+
+    /// Ends the pass as a lost link when the link now goes to another card, or to none.
+    private func checkSameCard() throws {
+        guard service.linkState == .connected, service.peripheralId == passCard else {
+            throw CardServiceError.disconnected
+        }
     }
 
     private func currentDevice() async throws -> Device {
@@ -371,7 +388,7 @@ public final class SyncEngine {
             cardFileSize: file.size, startedAt: started, durationMs: audio.durationMs, audioPath: path,
             audioSha256: audio.sha256, title: Self.title(started), createdAt: now(), updatedAt: now())
         do {
-            item = try library.commitStored(recording, item: item, deleteAfterSync: options.deleteAfterSync)
+            item = try library.commitStored(recording, item: item, deleteAfterSync: passDeletesAfterSync)
         } catch {
             store.removeAudio(path)
             store.removePart(id)
@@ -402,10 +419,21 @@ public final class SyncEngine {
     private func deletePending(_ device: Device) async throws {
         let pending = try library.syncItems(deviceId: device.id).filter { $0.state == .deletePending }
         guard !pending.isEmpty else { return }
-        for item in pending {
-            // deletePending is only ever set in or after the commit that stores the recording.
+        var sent: [SyncItem] = []
+        for var item in pending {
+            // deletePending is only ever set in or after the commit that stores the recording,
+            // but the recording may have been deleted in the app since: check again right here.
+            guard try library.hasLocalCopy(item) else {
+                item.state = .stored
+                try library.update(item)
+                continue
+            }
+            try checkSameCard()
             try await service.delete(item.cardFileName)
+            sent.append(item)
         }
+        guard !sent.isEmpty else { return }
+        try checkSameCard()
         let remaining: [CardFile]
         do {
             remaining = try await service.listFiles()
@@ -413,7 +441,7 @@ public final class SyncEngine {
             return  // unconfirmed; the next pass checks again
         }
         let listed = Set(remaining.map { Key($0.name, $0.size) })
-        for var item in pending where !listed.contains(Key(item)) {
+        for var item in sent where !listed.contains(Key(item)) {
             markDeleted(&item)
         }
     }

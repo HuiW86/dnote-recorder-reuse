@@ -83,6 +83,14 @@ public final class RecordingLibrary: Sendable {
         }
     }
 
+    /// Whether the phone still holds this item's recording: the row and its audio file. A card
+    /// file may be deleted only then (CLAUDE.md rule 2); a recording deleted in the app leaves
+    /// the item `stored` with no recording, and the card copy is then the only one.
+    public func hasLocalCopy(_ item: SyncItem) throws -> Bool {
+        guard let id = item.recordingId, let recording = try recording(id: id) else { return false }
+        return FileManager.default.fileExists(atPath: store.url(forAudioPath: recording.audioPath).path)
+    }
+
     // MARK: Recordings
 
     public func recordings() throws -> [Recording] {

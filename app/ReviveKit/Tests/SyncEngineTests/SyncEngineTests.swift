@@ -336,6 +336,52 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    /// CLAUDE.md rule 2: a recording deleted in the app leaves the card copy as the only one, so
+    /// turning on "同步后删除" afterwards must not delete it.
+    @Test func locallyDeletedRecordingIsNotDeletedFromCard() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)])
+        try h.library.deleteRecording(id: try #require(try h.recordings.first).id)
+        h.engine.options.deleteAfterSync = true
+        await h.engine.syncNow()
+        #expect(h.deletes.isEmpty)
+        #expect(h.card.files.count == 1)
+        #expect(try h.items.first?.state == .stored)
+        h.checkNoForbiddenWrites()
+    }
+
+    /// Same, when the delete was already queued: the recording is deleted in the app before the
+    /// lost `0x91` is sent again.
+    @Test func queuedDeleteIsDroppedOnceTheRecordingIsDeletedLocally() async throws {
+        var options = testOptions
+        options.deleteAfterSync = true
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options,
+                                  faults: [.disconnectInsteadOf(.deleteFile)])
+        #expect(try h.items.first?.state == .deletePending)
+        try h.library.deleteRecording(id: try #require(try h.recordings.first).id)
+        h.card.advertise()
+        try await waitUntil("back to stored") { try h.items.first?.state == .stored }
+        await h.engine.idle()
+        #expect(h.deletes.count == 1)  // only the one lost with the link
+        #expect(h.card.files.count == 1)
+        h.checkNoForbiddenWrites()
+    }
+
+    /// A pass that started on one card must not delete on the card the link switched to, even
+    /// when that card holds a file of the same name.
+    @Test func passStopsWhenTheLinkSwitchesCards() async throws {
+        var options = testOptions
+        options.deleteAfterSync = true
+        let card = FakeCard(files: [.init(name: "a.opus", content: encrypted)])
+        var hooks = SyncEngine.Hooks()
+        hooks.beforeCommit = { card.switchToAnotherCard() }
+        let h = try await Harness(card: card, options: options, hooks: hooks)
+        #expect(try h.items.first?.state == .deletePending)  // stored on the phone all the same
+        #expect(h.deletes.isEmpty)
+        #expect(h.card.files.count == 1)
+        #expect(h.engine.status == .stopped("disconnected"))
+        h.checkNoForbiddenWrites()
+    }
+
     /// T-M1-28
     @Test func defaultNeverDeletes() async throws {
         let h = try await Harness(files: [.init(name: "a.opus", content: encrypted),

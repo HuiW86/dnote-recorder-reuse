@@ -124,6 +124,12 @@ public final class FakeCard: CardLink {
         state = .connecting
     }
 
+    /// The link now reaches another card holding the same files, as right after a card switch
+    /// (the worst case: same file names on both cards). The state stays connected.
+    public func switchToAnotherCard() {
+        peripheralId = UUID()
+    }
+
     public func disconnect() {
         pendingConnect = false
         state = .disconnected(.requested)
