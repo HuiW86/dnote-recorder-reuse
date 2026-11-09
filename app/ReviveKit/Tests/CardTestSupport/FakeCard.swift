@@ -26,6 +26,8 @@ public final class FakeCard: CardLink {
         case disconnectAfterChunks(Int)
         /// Never answer this command (the write itself succeeds).
         case noResponse(Command)
+        /// Carry out this command but lose its reply; the pushes it triggers (`0x56` on stop) still arrive.
+        case dropReply(Command)
         /// Replace chunk number `index` (0-based) of the next download with this status byte, then stop.
         case chunkStatus(index: Int, status: UInt8)
         /// Send chunk number `index` with a body shorter than the 5-byte header, then stop.
@@ -147,6 +149,10 @@ public final class FakeCard: CardLink {
             return
         }
         var replies = reply(to: request)
+        if faults.contains(.dropReply(request.command)) {
+            let cmd = request.command.rawValue
+            replies.removeAll { if case .frame(let f) = $0 { f.count > 1 && f[f.startIndex + 1] == cmd } else { false } }
+        }
         if let i = faults.firstIndex(of: .disconnectAfter(request.command)) {
             faults.remove(at: i)
             replies.append(.drop)

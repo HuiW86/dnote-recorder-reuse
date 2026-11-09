@@ -176,16 +176,83 @@ struct HomeModelTests {
         #expect(h.sent(.startRecording) == 1)
     }
 
-    @Test func failedCommandShowsToast() async throws {
+    /// #47: no reply and the card did not start either (0x56 says idle): safe to ask for a retry.
+    @Test func unansweredStartThatDidNothingAsksToRetry() async throws {
         let (h, model) = try await home(FakeCard(paired: true))
         await waitUntil("idle") { model.status == .idle }
         await h.session.syncEngine.idle()
         h.preferences.recordingConsentGiven = true
         h.card.faults = [.noResponse(.startRecording)]
         model.startTapped()
-        await waitUntil("toast") { model.toast != nil }
-        #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        #expect(model.toast?.text == "录音卡没有响应，请重试")
+        #expect(model.status == .idle)
         #expect(model.prompt == nil)
+        #expect(h.sent(.startRecording) == 1)
+    }
+
+    private func recordingHome() async throws -> (Harness, HomeModel) {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.preferences.recordingConsentGiven = true
+        model.startTapped()
+        await waitUntil("recording") { model.status == .recording && model.pendingCommand == nil }
+        return (h, model)
+    }
+
+    /// #47: the pause took effect but its reply was lost; 0x56 settles the state, no Toast.
+    @Test func lostPauseReplyFollowsTheCard() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording)]
+        model.pause()
+        // Controls stay locked until the card's state is known.
+        model.resume()
+        model.stopRecording()
+        await waitUntil("paused", timeout: .seconds(6)) { model.status == .paused && model.pendingCommand == nil }
+        #expect(model.toast == nil)
+        #expect(h.sent(.pauseRecording) == 1)
+        #expect(h.sent(.resumeRecording) == 0)
+        #expect(h.sent(.stopRecording) == 0)
+    }
+
+    @Test func lostStartReplyFollowsTheCard() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        h.preferences.recordingConsentGiven = true
+        h.card.faults = [.dropReply(.startRecording)]
+        model.startTapped()
+        await waitUntil("recording", timeout: .seconds(6)) { model.status == .recording && model.pendingCommand == nil }
+        #expect(model.toast == nil)
+        #expect(model.recordingStartedAt != nil)
+        #expect(h.sent(.startRecording) == 1)
+    }
+
+    /// #47: neither the reply nor 0x56 comes back: the Toast stays, nothing is sent again, and
+    /// the next 0x80 push corrects the state through 0x56.
+    @Test func unansweredStatusKeepsToastUntilTheNextDeviceInfo() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
+        #expect(model.status == .recording)
+        #expect(h.sent(.pauseRecording) == 1)
+
+        h.card.faults = []
+        h.card.pushDeviceInfo()
+        await waitUntil("paused") { model.status == .paused }
+    }
+
+    /// When 0x56 stays silent, the 0x80 state itself is used.
+    @Test func deviceInfoStateIsUsedWhenStatusStaysSilent() async throws {
+        let (h, model) = try await recordingHome()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        h.card.pushDeviceInfo()
+        await waitUntil("paused", timeout: .seconds(4)) { model.status == .paused }
     }
 
     /// product-spec.md §7.1: `notPaired` from a command is a Modal, not a Toast.

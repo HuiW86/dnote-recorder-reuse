@@ -69,6 +69,8 @@ public final class CardSession {
 
     @ObservationIgnored private var listeners: [UUID: (CardEvent) -> Void] = [:]
     @ObservationIgnored private let now: () -> Date
+    /// A recording command is waiting for its reply or for the `0x56` read after a timeout.
+    @ObservationIgnored private var commandRunning = false
     /// When the sync pass being logged started.
     @ObservationIgnored private var passStartedAt: Date?
 
@@ -195,25 +197,48 @@ public final class CardSession {
     // MARK: - Recording control (prd.md §2.3)
 
     public func startRecording() async throws {
-        recordingName = try await service.startRecording()
-        setRecording(.recording, ms: 0)
+        try await recordingCommand {
+            recordingName = try await service.startRecording()
+            setRecording(.recording, ms: 0)
+        }
     }
 
     public func pauseRecording() async throws {
-        try await service.pause()
-        setRecording(.paused, ms: recordedMs.map { _ in elapsedMs(at: now()) })
-        await readRecordingStatus()
+        try await recordingCommand {
+            try await service.pause()
+            setRecording(.paused, ms: recordedMs.map { _ in elapsedMs(at: now()) })
+            await readRecordingStatus()
+        }
     }
 
     public func resumeRecording() async throws {
-        try await service.resume()
-        setRecording(.recording, ms: recordedMs)
-        await readRecordingStatus()
+        try await recordingCommand {
+            try await service.resume()
+            setRecording(.recording, ms: recordedMs)
+            await readRecordingStatus()
+        }
     }
 
     public func stopRecording() async throws {
-        try await service.stopRecording()
-        setRecording(.idle, ms: nil)
+        try await recordingCommand {
+            try await service.stopRecording()
+            setRecording(.idle, ms: nil)
+        }
+    }
+
+    /// Runs one recording command. A timeout may hide a command that took effect with only the
+    /// reply lost, so `0x56` then decides the state (#47); the timeout is passed on only when
+    /// `0x56` cannot be read either. The command is never sent again.
+    private func recordingCommand(_ body: () async throws -> Void) async throws {
+        commandRunning = true
+        defer { commandRunning = false }
+        do {
+            try await body()
+        } catch CardServiceError.requestTimeout(let command) {
+            diagnostics?.add("card", "\(command) timed out, reading 0x56")
+            guard await readRecordingStatus() else { throw CardServiceError.requestTimeout(command) }
+            diagnostics?.add("card", "0x56 after timeout: \(recordingState.map { "\($0)" } ?? "none")")
+        }
     }
 
     /// Recorded milliseconds at `date`, counting on from the last `recd` while recording.
@@ -252,8 +277,12 @@ public final class CardSession {
             linkState = .disconnected(reason)
             forgetCard()
         case .deviceInfo(let info):
-            if connectedDevice == nil, linkState == .connected { identify(info) }
-            if connectedDevice != nil { cardInfo = info }
+            if connectedDevice == nil, linkState == .connected {
+                identify(info)
+            } else if connectedDevice != nil {
+                cardInfo = info
+                correctRecordingState(info.recordingState)
+            }
         case .recordingStarted(let name):
             diagnostics?.add("card", "recording started \(name)")
             if connectedDevice != nil {
@@ -337,12 +366,29 @@ public final class CardSession {
         recordedAt = nil
     }
 
-    private func readRecordingStatus() async {
-        guard let status = try? await service.recordingStatus(), connectedDevice != nil else { return }
+    /// Reads `0x56` and applies it; false when the card did not answer or has left the link.
+    @discardableResult
+    private func readRecordingStatus() async -> Bool {
+        guard let status = try? await service.recordingStatus(), connectedDevice != nil else { return false }
         // Without `recd`, keep counting locally rather than dropping the timer.
         let ms = status.recordedMs ?? recordedMs.map { _ in elapsedMs(at: now()) }
         if !status.name.isEmpty { recordingName = status.name }
         setRecording(status.state, ms: status.state == .idle ? nil : ms)
+        return true
+    }
+
+    /// A later `0x80` (polled or the periodic push) that disagrees with the recording state,
+    /// e.g. after a command timeout that `0x56` could not settle (#47). Its event may be handled
+    /// after a newer command reply, so `0x56` decides; the `0x80` state only when that fails.
+    private func correctRecordingState(_ state: RecordingState) {
+        guard !commandRunning, state != recordingState else { return }
+        if case .unknown = state { return }
+        diagnostics?.add("card", "0x80 says \(state), reading 0x56")
+        Task { [weak self] in
+            guard let self, await !self.readRecordingStatus(), !self.commandRunning,
+                  self.connectedDevice != nil else { return }
+            self.setRecording(state, ms: state == .idle ? nil : self.recordedMs.map { _ in self.elapsedMs(at: self.now()) })
+        }
     }
 
     private func setRecording(_ state: RecordingState, ms: Int?) {

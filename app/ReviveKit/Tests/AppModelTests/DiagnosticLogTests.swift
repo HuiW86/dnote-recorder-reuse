@@ -44,13 +44,14 @@ struct DiagnosticLogTests {
         h.preferences.recordingConsentGiven = true
         h.card.faults = [.noResponse(.startRecording)]
         model.startTapped()
-        await waitUntil("toast") { model.toast != nil }
+        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil }
 
         let text = try #require(log.contents())
         #expect(text.contains("[pair] already paired"))
         #expect(text.contains("[card] paired card on the link: sn \(Redactor.serialTag(card.serial))"))
         #expect(text.contains("[sync] idle after"))
-        #expect(text.contains("[home] start failed: requestTimeout"))
+        #expect(text.contains("timed out, reading 0x56"))
+        #expect(text.contains("[home] start not taken effect, card is idle"))
         #expect(!text.contains(card.serial))
         let bond = try #require(card.bondId).map { String(format: "%02x", $0) }.joined()
         #expect(!text.lowercased().contains(bond))
