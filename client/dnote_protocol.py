@@ -8,7 +8,7 @@ dnote_protocol.py — 追觅 D·NOTE (DNOTE001B) 录音卡 BLE 协议实现
   - PID   固定 0xA0
   - CMD   命令字 (见 Cmd)
   - LEN   PAYLOAD 字节数 (单字节, 0~255)
-  - 多数命令 PAYLOAD 为 UTF-8 JSON; 少数为裸字节 (见各 build_* 函数注释)
+  - 多数命令 PAYLOAD 为 UTF-8 JSON; 少数为裸字节 (见各 frame_* 函数注释)
 
 GATT:
   SERVICE 00006001-0000-1000-8000-00805f9b34fb
@@ -55,7 +55,7 @@ class Cmd:
     SET_BT_NAME            = 0x86  # payload: JSON {bt}
     SYNC_TIME              = 0x87  # payload: JSON {time:"YYYYMMDDHHmmss"}
     SET_WIFI_AP            = 0x88  # payload: JSON {ap,ssid,psk}
-    SET_WIFI_STA           = 0x89  # payload: JSON {url}
+    SET_WIFI_STA           = 0x89  # payload: JSON {wifi_ssid,wifi_password,url}
     SET_SAVE_WAV           = 0x8A  # payload: [0|1]
     SET_VAD                = 0x8B  # payload: [0|1]
     SET_GAIN               = 0x8C  # payload: [1..9]
@@ -147,8 +147,10 @@ def parse_frame(data: bytes) -> Frame:
     # 0x70 文件数据: [start(1)][offset(4,BE)][data...]
     if cmd == 0x70:
         if lc < 5:
+            # No offset field. A bare 1-byte 0x4X is the card refusing the transfer
+            # (PROTOCOL.md §5); keep the status byte so callers see the error.
             return Frame(valid=True, cmd=cmd,
-                         payload={"start": 0, "offset": 0, "data": b""})
+                         payload={"start": body[0], "offset": 0, "data": b""})
         start = body[0]
         offset = struct.unpack(">I", body[1:5])[0]
         return Frame(valid=True, cmd=cmd,
@@ -295,7 +297,7 @@ def _chacha20(key: bytes, nonce: bytes, data: bytes) -> bytes:
     """ChaCha20 流密码。优先用 cryptography 库；否则纯 Python 实现。
     App 使用 @noble/ciphers 的 chacha20，12 字节 nonce，初始计数 0。"""
     try:
-        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
         # cryptography 的 ChaCha20 需要 16 字节 nonce = counter(4,LE)+nonce(12)
         full_nonce = (0).to_bytes(4, "little") + bytes(nonce)
         c = Cipher(algorithms.ChaCha20(bytes(key), full_nonce), mode=None)

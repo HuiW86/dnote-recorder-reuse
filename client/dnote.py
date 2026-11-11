@@ -5,7 +5,7 @@ dnote.py — 追觅 D·NOTE (DNOTE001B) 录音卡 离线客户端 (命令行)
 不依赖官方 App 与追觅云。通过 BLE 直连录音卡，支持:
   scan      扫描并识别录音卡
   info      连接并打印设备信息 (序列号、固件、电量等)
-  status    查询录音状态 / 绑定状态 / 加密状态
+  status    查询录音状态 / 绑定状态
   record    让设备开始录音 (可选时长后自动停止)
   stop      停止录音
   live      实时录音: 边录边经 0x68 收音频, 保存为 .ogg (卡上同时留存录音文件)
@@ -25,7 +25,7 @@ dnote.py — 追觅 D·NOTE (DNOTE001B) 录音卡 离线客户端 (命令行)
   python dnote.py live --seconds 30 --out live.ogg
   python dnote.py list
   python dnote.py pull --out ./recordings
-  python dnote.py pull --keep          # 下载后不删除设备上的文件(默认就是不删)
+  python dnote.py pull --delete        # 下载并存好后删除设备上的文件(默认不删)
 """
 
 from __future__ import annotations
@@ -42,7 +42,6 @@ from ogg_opus import wrap_opus_frames_as_ogg
 
 try:
     from bleak import BleakScanner, BleakClient
-    from bleak.backends.characteristic import BleakGATTCharacteristic
 except ImportError:
     print("需要安装 bleak:  pip install bleak cryptography", file=sys.stderr)
     sys.exit(2)
