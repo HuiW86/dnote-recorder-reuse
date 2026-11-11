@@ -154,6 +154,6 @@
 
 ## 7. 持续集成
 
-- M1 开工时建 GitHub Actions：macOS 运行器跑 `xcodebuild test`（单元 + 模拟卡集成）和 §3.5 第 1 道检查。
+- GitHub Actions（`.github/workflows/app-ci.yml`）：macOS 运行器先跑 §3.5 第 1 道检查（`scripts/check-m1-rules.sh`），再跑 `swift test --disable-xctest`（单元 + 模拟卡集成），最后用 `xcodebuild build` 编译 App。只在 `app/`、检查脚本或工作流文件有改动时触发。
 - M2 起增加后端：`pytest`，数据库用 PostgreSQL 服务容器。
 - 真机与端到端不进 CI；结果以证据目录和 PR 记录为准。

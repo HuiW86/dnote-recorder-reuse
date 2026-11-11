@@ -29,26 +29,39 @@ python dnote.py list                 # 列出录音
 python dnote.py pull --out ./recordings   # 下载并解密为 .ogg
 ```
 
+iOS App 的构建与测试命令见 [`CLAUDE.md`](CLAUDE.md) 的「常用命令」。
+
 ## 目录
 
 | 路径 | 内容 |
 |---|---|
-| `app/` | 正式 iOS App（代号 Revive）：`ReviveKit/` 是各模块所在的 Swift Package，`project.yml` 用 XcodeGen 生成工程 |
-| `client/` | Python 命令行客户端：协议库 + OGG 封装，真机验证用 |
+| `app/` | 正式 iOS App（代号 Revive，显示名「闻笺」）：`ReviveKit/` 是各模块所在的 Swift Package，`project.yml` 用 XcodeGen 生成工程 |
+| `client/` | Python 命令行客户端：协议库 + OGG 封装，真机验证用；`probe_*.py` 是真机探测脚本 |
 | `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用 |
+| `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查（CI 也跑） |
+| `design/` | App 图标原图 |
 | `evidence/` | 真机验证证据（按验证编号分目录） |
+| `HANDOFF.md` | 最近一次开发会话的交接：做完了什么、下一步、风险 |
 | `docs/backend-design.md` | App 与后端总体设计、实施计划、验收与假设结论 |
 | `docs/features.md` | 功能清单与范围对照表：官方功能 A1～O1 落到里程碑 M1～M4 |
+| `docs/prd.md` | 数据模型、接口契约、状态机 |
+| `docs/product-spec.md` | 页面清单、流程、界面状态与错误提示 |
+| `docs/test-spec.md` | 测试策略、用例、真机证据格式 |
 | `docs/adr/` | 选型决策记录 |
 | `docs/PROTOCOL.md` | 完整 BLE 协议规格 |
 | `docs/official-app-analysis.md` | 官方 App 功能盘点 |
+| `docs/official-ui-walkthrough.md` | 官方 App 的页面走查 |
 | `docs/competitor-analysis.md` | 竞品分析 |
 | `docs/craft-anything-evaluation.md` | craft-anything 对官方 App 的二次分析；快传 TCP 命令集与固件画像 |
-| `docs/HANDOFF.md` | 逆向阶段的交接文档：设备背景、逆向方法 |
+| `docs/HANDOFF.md` | 逆向阶段的交接文档（历史文档）：设备背景、逆向方法 |
 
 ## 状态
 
-阶段 0（设备与平台可行性）已完成：离线配对、录音、蓝牙下载、解密、实时音频、WiFi 快传、iOS 原型均已真机跑通，证据见 `evidence/`。当前在阶段 1（规格与选型，#10）。进度以 GitHub milestone 和 issue 为准。
+阶段 0（设备与平台可行性）已完成：离线配对、录音、蓝牙下载、解密、实时音频、WiFi 快传、iOS 原型均已真机跑通，证据见 `evidence/`。阶段 1（规格与选型，#10）已完成。
+
+M1 离线闭环（#11）：代码已合并（PR #46），首个 TestFlight 内部构建「闻笺」0.1.0 (1) 已上传（PR #56）；真机验收在 #42，暂缓的真机项在 #54。M2～M4（#12～#14）未开始，仓库里还没有后端代码。
+
+进度以 GitHub milestone 和 issue 为准。
 
 ## 法律与边界
 
