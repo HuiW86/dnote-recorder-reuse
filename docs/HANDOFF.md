@@ -5,7 +5,7 @@
 > - **状态**：§1.3 的「待真机联调」、§5.1～§5.2、§5.4 都已过时。阶段 0 的真机验证早已做完（`backend-design.md` §7.2、`evidence/`），当前进度看仓库根目录的 `HANDOFF.md` 和 GitHub issue。
 > - **§2 第 3、4 条**（绑定不是门禁、bondId 离线场景不需要）：未配对的卡拒绝录音，配对时由 App 在本地生成 bondId（`PROTOCOL.md` §8、`backend-design.md` §2.3）。
 > - **§2 第 7 条**（WiFi 快传未实现）：协议已还原并在 iOS 原型里实测（`PROTOCOL.md` §7、`evidence/v2-fasttransfer/`）。
-> - **§5.3** 里没有划掉的几条也已有结论：字段名见 `PROTOCOL.md` §4.1，`0x70` 的 offset 见 §5。
+> - **§5.3** 里没有划掉的几条，其中 `0x80` 字段名、文件命名（`YYYYMMDDHHmmss.opus`）和 40 字节帧长已由真机确认（`PROTOCOL.md` §4.1、§4.3、§6.1）。
 >
 > 接手本项目请先读根目录的 `CLAUDE.md`。
 
