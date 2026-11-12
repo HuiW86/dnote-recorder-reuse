@@ -47,7 +47,7 @@ scripts/check-m1-rules.sh                         # 禁发命令字与 M1 模块
 python3 app/ReviveKit/scripts/make_fixtures.py    # 用 Python 客户端重新生成协议测试样本（Swift 输出须与之逐字节一致）
 ```
 
-`swift test` 必须带 `--disable-xctest`：测试只用 Swift Testing，不带这个参数时 XCTest 运行器找不到测试包，命令会以失败退出。`Revive.xcodeproj` 由 XcodeGen 生成，不入库。后端命令在 M2 工程搭起来后补上。
+`swift test` 必须带 `--disable-xctest`：测试只用 Swift Testing，不带这个参数时 XCTest 运行器找不到测试包，命令会以失败退出。`Revive.xcodeproj` 和 `Revive/Info.plist` 由 XcodeGen 生成，不入库；`Info.plist` 的键只改 `app/project.yml` 的 `info.properties`。后端命令在 M2 工程搭起来后补上。
 
 ## 文档地图
 
