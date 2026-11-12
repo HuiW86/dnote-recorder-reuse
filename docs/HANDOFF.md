@@ -1,6 +1,6 @@
 # 交接文档
 
-> **历史文档（2026-11-05，逆向阶段），不再更新。** 设备背景（§1.1、§1.2）、逆向方法（§3）、USB 记录（§4）和 L3 线索（§6）仍然有效；下面几处已被后来的真机验证推翻或完成，以所指文档为准：
+> **历史文档（2026-11-05，逆向阶段），状态部分不再更新。** 设备背景（§1.1、§1.2）、逆向方法（§3）、USB 记录（§4）和 L3 线索（§6）仍然有效；下面几处已被后来的真机验证推翻或完成，以所指文档为准：
 >
 > - **状态**：§1.3 的「待真机联调」、§5.1～§5.2、§5.4 都已过时。阶段 0 的真机验证早已做完（`backend-design.md` §7.2、`evidence/`），当前进度看仓库根目录的 `HANDOFF.md` 和 GitHub issue。
 > - **§2 第 3、4 条**（绑定不是门禁、bondId 离线场景不需要）：未配对的卡拒绝录音，配对时由 App 在本地生成 bondId（`PROTOCOL.md` §8、`backend-design.md` §2.3）。
@@ -65,6 +65,7 @@
   （`fir.xcxwo.com` 为 fir.im 式的应用分发平台；短码 `a52uej3b` 与上面分发页的 `shortcutUrl` 一致，可互相印证）
 - 分析所用样本：`app-release.apk`，`com.dnote.dreame`，约 50MB，Capacitor 应用。
 - 注：上述为第三方分发地址，链接含时效性 token，可能失效；失效后从官网 `dreamenote.cn/app` 重新获取。请核对包名 `com.dnote.dreame` 以确认是同一 App。
+- （补记 2026-11-12，摘自未合并的 PR #1）2026-11-05 重新获取（脚本化，无需手机）：分发页是模板，元数据接口 `GET https://download.appmeta.cn/a52uej3b`（返回 app id、`token`、`master.id`），再拼 `https://download.appmeta.cn/apps/<app.id>/install?short=a52uej3b&download_token=<token>&release_id=<master.id>` 直接下载。所得 APK 的版本、字节数和 sha256 见 `official-app-analysis.md` 开头。
 
 ### 3.1 步骤
 
@@ -90,6 +91,8 @@
 - 重要：设备按状态决定是否开放 USB 存储；录音/写盘期间会关闭 USB MSC
 
 > 现场 record 目录为空，推测该卡几乎未被正常使用过（设备时钟未校准，目录时间戳停留在默认值）。
+
+**（补记 2026-11-12，摘自未合并的 PR #1）2026-11-05，macOS 27 / Darwin 27.0.0**：BLE 发 `0x82 [1]` 打开 USB 存储后，设备以 `Re Disk`（VID 0x2207 / PID 0x0090，USB 全速）枚举成功，但 `IOUSBMassStorageDriver` 长期 busy、周期性复位，始终不出 `/dev/diskN`；经扩展坞或直插机身表现相同。同一张卡在 Windows 上可正常读取（`record` 目录为空）。判断为该固件与新版 macOS 存储驱动的兼容问题，L1 在新 macOS 上不可用，需 Windows 或旧版 macOS。
 
 ---
 
