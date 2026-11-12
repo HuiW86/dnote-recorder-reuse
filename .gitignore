@@ -14,3 +14,6 @@ evidence/**/live.bin
 
 # Codex CLI session state
 .context/
+
+# local doc/commit co-change metrics; not tracked (#58)
+docs/.metrics/
