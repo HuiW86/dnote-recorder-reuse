@@ -1,6 +1,6 @@
 # 官方 D·NOTE App 功能盘点与复刻范围建议
 
-- 分析对象：D·NOTE App 1.0.11（build 45，`com.dnote.dreame`，sha256 `53ec0e4a…48f9f9`）
+- 分析对象：D·NOTE App 1.0.11（build 45，`com.dnote.dreame`，52,567,760 字节，sha256 `53ec0e4af8e825138622a0c83aea307118aa7c3736748807965acdccb148f9f9`；字节数与完整 sha256 为补记 2026-11-12，摘自未合并的 PR #1）
 - 方法：REA（rea-agents 6.8.0）静态分析 + 主 bundle 定向检索交叉核对
 - 原始产出与复现步骤：`~/WeChatProjects/REA/outputs/dnote-app-20261105/`
 - 日期：2026-11-05
