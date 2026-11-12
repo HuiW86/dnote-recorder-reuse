@@ -5,6 +5,8 @@ The Python client in client/ is the reference implementation; the Swift port mus
 produce byte-identical output. Synthetic data only: no real recordings, no real sn.
 
 Run from anywhere: python3 app/ReviveKit/scripts/make_fixtures.py
+This is the only fixture generator in the repo: main() also writes the three audio
+fixtures the iOS prototype uses into ios-prototype/Tests/Fixtures.
 Importing this module writes nothing; client/tests calls build_files() to check
 that the committed fixtures are reproducible.
 """
@@ -17,11 +19,14 @@ import dnote_protocol as P
 from ogg_opus import wrap_opus_frames_as_ogg
 
 OUT = os.path.join(ROOT, "app", "ReviveKit", "Tests", "CardProtocolTests", "Fixtures")
+# The iOS prototype keeps its own copies of the audio fixtures (no frame vectors there).
+PROTOTYPE_OUT = os.path.join(ROOT, "ios-prototype", "Tests", "Fixtures")
+PROTOTYPE_FILES = ("encrypted.bin", "plain.bin", "expected_ogg.bin")
 
 
 def build_files():
     """Return {file name: bytes} for every fixture, without writing anything."""
-    # Audio: same seed and layout as ios-prototype/tools/make_fixtures.py.
+    # Audio: main() also writes these three files to ios-prototype/Tests/Fixtures.
     rng = random.Random(7)
     plain = bytes(rng.getrandbits(8) for _ in range(40 * 123 + 7))  # 123 frames + 7 B remainder
     header = b"encryt" + bytes(rng.getrandbits(8) for _ in range(18))
@@ -70,13 +75,18 @@ def build_files():
     }
 
 
+def write(directory, files):
+    os.makedirs(directory, exist_ok=True)
+    for name, data in files.items():
+        with open(os.path.join(directory, name), "wb") as f:
+            f.write(data)
+        print(os.path.relpath(os.path.join(directory, name), ROOT), len(data), hashlib.sha256(data).hexdigest()[:16])
+
+
 def main():
     files = build_files()
-    os.makedirs(OUT, exist_ok=True)
-    for name, data in files.items():
-        with open(os.path.join(OUT, name), "wb") as f:
-            f.write(data)
-        print(name, len(data), hashlib.sha256(data).hexdigest()[:16])
+    write(OUT, files)
+    write(PROTOTYPE_OUT, {name: files[name] for name in PROTOTYPE_FILES})
 
 
 if __name__ == "__main__":

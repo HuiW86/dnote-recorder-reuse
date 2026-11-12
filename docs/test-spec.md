@@ -24,7 +24,7 @@
 
 在 CardLink 层实现一个模拟卡，行为按 `PROTOCOL.md` 和真机证据编写：
 
-- **数据**：可配置的文件列表；文件内容用 `ios-prototype/Tests/Fixtures/` 的样本（`encrypted.bin`、`plain.bin`）。
+- **数据**：可配置的文件列表，`FakeCard` 本身不带样本，文件内容由各测试传入（`FakeCard(files:)`）。同步测试（`Tests/SyncEngineTests/`）读 `app/ReviveKit/Tests/CardProtocolTests/Fixtures/` 的 `encrypted.bin`，并与同目录的 `expected_ogg.bin` 比对；其余用例在测试代码里现场构造字节；播放器测试用 `CardTestSupport` 的 `SyntheticOpus` 现场编码 Opus 包。样本由 `app/ReviveKit/scripts/make_fixtures.py` 生成，它同时把三个音频样本写进 `ios-prototype/Tests/Fixtures/`（原型工程用的副本）。
 - **行为**：录音中 `0x90` 返回空列表；未配对时 `0x51` 回 `{"name":"NULL"}`，`0x90`、`0x70`、`0x91` 照常执行（#38）；`0xA0`、`0xA2`、`0x91` 回 `0x01`；按键录音的主动推送序列。
 - **回放**：能按 `evidence/` 下的真机日志（如 `v1-live/*/notify.jsonl`）原样回放通知。
 - **故障注入**：在第 N 个分片后断开；某条命令不响应；分片返回 `0x40` 或 `0xF0`；分片长度不足；通知乱序到达；`0x70` 只回 1 字节 `0x40`（拒绝传输）；`0xA2` 回 `0x00`。

@@ -54,6 +54,10 @@ jobs:
           xcodegen generate
           git status --short -- Revive/Info.plist
           git diff --exit-code -- Revive/Info.plist
+          # Control: a changed plist must be rewritten from project.yml, so the check above can fail.
+          echo '<!-- control -->' >> Revive/Info.plist
+          xcodegen generate
+          git diff --exit-code -- Revive/Info.plist
 
   temp-phrase-check:
     runs-on: ubuntu-latest

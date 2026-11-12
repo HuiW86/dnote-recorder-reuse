@@ -12,7 +12,7 @@
 ## 文件
 
 - `probe.log`：手机端原始日志，用 `xcrun devicectl device copy from --domain-type appDataContainer --domain-identifier com.huiw86.dnoteprobe --source Documents/probe.log` 拉取。每行带 `[fg]`/`[bg]`/`[lock]` 标签，表示当时 App 处于前台、后台或锁屏
-- `unit-tests.log`：模拟器单元测试（ChaCha20 RFC 8439 向量；解密和 Ogg 封装与 Python 参考实现逐字节一致，夹具由 `ios-prototype/tools/make_fixtures.py` 生成）
+- `unit-tests.log`：模拟器单元测试（ChaCha20 RFC 8439 向量；解密和 Ogg 封装与 Python 参考实现逐字节一致，夹具由 `ios-prototype/tools/make_fixtures.py` 生成）。2026-11-12 注：该脚本已删除，同样的三个夹具改由 `app/ReviveKit/scripts/make_fixtures.py` 生成，字节不变（#58）
 - `opuscheck.swift`、`opus-decoder-macos.log`：Apple 自带 Opus 解码器解卡的真实码流（450 帧 → 9.0 s，峰值 0.70）
 
 ## 结论
