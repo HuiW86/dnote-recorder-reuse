@@ -39,3 +39,32 @@ jobs:
           xcodegen generate
           xcodebuild build -project Revive.xcodeproj -scheme Revive \
             -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+
+  # TEMPORARY (#58 PR 3): remove before merge. Separate jobs so each check's result answers one question.
+  temp-plist-identity:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: XcodeGen leaves the committed Info.plist unchanged
+        working-directory: app
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          git status --short -- Revive/Info.plist
+          git diff --exit-code -- Revive/Info.plist
+
+  temp-phrase-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No document says the multi-card sample is due before the M1 release
+        run: |
+          set +e
+          grep -rn -e "M1 发布前补齐" -e "M1 TestFlight 发布前" --include="*.md" .
+          rc=$?
+          set -e
+          test "$rc" -eq 1
