@@ -54,10 +54,39 @@ jobs:
           xcodegen generate
           git status --short -- Revive/Info.plist
           git diff --exit-code -- Revive/Info.plist
-          # Control: a changed plist must be rewritten from project.yml, so the check above can fail.
-          echo '<!-- control -->' >> Revive/Info.plist
+
+  # Green: with no Info.plist on disk, XcodeGen writes one byte-identical to the committed file.
+  temp-plist-fresh:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Info.plist generated from scratch equals the committed one
+        working-directory: app
+        run: |
+          brew install xcodegen
+          rm Revive/Info.plist
           xcodegen generate
+          test -f Revive/Info.plist
+          git status --short -- Revive/Info.plist
           git diff --exit-code -- Revive/Info.plist
+
+  # Green: XcodeGen rewrites an existing plist from project.yml (an extra key does not survive).
+  temp-plist-overwrites:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: An extra key in the existing plist is dropped by xcodegen generate
+        working-directory: app
+        run: |
+          brew install xcodegen
+          sed -i '' 's|<dict>|<dict><key>TempControlKey</key><string>x</string>|' Revive/Info.plist
+          grep -q TempControlKey Revive/Info.plist
+          xcodegen generate
+          ! grep -q TempControlKey Revive/Info.plist
 
   temp-phrase-check:
     runs-on: ubuntu-latest
