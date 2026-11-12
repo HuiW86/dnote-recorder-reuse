@@ -1,0 +1,35 @@
+name: client-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "client/**"
+      - "app/ReviveKit/scripts/make_fixtures.py"
+      - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
+      - ".github/workflows/client-ci.yml"
+  pull_request:
+    paths:
+      - "client/**"
+      - "app/ReviveKit/scripts/make_fixtures.py"
+      - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
+      - ".github/workflows/client-ci.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -r client/requirements.txt pytest
+
+      # Pure-Python tests: no Bluetooth adapter and no card needed.
+      - name: pytest
+        working-directory: client
+        run: pytest
