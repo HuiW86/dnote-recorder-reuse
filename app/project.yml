@@ -1,5 +1,6 @@
 # XcodeGen spec. Generate the project with: xcodegen generate
-# The generated Revive.xcodeproj is not committed (see app/.gitignore).
+# The generated Revive.xcodeproj and Revive/Info.plist are not committed (see app/.gitignore):
+# change Info.plist keys only under info.properties below.
 name: Revive
 options:
   bundleIdPrefix: com.huiw86

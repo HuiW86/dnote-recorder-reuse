@@ -7,12 +7,14 @@ on:
       - "client/**"
       - "app/ReviveKit/scripts/make_fixtures.py"
       - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
+      - "ios-prototype/Tests/Fixtures/**"
       - ".github/workflows/client-ci.yml"
   pull_request:
     paths:
       - "client/**"
       - "app/ReviveKit/scripts/make_fixtures.py"
       - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
+      - "ios-prototype/Tests/Fixtures/**"
       - ".github/workflows/client-ci.yml"
 
 jobs:
