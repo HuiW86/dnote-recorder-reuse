@@ -208,13 +208,12 @@ class Session:
 
 # ----------------------------------------------------------- 各命令实现
 
-def _decode_to_ogg(raw: bytes, sn: str | None):
+def _decode_to_ogg(raw: bytes):
     """原始字节 -> (ogg_bytes, note)。自动判断是否加密。"""
     note = ""
     if P.is_encrypted_audio(raw):
-        if not sn:
-            raise RuntimeError("文件已加密, 但未取得设备序列号, 无法解密")
-        plain = P.decrypt_audio_file(raw)   # 用 DEVICE_KEY_SECRET + sn 内部派生
+        # The key is derived from the file header (buf[6:24]); no serial number needed.
+        plain = P.decrypt_audio_file(raw)
         note = "已解密"
     else:
         plain = raw
@@ -322,8 +321,6 @@ async def cmd_pull(args):
     os.makedirs(args.out, exist_ok=True)
     async with BleakClient(addr) as client:
         s = Session(client); await s.start()
-        info = await s.device_info()
-        sn = info.get("sn") if isinstance(info, dict) else None
         items = await s.file_list()
         if args.name:
             items = [it for it in items if it["name"] == args.name]
@@ -339,7 +336,7 @@ async def cmd_pull(args):
                 print(f" 失败: {e}"); continue
             dt = time.time() - t0
             try:
-                ogg, note = _decode_to_ogg(raw, sn)
+                ogg, note = _decode_to_ogg(raw)
             except Exception as e:
                 # 解码失败也把原始字节存下来, 便于排查
                 rawpath = os.path.join(args.out, name + ".raw")
@@ -351,9 +348,18 @@ async def cmd_pull(args):
             with open(outpath, "wb") as f: f.write(ogg)
             print(f" OK {len(raw)}B/{dt:.1f}s -> {outpath} ({note})")
             # 默认不删除设备上的文件; 仅当 --delete 时才删
+            # Hard rule 2: only reached after the .ogg above was written without error.
             if args.delete:
-                await s.write(P.frame_delete_file(name))
-                print(f"    已删除设备上的 {name}")
+                try:
+                    ack = await s.request(P.frame_delete_file(name), P.Cmd.DELETE_FILE)
+                except asyncio.TimeoutError:
+                    ack = None
+                # fw v1.50 replies to 0x91 with the single byte 0x01 (PROTOCOL.md §4.2).
+                if ack == b"\x01":
+                    print(f"    已删除设备上的 {name}")
+                else:
+                    got = "无" if ack is None else (ack.hex() if isinstance(ack, (bytes, bytearray)) else ack)
+                    print(f"    删除未确认: {name} (0x91 响应: {got})")
 
 
 async def cmd_usb(args):
