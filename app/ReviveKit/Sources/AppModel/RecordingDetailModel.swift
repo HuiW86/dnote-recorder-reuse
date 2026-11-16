@@ -16,6 +16,8 @@ public final class RecordingDetailModel {
     public private(set) var isPreparing = false
     /// The OGG file is gone; the page offers to delete the row.
     public private(set) var audioMissing = false
+    /// An M4A export is being made; the share button shows progress meanwhile.
+    public private(set) var isExporting = false
     /// Set after a delete; the page closes.
     public private(set) var isDeleted = false
     public var toast: Toast?
@@ -133,6 +135,22 @@ public final class RecordingDetailModel {
         } catch PlayerError.audioMissing {
             audioMissing = true
         } catch {
+            toast = Toast("导出失败，请重试")
+        }
+        return nil
+    }
+
+    /// A temporary `<title>.m4a` for the share sheet (features.md E1b); nil with a toast on failure.
+    public func exportM4A() async -> URL? {
+        guard let recording, !isExporting else { return nil }
+        isExporting = true
+        defer { isExporting = false }
+        do {
+            return try await RecordingExporter.exportM4A(for: recording, library: library)
+        } catch PlayerError.audioMissing {
+            audioMissing = true
+        } catch {
+            log.error("cannot export m4a: \(String(describing: error), privacy: .public)")
             toast = Toast("导出失败，请重试")
         }
         return nil

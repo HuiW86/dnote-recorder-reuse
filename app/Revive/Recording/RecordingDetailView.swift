@@ -53,12 +53,22 @@ private struct RecordingDetailContent: View {
             if model.recording != nil {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if !model.audioMissing {
-                        Button {
-                            shareURL = model.exportFile()
+                        Menu {
+                            Button("M4A（微信等大多数 App 可播放）", systemImage: "waveform") {
+                                Task { shareURL = await model.exportM4A() }
+                            }
+                            Button("原始文件（OGG）", systemImage: "doc") {
+                                shareURL = model.exportFile()
+                            }
                         } label: {
-                            Image(systemName: "square.and.arrow.up")
+                            if model.isExporting {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                            }
                         }
-                        .accessibilityLabel("分享")
+                        .disabled(model.isExporting)
+                        .accessibilityLabel(model.isExporting ? "正在导出" : "分享")
                     }
                     Menu {
                         Button("重命名", systemImage: "pencil") {

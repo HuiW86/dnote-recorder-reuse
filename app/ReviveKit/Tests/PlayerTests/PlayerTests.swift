@@ -164,6 +164,28 @@ struct PlayerTests {
         #expect(!FileManager.default.fileExists(atPath: a.path))
     }
 
+    /// E1b: the M4A copy opens with the system reader and is as long as the recording.
+    @Test func exportsM4A() async throws {
+        let f = try Fixture()
+        let url = try await RecordingExporter.exportM4A(for: f.recording, library: f.library)
+        #expect(url.lastPathComponent == "2026-11-01 09.00.m4a")
+        let file = try AVAudioFile(forReading: url)
+        let seconds = Double(file.length) / file.fileFormat.sampleRate
+        #expect(abs(seconds - 2) < 0.2, "seconds \(seconds)")
+        // Only the m4a is left in the export directory.
+        let siblings = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
+        #expect(siblings == [url.lastPathComponent])
+        RecordingExporter.cleanUp()
+    }
+
+    @Test func exportM4AReportsMissingAudio() async throws {
+        let f = try Fixture()
+        try FileManager.default.removeItem(at: f.library.store.url(forAudioPath: f.recording.audioPath))
+        await #expect(throws: PlayerError.audioMissing) {
+            _ = try await RecordingExporter.exportM4A(for: f.recording, library: f.library)
+        }
+    }
+
     @Test(arguments: [
         ("2026-11-01 09:00", "2026-11-01 09.00.ogg"),
         ("a/b\\c?d", "a_b_c_d.ogg"),
