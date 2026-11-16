@@ -8,6 +8,13 @@ struct SettingsView: View {
     var body: some View {
         List {
             Section {
+                NavigationLink("最近删除", value: Route.trash)
+            } header: {
+                Text("录音")
+            } footer: {
+                Text("在这部手机上删除的录音会保留 7 天，期间可以恢复。")
+            }
+            Section {
                 NavigationLink("权限说明", value: Route.permissions)
                 DiagnosticShareLink(log: diagnostics)
             } header: {

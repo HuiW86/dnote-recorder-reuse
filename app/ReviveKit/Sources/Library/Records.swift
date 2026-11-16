@@ -84,6 +84,26 @@ public struct Recording: Codable, Equatable, Sendable, FetchableRecord, Persista
     public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
 }
 
+extension Recording {
+    /// How long a deleted recording stays in 最近删除 before it is removed for good (features.md D1b).
+    public static let trashRetention: TimeInterval = 7 * 86_400
+
+    /// The title sync gives a recording: "2026-11-07 14:02" in the phone's zone.
+    public static func defaultTitle(for date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.string(from: date)
+    }
+
+    /// True once the user has renamed the recording (features.md X6). Told by the shape of the
+    /// title, not by comparing with `startedAt`, so a phone that changed time zone still agrees.
+    public var hasCustomTitle: Bool {
+        !title.isEmpty
+            && title.range(of: #"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$"#, options: .regularExpression) == nil
+    }
+}
+
 /// States of prd.md §4.1.
 public enum SyncState: String, Codable, Sendable, CaseIterable {
     case discovered, downloading, stored, deletePending, deletedOnCard, failed

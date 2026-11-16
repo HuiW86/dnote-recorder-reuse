@@ -11,8 +11,13 @@ import SyncEngine
 public struct Toast: Equatable, Identifiable, Sendable {
     public let id = UUID()
     public let text: String
+    /// Title of a button on the toast ("撤销"); nil for a plain message.
+    public let action: String?
 
-    public init(_ text: String) { self.text = text }
+    public init(_ text: String, action: String? = nil) {
+        self.text = text
+        self.action = action
+    }
 }
 
 /// An error the user has to act on, shown as a Modal (product-spec.md §7.1).
@@ -102,6 +107,8 @@ public final class HomeModel {
     @ObservationIgnored private let player: RecordingPlayer?
     @ObservationIgnored private var observation: LibraryObservation?
     @ObservationIgnored private var listener: UUID?
+    /// The recording the last delete moved to 最近删除, for "撤销".
+    @ObservationIgnored private var lastTrashed: UUID?
     /// The live sync status watch; an older one stops at its next change.
     @ObservationIgnored private var syncWatch: UUID?
 
@@ -334,14 +341,28 @@ public final class HomeModel {
 
     // MARK: - Recordings
 
-    /// Deletes the local recording only; nothing is sent to the card (product-spec.md §3.3).
+    /// Moves the local recording to 最近删除, where it stays 7 days (features.md D1b); nothing is
+    /// sent to the card (product-spec.md §3.3).
     public func delete(_ id: UUID) {
         if player?.recordingId == id { player?.stop() }
         do {
-            try session.library.deleteRecording(id: id)
-            toast = Toast("已删除")
+            try session.library.trashRecording(id: id)
+            lastTrashed = id
+            toast = Toast("已移到最近删除", action: "撤销")
         } catch {
             toast = Toast("删除失败，请重试")
+        }
+    }
+
+    /// "撤销" on the toast: puts the recording just deleted back in the list.
+    public func undoDelete() {
+        guard let id = lastTrashed else { return }
+        lastTrashed = nil
+        do {
+            try session.library.restoreRecording(id: id)
+            toast = Toast("已恢复")
+        } catch {
+            toast = Toast("恢复失败，请重试")
         }
     }
 

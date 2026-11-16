@@ -30,6 +30,8 @@ private struct RecordingDetailContent: View {
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingDelete = false
     @State private var shareURL: URL?
+    @State private var renaming = false
+    @State private var newTitle = ""
 
     var body: some View {
         Group {
@@ -59,6 +61,10 @@ private struct RecordingDetailContent: View {
                         .accessibilityLabel("分享")
                     }
                     Menu {
+                        Button("重命名", systemImage: "pencil") {
+                            newTitle = model.editableTitle
+                            renaming = true
+                        }
                         Button("删除录音", systemImage: "trash", role: .destructive) { confirmingDelete = true }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -70,7 +76,14 @@ private struct RecordingDetailContent: View {
         .confirmationDialog("删除这条录音？", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("删除录音", role: .destructive) { model.delete() }
         } message: {
-            Text("只删除手机上的这条录音，录音卡不受影响。")
+            Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
+        }
+        .alert("重命名", isPresented: $renaming) {
+            TextField("录音名称", text: $newTitle)
+            Button("保存") { model.rename(to: newTitle) }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("留空则恢复为录音时间。")
         }
         .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if !$0 { shareURL = nil } }),
                onDismiss: { RecordingExporter.cleanUp() }) {

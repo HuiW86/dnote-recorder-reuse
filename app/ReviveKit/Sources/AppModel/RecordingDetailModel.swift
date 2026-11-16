@@ -138,11 +138,27 @@ public final class RecordingDetailModel {
         return nil
     }
 
-    /// Deletes the local recording only; nothing is sent to the card (product-spec.md §3.3).
+    /// The title to start a rename from: the user's own, or empty for the default one.
+    public var editableTitle: String {
+        guard let recording, recording.hasCustomTitle else { return "" }
+        return recording.title
+    }
+
+    /// Renames the recording; an empty title puts the default back (features.md X6).
+    public func rename(to title: String) {
+        do {
+            if let renamed = try library.renameRecording(id: recordingId, to: title) { recording = renamed }
+        } catch {
+            toast = Toast("重命名失败，请重试")
+        }
+    }
+
+    /// Moves the local recording to 最近删除 (features.md D1b); nothing is sent to the card
+    /// (product-spec.md §3.3).
     public func delete() {
         if isLoaded { player.stop() }
         do {
-            try library.deleteRecording(id: recordingId)
+            try library.trashRecording(id: recordingId)
             isDeleted = true
         } catch {
             toast = Toast("删除失败，请重试")

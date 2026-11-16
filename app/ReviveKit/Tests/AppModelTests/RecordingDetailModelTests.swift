@@ -55,11 +55,19 @@ struct RecordingDetailModelTests {
         model.togglePlay()
         #expect(!model.isPlaying && f.player.state == .paused)
 
+        // X6: a custom title is shown as it is; an empty one puts the recording time back.
+        #expect(model.editableTitle == "")
+        model.rename(to: "  周会  ")
+        #expect(model.title == "周会" && model.editableTitle == "周会")
+        model.rename(to: "")
+        #expect(model.title == "11月7日 14:02")
+
+        // D1b: delete moves it to 最近删除; the row and the audio stay until it is purged.
         model.delete()
         #expect(model.isDeleted)
         #expect(f.player.state == .idle)
-        #expect(try f.library.recording(id: f.recording.id) == nil)
-        #expect(!FileManager.default.fileExists(atPath: f.library.store.url(forAudioPath: f.recording.audioPath).path))
+        #expect(try f.library.recording(id: f.recording.id)?.trashedAt != nil)
+        #expect(FileManager.default.fileExists(atPath: f.library.store.url(forAudioPath: f.recording.audioPath).path))
     }
 
     @Test func missingAudioIsShownNotPlayed() async throws {

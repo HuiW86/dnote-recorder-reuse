@@ -8,6 +8,8 @@ enum Route: Hashable {
     case recording(UUID)
     case device(UUID)
     case settings, about, privacy, permissions
+    /// 最近删除 (features.md D1b), from settings.
+    case trash
     /// P02 → P03 from home: "重新搜索" after `unknownCard`; "重新配对" goes to P03 directly.
     case connectGuide, pairing
 }
@@ -33,6 +35,7 @@ struct HomeView: View {
                 case .recording(let id): RecordingDetailView(env: env, recordingId: id)
                 case .device(let id): DeviceView(env: env, deviceId: id)
                 case .settings: SettingsView(diagnostics: env.diagnostics)
+                case .trash: TrashView(env: env)
                 case .about: AboutView()
                 case .privacy: PrivacyView()
                 case .permissions: PermissionsView()
@@ -91,7 +94,7 @@ private struct HomeContent: View {
                                 presenting: pendingDelete) { recording in
                 Button("删除录音", role: .destructive) { model.delete(recording.id) }
             } message: { _ in
-                Text("只删除手机上的这条录音，录音卡不受影响。")
+                Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
             }
             .alert(model.prompt?.title ?? "", isPresented: promptBinding, presenting: model.prompt) { prompt in
                 Button(prompt.actionTitle) {
@@ -108,7 +111,7 @@ private struct HomeContent: View {
             } message: { prompt in
                 Text(prompt.message)
             }
-            .toast($model.toast)
+            .toast($model.toast) { model.undoDelete() }
             .fullScreenCover(isPresented: $showsStage) {
                 RecordingStage(model: model) { showsStage = false }
             }

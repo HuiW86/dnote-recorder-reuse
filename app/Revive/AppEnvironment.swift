@@ -48,6 +48,11 @@ final class AppEnvironment {
             diagnostics.add("app", "library unavailable: \(error)")
         }
         hasPairedDevice = ((try? library?.pairedDevices()) ?? []).isEmpty == false
+        // Recordings deleted more than 7 days ago leave 最近删除 for good (features.md D1b).
+        if let purged = try? library?.purgeTrash(trashedBefore: Date().addingTimeInterval(-Recording.trashRetention)),
+           purged > 0 {
+            diagnostics.add("app", "purged \(purged) recording(s) from trash")
+        }
         player = library.map { RecordingPlayer(library: $0) }
         RecordingExporter.cleanUp()
     }
