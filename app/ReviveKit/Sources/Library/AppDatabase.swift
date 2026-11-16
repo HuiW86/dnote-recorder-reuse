@@ -73,6 +73,19 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // Marks set while recording (features.md X7), keyed by the card file like SyncItem, so a
+        // mark made before the file is synced finds its recording later.
+        migrator.registerMigration("v3") { db in
+            try db.create(table: "recording_mark") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("device_id", .blob).notNull().references("device", onDelete: .cascade)
+                t.column("card_file_name", .text).notNull()
+                t.column("offset_ms", .integer).notNull()
+                t.column("created_at", .datetime).notNull()
+            }
+            try db.create(index: "recording_mark_file", on: "recording_mark", columns: ["device_id", "card_file_name"])
+        }
+
         return migrator
     }
 

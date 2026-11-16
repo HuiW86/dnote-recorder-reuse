@@ -182,6 +182,47 @@ public final class RecordingLibrary: Sendable {
                                                     onError: onError, onChange: onChange))
     }
 
+    // MARK: Marks (features.md X7)
+
+    /// Adds a mark at `offsetMs` of a card file. A second mark within 2 s of an existing one is
+    /// dropped (a double tap); returns whether a mark was added.
+    @discardableResult
+    public func addMark(deviceId: UUID, cardFileName: String, offsetMs: Int, now: Date = Date()) throws -> Bool {
+        try database.writer.write { db in
+            let near = try RecordingMark
+                .filter(Column("device_id") == deviceId && Column("card_file_name") == cardFileName
+                        && Column("offset_ms") > offsetMs - 2000 && Column("offset_ms") < offsetMs + 2000)
+                .fetchCount(db)
+            guard near == 0 else { return false }
+            var mark = RecordingMark(deviceId: deviceId, cardFileName: cardFileName, offsetMs: max(0, offsetMs),
+                                     createdAt: now)
+            try mark.insert(db)
+            return true
+        }
+    }
+
+    /// Marks of a card file, in playback order.
+    public func marks(deviceId: UUID, cardFileName: String) throws -> [RecordingMark] {
+        try database.writer.read { db in
+            try RecordingMark
+                .filter(Column("device_id") == deviceId && Column("card_file_name") == cardFileName)
+                .order(Column("offset_ms"))
+                .fetchAll(db)
+        }
+    }
+
+    /// Marks of a recording that came from a card, within its length; empty for any other source.
+    public func marks(for recording: Recording) throws -> [RecordingMark] {
+        guard let deviceId = recording.deviceId, let name = recording.cardFileName else { return [] }
+        return try marks(deviceId: deviceId, cardFileName: name).filter { $0.offsetMs <= recording.durationMs }
+    }
+
+    public func deleteMark(id: Int64) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "DELETE FROM recording_mark WHERE id = ?", arguments: [id])
+        }
+    }
+
     /// Deletes for good what was moved to 最近删除 at or before `cutoff`. Returns how many.
     @discardableResult
     public func purgeTrash(trashedBefore cutoff: Date) throws -> Int {

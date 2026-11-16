@@ -104,6 +104,31 @@ extension Recording {
     }
 }
 
+/// A point the user marked while recording (features.md X7): `offsetMs` into the audio of the
+/// card file `cardFileName` on `deviceId`.
+public struct RecordingMark: Codable, Equatable, Sendable, Identifiable, FetchableRecord, MutablePersistableRecord {
+    public var id: Int64?
+    public var deviceId: UUID
+    public var cardFileName: String
+    public var offsetMs: Int
+    public var createdAt: Date
+
+    public init(deviceId: UUID, cardFileName: String, offsetMs: Int, createdAt: Date) {
+        self.deviceId = deviceId
+        self.cardFileName = cardFileName
+        self.offsetMs = offsetMs
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "recording_mark"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}
+
 /// States of prd.md §4.1.
 public enum SyncState: String, Codable, Sendable, CaseIterable {
     case discovered, downloading, stored, deletePending, deletedOnCard, failed

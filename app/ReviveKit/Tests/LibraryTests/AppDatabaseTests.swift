@@ -132,6 +132,36 @@ struct RecordingLibraryTests {
         #expect(after.state == .stored && after.recordingId == nil)
     }
 
+    /// X7: marks are keyed by the card file, so they exist before the recording does.
+    @Test func marksFollowTheCardFile() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try lib.database.writer.read { try $0.tableExists("recording_mark") })
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 9_000))
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 3_000))
+        #expect(try !lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 4_500))  // double tap
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 60_000))
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "b.opus", offsetMs: 1_000))
+        #expect(try lib.marks(deviceId: device.id, cardFileName: "a.opus").map(\.offsetMs) == [3_000, 9_000, 60_000])
+
+        // The recording arrives later; marks past its end are left out.
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: device.id, path: path)
+        r.durationMs = 10_000
+        _ = try lib.commitStored(r, item: item, deleteAfterSync: false)
+        let marks = try lib.marks(for: r)
+        #expect(marks.map(\.offsetMs) == [3_000, 9_000])
+        try lib.deleteMark(id: try #require(marks.first?.id))
+        #expect(try lib.marks(for: r).map(\.offsetMs) == [9_000])
+        var imported = r
+        imported.deviceId = nil
+        #expect(try lib.marks(for: imported).isEmpty)
+    }
+
     /// X6: rename trims, caps the length and falls back to the default title.
     @Test func renameRecording() throws {
         let (lib, root) = try makeLibrary()

@@ -18,6 +18,8 @@ public final class RecordingDetailModel {
     public private(set) var audioMissing = false
     /// An M4A export is being made; the share button shows progress meanwhile.
     public private(set) var isExporting = false
+    /// Points marked while recording, in playback order (features.md X7).
+    public private(set) var marks: [RecordingMark] = []
     /// Set after a delete; the page closes.
     public private(set) var isDeleted = false
     public var toast: Toast?
@@ -35,6 +37,7 @@ public final class RecordingDetailModel {
         deviceNames = Dictionary(((try? library.pairedDevices()) ?? []).map { ($0.id, $0.name) },
                                  uniquingKeysWith: { a, _ in a })
         if let recording {
+            marks = (try? library.marks(for: recording)) ?? []
             audioMissing = !FileManager.default.fileExists(atPath: library.store.url(forAudioPath: recording.audioPath).path)
         }
     }
@@ -92,6 +95,34 @@ public final class RecordingDetailModel {
     public func seek(to time: TimeInterval) {
         guard isLoaded else { return }
         player.seek(to: time)
+    }
+
+    /// Plays from a mark; loads the recording first when it is not the one in the player.
+    public func play(from mark: RecordingMark) {
+        let target = Double(mark.offsetMs) / 1000
+        if isLoaded {
+            player.seek(to: target)
+            return
+        }
+        guard let recording, playTask == nil else { return }
+        playTask = Task {
+            defer { playTask = nil }
+            do {
+                try await player.play(recording)
+                player.seek(to: target)
+            } catch is CancellationError {
+                // Left the page: silent, as in `togglePlay`.
+            } catch PlayerError.audioMissing {
+                audioMissing = true
+            } catch {
+                toast = Toast("无法播放这条录音")
+            }
+        }
+    }
+
+    /// "00:18:06" for a mark row.
+    public func markText(_ mark: RecordingMark) -> String {
+        RecordingText.clock(seconds: mark.offsetMs / 1000)
     }
 
     /// Leaving the page while a decode runs cancels it; playback that already started goes on.

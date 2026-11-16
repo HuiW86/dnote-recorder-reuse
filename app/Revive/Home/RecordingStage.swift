@@ -37,7 +37,8 @@ struct RecordingStage: View {
                     .padding(.horizontal, 32)
                     .padding(.top, 16)
                 Spacer(minLength: 16)
-                HStack(spacing: 48) {
+                HStack(spacing: 36) {
+                    markControl(disabled: paused)
                     if paused {
                         control("继续", symbol: "play.fill", command: .resume, filled: false) { model.resume() }
                     } else {
@@ -89,6 +90,30 @@ struct RecordingStage: View {
     /// "00:12:48"; "--:--:--" until the card has reported the recorded time.
     private func clock(at date: Date) -> String {
         model.recordedSeconds(at: date).map { RecordingText.clock(seconds: $0) } ?? "--:--:--"
+    }
+
+    /// "标重点", with the number of marks set so far (features.md X7).
+    private func markControl(disabled: Bool) -> some View {
+        let count = model.markCount
+        let title = count == 0 ? "标重点" : "标重点 · \(count)"
+        return Button { model.markNow() } label: {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle().fill(Color.white.opacity(0.14))
+                    Image(systemName: "bookmark.fill").font(.title2).foregroundStyle(.white)
+                }
+                .frame(width: 66, height: 66)
+                Text(title)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.white.opacity(0.8))
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.4 : 1)
+        .sensoryFeedback(.impact, trigger: count)
+        .accessibilityLabel(count == 0 ? "标重点" : "标重点，已标 \(count) 处")
     }
 
     private func control(_ title: String, symbol: String, command: HomeModel.Command, filled: Bool,

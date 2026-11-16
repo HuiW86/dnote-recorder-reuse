@@ -119,6 +119,18 @@ private struct RecordingDetailContent: View {
                 .listRowSeparator(.hidden)
             }
             .listRowBackground(Color.clear)
+            if !model.marks.isEmpty {
+                Section("重点") {
+                    ForEach(model.marks) { mark in
+                        Button { model.play(from: mark) } label: {
+                            Label(model.markText(mark), systemImage: "bookmark.fill")
+                                .monospacedDigit()
+                        }
+                        .accessibilityHint("从这里播放")
+                    }
+                }
+                .listRowBackground(Color.clear)
+            }
             Section {
                 LabeledContent("时长", value: model.durationText)
                 if let source = model.sourceText {

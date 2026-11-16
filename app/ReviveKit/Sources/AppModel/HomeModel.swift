@@ -286,6 +286,34 @@ public final class HomeModel {
         session.recordingName.flatMap { SyncEngine.startDate(fileName: $0) }
     }
 
+    // MARK: - Marks (features.md X7)
+
+    /// Bumped by `markNow`, so views that show `markCount` redraw.
+    private var markTick = 0
+
+    /// Marks set in the recording that is running now.
+    public var markCount: Int {
+        _ = markTick
+        guard let device = currentDevice, let name = session.recordingName else { return 0 }
+        return ((try? session.library.marks(deviceId: device.id, cardFileName: name)) ?? []).count
+    }
+
+    /// "标重点": remembers the current position of the running recording. The position is the
+    /// card's own recorded time, so pauses do not shift it; nothing is sent to the card.
+    public func markNow(at date: Date = Date()) {
+        guard status == .recording, let device = currentDevice, let name = session.recordingName,
+              let offset = session.recordedMs(at: date) else {
+            toast = Toast("现在还不能标重点")
+            return
+        }
+        do {
+            try session.library.addMark(deviceId: device.id, cardFileName: name, offsetMs: offset, now: date)
+            markTick += 1
+        } catch {
+            toast = Toast("标记失败，请重试")
+        }
+    }
+
     public func startTapped() {
         if preferences.recordingConsentGiven {
             run(.start)
