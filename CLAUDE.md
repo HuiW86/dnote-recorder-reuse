@@ -63,4 +63,5 @@ python3 app/ReviveKit/scripts/make_fixtures.py    # 用 Python 客户端重新�
 | 测试策略、用例、真机证据格式 | `docs/test-spec.md` |
 | 页面清单、流程、界面状态与错误提示 | `docs/product-spec.md` |
 | 官方 App 的页面长什么样 | `docs/official-ui-walkthrough.md` |
+| TestFlight 要填的内容、公开隐私政策、发布检查清单 | `docs/release/` |
 | 当前进度 | GitHub milestone 与 issue |
