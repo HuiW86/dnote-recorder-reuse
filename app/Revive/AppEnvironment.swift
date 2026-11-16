@@ -7,6 +7,7 @@ import Library
 import Observation
 import os
 import Player
+import SyncEngine
 
 /// Composition root: the library, preferences and the one Bluetooth stack. Created in
 /// `didFinishLaunching`, as state restoration requires.
@@ -64,8 +65,10 @@ final class AppEnvironment {
         link = TappedLink(link, log: debugLog)
         #endif
         do {
+            // The build lets SyncEngine retry, once per build, files an older build could not decrypt (#59).
+            let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
             session = try CardSession(link: link, bondStore: KeychainBondStore(), library: library,
-                                      diagnostics: diagnostics)
+                                      syncOptions: SyncEngine.Options(appBuild: build), diagnostics: diagnostics)
             session?.deleteAfterSync = { [preferences] in preferences.deleteAfterSync(for: $0) }
         } catch {
             log.error("card session unavailable: \(String(describing: error), privacy: .public)")

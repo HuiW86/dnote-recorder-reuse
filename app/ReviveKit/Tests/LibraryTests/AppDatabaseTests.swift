@@ -12,6 +12,33 @@ struct AppDatabaseTests {
         #expect(applied == Set(AppDatabase.migrator.migrations))
     }
 
+    /// prd.md §5.3: upgrade from a v1 library (the 0.1.0 (1) build) keeps its rows; a
+    /// `decryptFailed` row from then has no build, so any build retries it once (#59).
+    @Test func v1LibraryUpgradesToV2() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v1")
+        let deviceId = UUID()
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO device (id, sn, name, firmware) VALUES (?, 'S', 'card', '1.50')",
+                           arguments: [deviceId])
+            try db.execute(sql: """
+                INSERT INTO sync_item (device_id, card_file_name, card_file_size, state, attempts, last_error)
+                VALUES (?, 'bad.opus', 10, 'failed', 0, 'decryptFailed')
+                """, arguments: [deviceId])
+        }
+        let db = try AppDatabase(queue)
+        let item = try #require(try db.writer.read { try SyncItem.fetchOne($0) })
+        #expect(item.state == .failed && item.lastError == "decryptFailed" && item.failedBuild == nil)
+
+        let lib = RecordingLibrary(database: db, store: try AudioStore(
+            root: FileManager.default.temporaryDirectory.appendingPathComponent("lib-\(UUID().uuidString)")))
+        defer { try? FileManager.default.removeItem(at: lib.store.root) }
+        #expect(try lib.retryFailures("decryptFailed", notFailedIn: "2") == 1)
+        let reset = try #require(try lib.syncItems(deviceId: deviceId).first)
+        #expect(reset.state == .discovered && reset.lastError == nil)
+        #expect(try lib.retryFailures("decryptFailed", notFailedIn: "2") == 0)
+    }
+
     @Test func onDiskDatabaseIsCreatedInGivenDirectory() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }

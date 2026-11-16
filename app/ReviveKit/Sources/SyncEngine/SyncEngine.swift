@@ -34,13 +34,18 @@ public final class SyncEngine {
         public var recordingStoppedDelay: Duration
         /// Free space kept on top of what a download needs.
         public var spaceMargin: Int64
+        /// The app's build number (`CFBundleVersion`). A file that failed to decrypt in another
+        /// build is downloaded once more at launch (#59); nil turns that off (tests).
+        public var appBuild: String?
 
         public init(deleteAfterSync: Bool = false, retryDelays: [Duration] = [.seconds(5), .seconds(30), .seconds(120)],
-                    recordingStoppedDelay: Duration = .seconds(1), spaceMargin: Int64 = 20_000_000) {
+                    recordingStoppedDelay: Duration = .seconds(1), spaceMargin: Int64 = 20_000_000,
+                    appBuild: String? = nil) {
             self.deleteAfterSync = deleteAfterSync
             self.retryDelays = retryDelays
             self.recordingStoppedDelay = recordingStoppedDelay
             self.spaceMargin = spaceMargin
+            self.appBuild = appBuild
         }
     }
 
@@ -76,7 +81,7 @@ public final class SyncEngine {
     /// Set while a pass downloads files; nil otherwise.
     public private(set) var progress: Progress?
     /// Files on the current card that are not in the library yet, as of the last list.
-    /// Files that failed to decrypt are not counted: they are never retried.
+    /// Files that failed to decrypt are not counted: this build does not retry them.
     public private(set) var pendingCount = 0
     /// Failed files still on the current card, as of the last list (product-spec.md P05
     /// SyncStatusCard). Files that left the card no longer count.
@@ -113,6 +118,10 @@ public final class SyncEngine {
         self.freeSpace = freeSpace ?? { library.store.availableCapacity() }
         self.now = now
         try library.recoverAfterLaunch()
+        if let build = options.appBuild {
+            let reset = try library.retryFailures(SyncFailure.decryptFailed.rawValue, notFailedIn: build)
+            if reset > 0 { log.notice("retrying \(reset) undecryptable file(s) in build \(build, privacy: .public)") }
+        }
         lastCompletedAt = try library.lastStoredAt()
     }
 
@@ -211,7 +220,9 @@ public final class SyncEngine {
                 case .stored, .deletePending, .deletedOnCard:
                     break  // already in the library: never download again (T-M1-24)
                 case .failed where item.lastError == SyncFailure.decryptFailed.rawValue:
-                    break  // the bytes are kept in diagnostics; retrying gives the same result
+                    // The bytes are kept in diagnostics; this build would give the same result.
+                    // Another build retries it once at launch (init, #59).
+                    break
                 case .discovered, .downloading, .failed:
                     queue.append(item)
                 }
@@ -347,7 +358,8 @@ public final class SyncEngine {
                 fail(&item, .cardBusy, countsAsAttempt: false)
                 throw error
             default:
-                // Link lost and the like: keep the part for resuming after reconnect (prd.md §4.3).
+                // Link lost and the like: keep the part, so a reconnect in this run resumes from
+                // its length. A relaunch clears tmp/ and downloads from the start (prd.md §4.3).
                 fail(&item, SyncFailure(error), countsAsAttempt: false)
                 throw error
             }
@@ -408,6 +420,7 @@ public final class SyncEngine {
     private func fail(_ item: inout SyncItem, _ failure: SyncFailure, countsAsAttempt: Bool) {
         item.state = .failed
         item.lastError = failure.rawValue
+        item.failedBuild = failure == .decryptFailed ? options.appBuild : nil
         if countsAsAttempt { item.attempts += 1 }
         do { try library.update(item) } catch { log.error("could not record sync failure") }
     }
@@ -476,7 +489,9 @@ public final class SyncEngine {
     // MARK: - Naming
 
     /// Card file names are `YYYYMMDDHHmmss.opus` in the card's clock, which the app sets to
-    /// the phone's local time (prd.md §5.2).
+    /// the phone's local time on every connect (`0x87`). Parsed in the phone's current zone on
+    /// purpose (#59): a file recorded after one connect and synced after the phone changed zone
+    /// is off by the difference. The card's time carries no zone (prd.md §5.2).
     nonisolated public static func startDate(fileName: String) -> Date? {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")

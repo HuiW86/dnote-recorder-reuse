@@ -109,6 +109,9 @@ public struct SyncItem: Codable, Equatable, Sendable, FetchableRecord, MutablePe
     public var lastError: String?
     public var recordingId: UUID?
     public var deletedOnCardAt: Date?
+    /// App build that recorded a `decryptFailed`; nil for other failures and for rows from
+    /// before migration v2. A different build retries the file once (#59).
+    public var failedBuild: String?
 
     public init(deviceId: UUID, cardFileName: String, cardFileSize: Int, state: SyncState = .discovered) {
         self.deviceId = deviceId

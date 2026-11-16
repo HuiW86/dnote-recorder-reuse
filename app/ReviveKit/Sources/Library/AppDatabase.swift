@@ -66,6 +66,13 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // The build a `decryptFailed` item last failed in: a newer build retries it once (#59).
+        migrator.registerMigration("v2") { db in
+            try db.alter(table: "sync_item") { t in
+                t.add(column: "failed_build", .text)
+            }
+        }
+
         return migrator
     }
 
