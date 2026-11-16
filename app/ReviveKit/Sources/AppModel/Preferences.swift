@@ -10,6 +10,7 @@ public final class Preferences {
     private enum Key {
         static let currentDevice = "revive.currentDevice"
         static let recordingConsent = "revive.recordingConsent"
+        static let syncNotifications = "revive.syncNotifications"
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
     }
 
@@ -33,6 +34,18 @@ public final class Preferences {
     public var recordingConsentGiven: Bool {
         get { defaults.bool(forKey: Key.recordingConsent) }
         set { defaults.set(newValue, forKey: Key.recordingConsent) }
+    }
+
+    /// "同步完成时通知": a local notification after a background sync stored recordings
+    /// (features.md X8). Off by default; turning it on asks for the system permission.
+    public var syncNotificationsEnabled: Bool {
+        get {
+            access(keyPath: \.syncNotificationsEnabled)
+            return defaults.bool(forKey: Key.syncNotifications)
+        }
+        set {
+            withMutation(keyPath: \.syncNotificationsEnabled) { defaults.set(newValue, forKey: Key.syncNotifications) }
+        }
     }
 
     /// "同步后删除卡上录音", per card and off by default (product-spec.md P07, prd.md §4.5).

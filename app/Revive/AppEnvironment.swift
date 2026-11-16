@@ -34,6 +34,8 @@ final class AppEnvironment {
     #endif
 
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "App")
+    /// Kept alive for as long as the Bluetooth stack (features.md X8).
+    @ObservationIgnored private var syncNotifier: SyncNotifier?
 
     init() {
         do {
@@ -72,6 +74,9 @@ final class AppEnvironment {
             session = try CardSession(link: link, bondStore: KeychainBondStore(), library: library,
                                       diagnostics: diagnostics)
             session?.deleteAfterSync = { [preferences] in preferences.deleteAfterSync(for: $0) }
+            if let engine = session?.syncEngine {
+                syncNotifier = SyncNotifier(engine: engine, library: library, preferences: preferences)
+            }
         } catch {
             log.error("card session unavailable: \(String(describing: error), privacy: .public)")
         }

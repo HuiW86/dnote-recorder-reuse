@@ -34,7 +34,7 @@ struct HomeView: View {
                 switch route {
                 case .recording(let id): RecordingDetailView(env: env, recordingId: id)
                 case .device(let id): DeviceView(env: env, deviceId: id)
-                case .settings: SettingsView(diagnostics: env.diagnostics)
+                case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
                 case .trash: TrashView(env: env)
                 case .about: AboutView()
                 case .privacy: PrivacyView()

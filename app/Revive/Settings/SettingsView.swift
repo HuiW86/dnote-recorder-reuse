@@ -4,6 +4,9 @@ import SwiftUI
 /// P09 settings (product-spec.md §4.2). M1 has no global settings: "同步后删除" is per card on P07.
 struct SettingsView: View {
     let diagnostics: DiagnosticLog
+    @Bindable var preferences: Preferences
+    /// The system refused notifications when the switch was turned on.
+    @State private var notificationsRefused = false
 
     var body: some View {
         List {
@@ -13,6 +16,13 @@ struct SettingsView: View {
                 Text("录音")
             } footer: {
                 Text("在这部手机上删除的录音会保留 7 天，期间可以恢复。")
+            }
+            Section {
+                Toggle("同步完成时通知", isOn: notificationsBinding)
+            } footer: {
+                Text(notificationsRefused
+                     ? "系统没有允许闻笺发通知。请到系统「设置」→「通知」→「闻笺」里打开后再试。"
+                     : "闻笺不在前台时，录音同步到手机后提醒你。通知只在这部手机上产生。")
             }
             Section {
                 NavigationLink("权限说明", value: Route.permissions)
@@ -31,6 +41,23 @@ struct SettingsView: View {
         .paperBackground()
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+extension SettingsView {
+    /// Turning the switch on asks for the system permission first; a refusal turns it back off.
+    private var notificationsBinding: Binding<Bool> {
+        Binding(get: { preferences.syncNotificationsEnabled }, set: { on in
+            guard on else {
+                preferences.syncNotificationsEnabled = false
+                return
+            }
+            Task {
+                let granted = await SyncNotifier.requestAuthorization()
+                preferences.syncNotificationsEnabled = granted
+                notificationsRefused = !granted
+            }
+        })
     }
 }
 
