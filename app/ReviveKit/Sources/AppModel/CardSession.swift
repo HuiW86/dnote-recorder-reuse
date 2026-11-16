@@ -7,6 +7,15 @@ import Observation
 import SyncEngine
 
 /// Device state as the screens see it (product-spec.md §5.1).
+/// A recording that just ended on a card, named by its card file.
+public struct FinishedRecording: Equatable, Sendable {
+    public let deviceId: UUID
+    public let cardFileName: String
+    /// The card's recorded time when it stopped, if known.
+    public let recordedMs: Int?
+    public let endedAt: Date
+}
+
 public enum DeviceStatus: Equatable, Sendable {
     case noDevice
     /// Paired, not connected; a pending connect waits for the card to advertise. CoreBluetooth
@@ -40,6 +49,8 @@ public final class CardSession {
     public private(set) var recordingState: RecordingState?
     /// Card file being recorded (`YYYYMMDDHHmmss.opus`), when the card has named it.
     public private(set) var recordingName: String?
+    /// The recording that last ended on the connected card, for "留着 / 不要" (features.md X10).
+    public private(set) var lastFinished: FinishedRecording?
     /// Latest `0x80` of `connectedDevice`: battery and card storage for the home screen.
     public private(set) var cardInfo: DeviceInfo?
     /// Recorded time as of `recordedAt`: the card's `recd`, advanced locally while recording
@@ -424,7 +435,13 @@ public final class CardSession {
 
     private func setRecording(_ state: RecordingState, ms: Int?) {
         stateRevision += 1
-        if state == .idle { recordingName = nil }
+        if state == .idle {
+            if isActive, let name = recordingName, let device = connectedDevice {
+                lastFinished = FinishedRecording(deviceId: device.id, cardFileName: name,
+                                                 recordedMs: recordedMs(at: now()), endedAt: now())
+            }
+            recordingName = nil
+        }
         recordingState = state
         recordedMs = ms
         recordedAt = ms == nil ? nil : now()

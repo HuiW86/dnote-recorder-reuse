@@ -89,9 +89,14 @@ public final class RecordingLibrary: Sendable {
     /// transaction (prd.md §4.2 step 4).
     public func commitStored(_ recording: Recording, item: SyncItem, deleteAfterSync: Bool) throws -> SyncItem {
         try database.writer.write { db in
+            // "不要这条" was asked for this file before it arrived (features.md X10): it is stored
+            // like any other, then goes straight to 最近删除 and its card copy is queued for delete.
+            let discard = try Self.discardRequested(db, deviceId: item.deviceId, cardFileName: item.cardFileName)
+            var recording = recording
+            if discard { recording.trashedAt = recording.createdAt }
             try recording.insert(db)
             var item = item
-            item.state = deleteAfterSync ? .deletePending : .stored
+            item.state = deleteAfterSync || discard ? .deletePending : .stored
             item.recordingId = recording.id
             item.lastError = nil
             item.failedBuild = nil
@@ -180,6 +185,68 @@ public final class RecordingLibrary: Sendable {
         }
         return LibraryObservation(observation.start(in: database.writer, scheduling: .immediate,
                                                     onError: onError, onChange: onChange))
+    }
+
+    // MARK: Discard after recording (features.md X10)
+
+    /// "不要这条" for a card file. Nothing is deleted here: a file not synced yet is still stored
+    /// first (CLAUDE.md rule 2) and `commitStored` then trashes it; one already stored is moved to
+    /// 最近删除 now and its SyncItem is queued for the card delete.
+    public func requestDiscard(deviceId: UUID, cardFileName: String, now: Date = Date()) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "INSERT OR REPLACE INTO discard_request (device_id, card_file_name, created_at) VALUES (?, ?, ?)",
+                           arguments: [deviceId, cardFileName, now])
+            let stored = try Recording
+                .filter(Column("device_id") == deviceId && Column("card_file_name") == cardFileName
+                        && Column("trashed_at") == nil)
+                .fetchAll(db)
+            for recording in stored {
+                try db.execute(sql: "UPDATE recording SET trashed_at = ?, updated_at = ? WHERE id = ?",
+                               arguments: [now, now, recording.id])
+                try db.execute(sql: "UPDATE sync_item SET state = ? WHERE recording_id = ? AND state = ?",
+                               arguments: [SyncState.deletePending.rawValue, recording.id, SyncState.stored.rawValue])
+            }
+        }
+    }
+
+    /// "撤销" of `requestDiscard`: the recording comes back from 最近删除 and a card delete that has
+    /// not been sent yet is called off. A card file already deleted stays deleted; the phone
+    /// copy is the one that remains. Returns false when there was no request.
+    @discardableResult
+    public func cancelDiscard(deviceId: UUID, cardFileName: String, now: Date = Date()) throws -> Bool {
+        try database.writer.write { db in
+            guard try Self.discardRequested(db, deviceId: deviceId, cardFileName: cardFileName) else { return false }
+            try db.execute(sql: "DELETE FROM discard_request WHERE device_id = ? AND card_file_name = ?",
+                           arguments: [deviceId, cardFileName])
+            let trashed = try Recording
+                .filter(Column("device_id") == deviceId && Column("card_file_name") == cardFileName
+                        && Column("trashed_at") != nil)
+                .fetchAll(db)
+            for recording in trashed {
+                try db.execute(sql: "UPDATE recording SET trashed_at = NULL, updated_at = ? WHERE id = ?",
+                               arguments: [now, recording.id])
+                try db.execute(sql: "UPDATE sync_item SET state = ? WHERE recording_id = ? AND state = ?",
+                               arguments: [SyncState.stored.rawValue, recording.id, SyncState.deletePending.rawValue])
+            }
+            return true
+        }
+    }
+
+    public func discardRequested(deviceId: UUID, cardFileName: String) throws -> Bool {
+        try database.writer.read { try Self.discardRequested($0, deviceId: deviceId, cardFileName: cardFileName) }
+    }
+
+    /// The card file is gone from the card: the request has done its job.
+    public func finishDiscard(deviceId: UUID, cardFileName: String) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "DELETE FROM discard_request WHERE device_id = ? AND card_file_name = ?",
+                           arguments: [deviceId, cardFileName])
+        }
+    }
+
+    private static func discardRequested(_ db: Database, deviceId: UUID, cardFileName: String) throws -> Bool {
+        try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM discard_request WHERE device_id = ? AND card_file_name = ?",
+                         arguments: [deviceId, cardFileName]) ?? 0 > 0
     }
 
     // MARK: Marks (features.md X7)

@@ -102,6 +102,8 @@ public final class HomeModel {
     /// P04 is shown before the first recording started from the app.
     public var showsConsent = false
     public var prompt: HomePrompt?
+    /// The recording that just ended, while "留着 / 不要" is offered (features.md X10).
+    public private(set) var justRecorded: FinishedRecording?
 
     @ObservationIgnored private let preferences: Preferences
     @ObservationIgnored private let player: RecordingPlayer?
@@ -109,6 +111,11 @@ public final class HomeModel {
     @ObservationIgnored private var listener: UUID?
     /// The recording the last delete moved to 最近删除, for "撤销".
     @ObservationIgnored private var lastTrashed: UUID?
+    /// The recording "不要" was last chosen for, for "撤销".
+    @ObservationIgnored private var lastDiscarded: FinishedRecording?
+    @ObservationIgnored private var offerTask: Task<Void, Never>?
+    /// How long "留着 / 不要" stays before the recording is simply kept.
+    @ObservationIgnored public var keepOfferDuration: Duration = .seconds(10)
     /// The live sync status watch; an older one stops at its next change.
     @ObservationIgnored private var syncWatch: UUID?
 
@@ -136,6 +143,7 @@ public final class HomeModel {
             let watch = UUID()
             syncWatch = watch
             observeSyncStatus(watch)
+            observeFinished(watch)
         }
         reconnect()
     }
@@ -376,14 +384,71 @@ public final class HomeModel {
         do {
             try session.library.trashRecording(id: id)
             lastTrashed = id
+            lastDiscarded = nil
             toast = Toast("已移到最近删除", action: "撤销")
         } catch {
             toast = Toast("删除失败，请重试")
         }
     }
 
-    /// "撤销" on the toast: puts the recording just deleted back in the list.
+    // MARK: - Keep or discard (features.md X10)
+
+    private func observeFinished(_ watch: UUID) {
+        withObservationTracking { _ = session.lastFinished } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self, self.syncWatch == watch else { return }
+                self.offerKeep(self.session.lastFinished)
+                self.observeFinished(watch)
+            }
+        }
+    }
+
+    private func offerKeep(_ finished: FinishedRecording?) {
+        guard let finished, finished.deviceId == currentDevice?.id, finished != justRecorded else { return }
+        justRecorded = finished
+        offerTask?.cancel()
+        offerTask = Task { [weak self, keepOfferDuration] in
+            try? await Task.sleep(for: keepOfferDuration)
+            guard !Task.isCancelled, let self, self.justRecorded == finished else { return }
+            self.justRecorded = nil  // not answered: kept
+        }
+    }
+
+    /// "留着": nothing to do but close the offer.
+    public func keepJustRecorded() {
+        offerTask?.cancel()
+        justRecorded = nil
+    }
+
+    /// "不要": the recording is still synced first, then goes to 最近删除 and is deleted from the
+    /// card (CLAUDE.md rule 2 holds: the card copy goes only after the phone has it).
+    public func discardJustRecorded() {
+        guard let finished = justRecorded else { return }
+        offerTask?.cancel()
+        justRecorded = nil
+        do {
+            try session.library.requestDiscard(deviceId: finished.deviceId, cardFileName: finished.cardFileName)
+            lastDiscarded = finished
+            lastTrashed = nil
+            toast = Toast("这条不会保留", action: "撤销")
+            session.syncEngine.requestSync()
+        } catch {
+            toast = Toast("操作失败，请重试")
+        }
+    }
+
+    /// "撤销" on the toast: puts the recording just deleted, or just discarded, back.
     public func undoDelete() {
+        if let finished = lastDiscarded {
+            lastDiscarded = nil
+            do {
+                try session.library.cancelDiscard(deviceId: finished.deviceId, cardFileName: finished.cardFileName)
+                toast = Toast("已保留")
+            } catch {
+                toast = Toast("恢复失败，请重试")
+            }
+            return
+        }
         guard let id = lastTrashed else { return }
         lastTrashed = nil
         do {
