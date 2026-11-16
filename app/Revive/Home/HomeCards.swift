@@ -191,31 +191,66 @@ struct RecordControlBar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        if model.status == .recording || model.status == .paused {
+            controls
+        } else {
+            floatingStart
+        }
+    }
+
+    /// Pause / resume and stop, while a recording runs (also on the recording page).
+    private var controls: some View {
         // Accessibility text sizes stack the two buttons; side by side their titles wrap per character (#49).
         let buttons = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 12))
-        VStack(spacing: 6) {
-            buttons {
-                switch model.status {
-                case .recording:
-                    button("暂停", symbol: "pause.fill", command: .pause) { model.pause() }
-                    button("停止", symbol: "stop.fill", command: .stop, tint: .red) { model.stopRecording() }
-                case .paused:
-                    button("继续", symbol: "play.fill", command: .resume) { model.resume() }
-                    button("停止", symbol: "stop.fill", command: .stop, tint: .red) { model.stopRecording() }
-                default:
-                    button("开始录音", symbol: "record.circle", command: .start, tint: .red,
-                           enabled: model.status == .idle) { model.startTapped() }
-                }
+        return buttons {
+            if model.status == .paused {
+                button("继续", symbol: "play.fill", command: .resume) { model.resume() }
+            } else {
+                button("暂停", symbol: "pause.fill", command: .pause) { model.pause() }
             }
-            if let hint {
-                Text(hint).font(.caption).foregroundStyle(.secondary)
-            }
+            button("停止", symbol: "stop.fill", command: .stop, tint: Theme.record) { model.stopRecording() }
         }
         .padding(.horizontal)
         .padding(.top, 10)
         .padding(.bottom, 6)
         .background(.bar)
+    }
+
+    /// The round record button floating at the bottom right (design-spec.md §3), with the
+    /// connection hint beside it.
+    private var floatingStart: some View {
+        let enabled = model.status == .idle && model.pendingCommand == nil
+        let busy = model.pendingCommand == .start || model.status == .connecting
+        return HStack(alignment: .center, spacing: 12) {
+            if let hint {
+                Text(hint)
+                    .font(.caption)
+                    .foregroundStyle(Theme.inkMuted)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
+            }
+            Spacer(minLength: 0)
+            Button { model.startTapped() } label: {
+                ZStack {
+                    Circle().fill(enabled ? Theme.record : Theme.inkMuted.opacity(0.35))
+                    if busy {
+                        ProgressView().tint(.white)
+                    } else {
+                        Circle().fill(.white).frame(width: 22, height: 22)
+                    }
+                }
+                .frame(width: 64, height: 64)
+                .shadow(color: Theme.record.opacity(enabled ? 0.28 : 0), radius: 8, y: 6)
+            }
+            .buttonStyle(.plain)
+            .disabled(!enabled)
+            .accessibilityLabel("开始录音")
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
 
     private var hint: String? {

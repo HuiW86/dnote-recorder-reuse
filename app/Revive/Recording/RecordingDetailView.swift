@@ -85,12 +85,17 @@ private struct RecordingDetailContent: View {
     private var content: some View {
         List {
             Section {
-                Text(model.title)
-                    .font(.title2.bold())
-                    .listRowSeparator(.hidden)
-                PlayerCard(model: model)
-                    .listRowSeparator(.hidden)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(model.title)
+                        .font(.title2.bold())
+                        .foregroundStyle(Theme.ink)
+                    Text(model.startedAtText)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkMuted)
+                }
+                .listRowSeparator(.hidden)
             }
+            .listRowBackground(Color.clear)
             Section {
                 LabeledContent("时长", value: model.durationText)
                 if let source = model.sourceText {
@@ -98,13 +103,20 @@ private struct RecordingDetailContent: View {
                 }
                 LabeledContent("大小", value: model.sizeText)
             }
+            .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
         .paperBackground()
+        // The player floats over the bottom of the page (design-spec.md §3).
+        .safeAreaInset(edge: .bottom) {
+            PlayerCard(model: model)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+        }
     }
 }
 
-/// Player card: start time, scrubber, current / total time, play and 15 s skips (product-spec.md P06).
+/// Player bar: scrubber, current / total time, play and 15 s skips (product-spec.md P06).
 private struct PlayerCard: View {
     let model: RecordingDetailModel
     /// Position while the user drags the scrubber; nil otherwise.
@@ -112,9 +124,6 @@ private struct PlayerCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(model.startedAtText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
             TimelineView(.periodic(from: .now, by: 0.25)) { _ in
                 let duration = max(model.duration, 0.01)
                 let position = scrubbing ?? min(model.currentTime, duration)
@@ -169,7 +178,9 @@ private struct PlayerCard: View {
             }
         }
         .padding(16)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 16))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
+        .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
     }
 
     private static func clock(_ seconds: Double, hours: Bool) -> String {

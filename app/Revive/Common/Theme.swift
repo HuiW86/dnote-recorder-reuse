@@ -20,6 +20,8 @@ enum Theme {
     static let accentWash = dynamic(light: 0xFBE9E4, dark: 0x3A1E17)
     /// The app icon's red. Recording only, and only behind white glyphs, never as text.
     static let record = Color(uiColor: UIColor(hex: 0xF52100))
+    /// The recording page, dark in both colour schemes.
+    static let stage = Color(uiColor: UIColor(hex: 0x14110F))
     /// Connected, stored.
     static let ok = dynamic(light: 0x3F8F4F, dark: 0x6FBF7C)
 

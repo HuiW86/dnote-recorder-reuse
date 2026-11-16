@@ -56,6 +56,8 @@ private struct HomeContent: View {
     @Binding var path: [Route]
     @State private var pendingDelete: Recording?
     @State private var showsSwitcher = false
+    /// The full-screen recording page (design-spec.md §3).
+    @State private var showsStage = false
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -107,6 +109,18 @@ private struct HomeContent: View {
                 Text(prompt.message)
             }
             .toast($model.toast)
+            .fullScreenCover(isPresented: $showsStage) {
+                RecordingStage(model: model) { showsStage = false }
+            }
+            .onChange(of: model.status) { old, new in
+                let wasRecording = old == .recording || old == .paused
+                let isRecording = new == .recording || new == .paused
+                if isRecording, !wasRecording, !model.showsConsent, !showsSwitcher {
+                    showsStage = true
+                } else if !isRecording {
+                    showsStage = false
+                }
+            }
             .task(id: model.syncCard) {
                 doneCollapsed = false
                 guard case .done = model.syncCard else { return }
@@ -123,7 +137,11 @@ private struct HomeContent: View {
                     BluetoothBanner(problem: problem)
                 }
                 if model.status == .recording || model.status == .paused {
-                    RecordingStatusCard(model: model)
+                    Button { showsStage = true } label: {
+                        RecordingStatusCard(model: model)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("打开录音页")
                 }
                 if let card = model.syncCard, !(isDone(card) && doneCollapsed) {
                     SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
