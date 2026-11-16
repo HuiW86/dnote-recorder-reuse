@@ -96,6 +96,93 @@ struct RecordingLibraryTests {
         #expect(after.state == .stored && after.recordingId == nil)
     }
 
+    /// D1b: trash keeps the row and the audio, restore undoes it, purge removes only what expired.
+    @Test func trashRestoreAndPurge() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        _ = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
+        let audio = lib.store.url(forAudioPath: path).path
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+
+        try lib.trashRecording(id: id, now: t0)
+        #expect(try lib.trashedRecordings().map(\.id) == [id])
+        #expect(try lib.recording(id: id)?.trashedAt != nil)
+        #expect(FileManager.default.fileExists(atPath: audio))
+        // Still a local copy, and startup recovery must not take the audio for an orphan.
+        try lib.recoverAfterLaunch()
+        #expect(FileManager.default.fileExists(atPath: audio))
+        #expect(try lib.hasLocalCopy(try #require(try lib.syncItems(deviceId: device.id).first)))
+
+        try lib.restoreRecording(id: id)
+        #expect(try lib.trashedRecordings().isEmpty)
+        #expect(try lib.recording(id: id)?.trashedAt == nil)
+
+        try lib.trashRecording(id: id, now: t0)
+        #expect(try lib.purgeTrash(trashedBefore: t0.addingTimeInterval(-1)) == 0)
+        #expect(try lib.recording(id: id) != nil)
+        #expect(try lib.purgeTrash(trashedBefore: t0) == 1)
+        #expect(try lib.recording(id: id) == nil)
+        #expect(!FileManager.default.fileExists(atPath: audio))
+        // Purged like a delete: the card file is not synced again.
+        let after = try #require(try lib.syncItems(deviceId: device.id).first)
+        #expect(after.state == .stored && after.recordingId == nil)
+    }
+
+    /// X7: marks are keyed by the card file, so they exist before the recording does.
+    @Test func marksFollowTheCardFile() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try lib.database.writer.read { try $0.tableExists("recording_mark") })
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 9_000))
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 3_000))
+        #expect(try !lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 4_500))  // double tap
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 60_000))
+        #expect(try lib.addMark(deviceId: device.id, cardFileName: "b.opus", offsetMs: 1_000))
+        #expect(try lib.marks(deviceId: device.id, cardFileName: "a.opus").map(\.offsetMs) == [3_000, 9_000, 60_000])
+
+        // The recording arrives later; marks past its end are left out.
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: device.id, path: path)
+        r.durationMs = 10_000
+        _ = try lib.commitStored(r, item: item, deleteAfterSync: false)
+        let marks = try lib.marks(for: r)
+        #expect(marks.map(\.offsetMs) == [3_000, 9_000])
+        try lib.deleteMark(id: try #require(marks.first?.id))
+        #expect(try lib.marks(for: r).map(\.offsetMs) == [9_000])
+        var imported = r
+        imported.deviceId = nil
+        #expect(try lib.marks(for: imported).isEmpty)
+    }
+
+    /// X6: rename trims, caps the length and falls back to the default title.
+    @Test func renameRecording() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: device.id, path: path)
+        r.title = Recording.defaultTitle(for: r.startedAt)
+        _ = try lib.commitStored(r, item: item, deleteAfterSync: false)
+        #expect(!r.hasCustomTitle)
+
+        #expect(try lib.renameRecording(id: id, to: "  周会  ")?.title == "周会")
+        #expect(try #require(try lib.recording(id: id)).hasCustomTitle)
+        #expect(try lib.renameRecording(id: id, to: String(repeating: "长", count: 200))?.title.count == 80)
+        let reset = try #require(try lib.renameRecording(id: id, to: "   "))
+        #expect(reset.title == Recording.defaultTitle(for: r.startedAt) && !reset.hasCustomTitle)
+        #expect(try lib.renameRecording(id: UUID(), to: "x") == nil)
+    }
+
     @Test func recoveryResetsDownloadsAndRemovesOrphans() throws {
         let (lib, root) = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }

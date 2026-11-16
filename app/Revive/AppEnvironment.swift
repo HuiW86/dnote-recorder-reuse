@@ -35,6 +35,8 @@ final class AppEnvironment {
     #endif
 
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "App")
+    /// Kept alive for as long as the Bluetooth stack (features.md X8).
+    @ObservationIgnored private var syncNotifier: SyncNotifier?
 
     init() {
         do {
@@ -49,6 +51,11 @@ final class AppEnvironment {
             diagnostics.add("app", "library unavailable: \(error)")
         }
         hasPairedDevice = ((try? library?.pairedDevices()) ?? []).isEmpty == false
+        // Recordings deleted more than 7 days ago leave 最近删除 for good (features.md D1b).
+        if let purged = try? library?.purgeTrash(trashedBefore: Date().addingTimeInterval(-Recording.trashRetention)),
+           purged > 0 {
+            diagnostics.add("app", "purged \(purged) recording(s) from trash")
+        }
         player = library.map { RecordingPlayer(library: $0) }
         RecordingExporter.cleanUp()
     }
@@ -70,6 +77,9 @@ final class AppEnvironment {
             session = try CardSession(link: link, bondStore: KeychainBondStore(), library: library,
                                       syncOptions: SyncEngine.Options(appBuild: build), diagnostics: diagnostics)
             session?.deleteAfterSync = { [preferences] in preferences.deleteAfterSync(for: $0) }
+            if let engine = session?.syncEngine {
+                syncNotifier = SyncNotifier(engine: engine, library: library, preferences: preferences)
+            }
         } catch {
             log.error("card session unavailable: \(String(describing: error), privacy: .public)")
         }

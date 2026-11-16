@@ -362,6 +362,24 @@ async def cmd_pull(args):
                     print(f"    删除未确认: {name} (0x91 响应: {got})")
 
 
+def cmd_toc(args):
+    """Offline: Opus frame header statistics of raw card files already on disk (#66).
+    Prints no serial number or address; the output can go into evidence/ as is."""
+    for path in args.files:
+        with open(path, "rb") as f:
+            raw = f.read()
+        plain = P.decrypt_audio_file(raw) if P.is_encrypted_audio(raw) else raw
+        frames, remainder = P.split_opus_frames(plain, 40)
+        stats = P.opus_toc_stats(frames)
+        ok = P.opus_frames_match_card_format(frames)
+        print(f"{os.path.basename(path)}: {len(frames)} frames, remainder {len(remainder)} B, "
+              f"{len(stats)} distinct TOC, matches 20 ms mono: {'yes' if ok else 'NO'}")
+        for byte, count in sorted(stats.items(), key=lambda kv: -kv[1]):
+            t = P.opus_toc(byte)
+            print(f"  0x{byte:02x} x{count}: {t['mode']} {t['bandwidth']} {t['frame_us'] / 1000:g} ms "
+                  f"{'stereo' if t['stereo'] else 'mono'} code {t['code']}")
+
+
 async def cmd_usb(args):
     addr = await _pick_device(args.address)
     async with BleakClient(addr) as client:
@@ -495,6 +513,7 @@ def main():
     sp.add_argument("--delete", action="store_true", help="下载后删除设备上的文件(默认不删)")
     sp = sub.add_parser("usb"); sp.add_argument("on", choices=["on", "off"])
     sub.add_parser("synctime")
+    sp = sub.add_parser("toc"); sp.add_argument("files", nargs="+")
     sp = sub.add_parser("pair")
     sp.add_argument("--force", action="store_true", help="设备已绑定其它 bondId 时仍覆盖")
     sub.add_parser("unpair")
@@ -505,7 +524,10 @@ def main():
         "record": cmd_record, "stop": cmd_stop, "live": cmd_live, "list": cmd_list,
         "pull": cmd_pull, "usb": cmd_usb, "synctime": cmd_synctime,
         "pair": cmd_pair, "unpair": cmd_unpair,
-    }[args.cmd]
+    }.get(args.cmd)
+    if args.cmd == "toc":  # offline, no Bluetooth
+        cmd_toc(args)
+        return
     asyncio.run(fn(args))
 
 

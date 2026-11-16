@@ -252,6 +252,26 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 
 迁移：用版本化的迁移脚本，只增不改；每次发版前在旧版本数据上跑一遍升级测试。
 
+### 5.4 `recording_mark`（M1.5，迁移 `v3`）
+
+录音中标的重点（`features.md` X7）。和 `sync_item` 一样按卡上的文件来认，所以录音还没同步、`recording` 行还不存在时就能记。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | INTEGER PK | 自增 |
+| `device_id` | UUID FK | — |
+| `card_file_name` | TEXT | 录音中由卡上报的文件名 |
+| `offset_ms` | INTEGER | 标记时卡上报的已录时长，暂停不影响 |
+| `created_at` | DATETIME | — |
+
+- 与录音的对应：`device_id` + `card_file_name`；超过录音时长的标记不显示。
+- 2 秒内的重复标记丢弃。标记只存在手机上，不向卡发任何命令。
+
+### 5.5 M1.5 对已有字段的使用
+
+- `recording.trashed_at`（`v1` 已预留）：非空表示在「最近删除」里，行和音频都保留；满 7 天后在 App 启动时彻底删除（D1b）。首页列表只列 `trashed_at` 为空的。
+- `recording.title`：同步时写入 `yyyy-MM-dd HH:mm`；用户重命名后写入用户的标题（X6）。是否改过名按标题的形状判断，不另加字段。
+
 ## 6. App 错误码（M1）
 
 | 错误码 | 含义 | 可重试 | 用户看到的处理 |

@@ -16,6 +16,10 @@ public final class RecordingDetailModel {
     public private(set) var isPreparing = false
     /// The OGG file is gone; the page offers to delete the row.
     public private(set) var audioMissing = false
+    /// An M4A export is being made; the share button shows progress meanwhile.
+    public private(set) var isExporting = false
+    /// Points marked while recording, in playback order (features.md X7).
+    public private(set) var marks: [RecordingMark] = []
     /// Set after a delete; the page closes.
     public private(set) var isDeleted = false
     public var toast: Toast?
@@ -33,6 +37,7 @@ public final class RecordingDetailModel {
         deviceNames = Dictionary(((try? library.pairedDevices()) ?? []).map { ($0.id, $0.name) },
                                  uniquingKeysWith: { a, _ in a })
         if let recording {
+            marks = (try? library.marks(for: recording)) ?? []
             audioMissing = !FileManager.default.fileExists(atPath: library.store.url(forAudioPath: recording.audioPath).path)
         }
     }
@@ -92,6 +97,34 @@ public final class RecordingDetailModel {
         player.seek(to: time)
     }
 
+    /// Plays from a mark; loads the recording first when it is not the one in the player.
+    public func play(from mark: RecordingMark) {
+        let target = Double(mark.offsetMs) / 1000
+        if isLoaded {
+            player.seek(to: target)
+            return
+        }
+        guard let recording, playTask == nil else { return }
+        playTask = Task {
+            defer { playTask = nil }
+            do {
+                try await player.play(recording)
+                player.seek(to: target)
+            } catch is CancellationError {
+                // Left the page: silent, as in `togglePlay`.
+            } catch PlayerError.audioMissing {
+                audioMissing = true
+            } catch {
+                toast = Toast("无法播放这条录音")
+            }
+        }
+    }
+
+    /// "00:18:06" for a mark row.
+    public func markText(_ mark: RecordingMark) -> String {
+        RecordingText.clock(seconds: mark.offsetMs / 1000)
+    }
+
     /// Leaving the page while a decode runs cancels it; playback that already started goes on.
     public func leave() {
         if playTask != nil, !isPlaying { player.stop() }
@@ -138,11 +171,43 @@ public final class RecordingDetailModel {
         return nil
     }
 
-    /// Deletes the local recording only; nothing is sent to the card (product-spec.md §3.3).
+    /// A temporary `<title>.m4a` for the share sheet (features.md E1b); nil with a toast on failure.
+    public func exportM4A() async -> URL? {
+        guard let recording, !isExporting else { return nil }
+        isExporting = true
+        defer { isExporting = false }
+        do {
+            return try await RecordingExporter.exportM4A(for: recording, library: library)
+        } catch PlayerError.audioMissing {
+            audioMissing = true
+        } catch {
+            log.error("cannot export m4a: \(String(describing: error), privacy: .public)")
+            toast = Toast("导出失败，请重试")
+        }
+        return nil
+    }
+
+    /// The title to start a rename from: the user's own, or empty for the default one.
+    public var editableTitle: String {
+        guard let recording, recording.hasCustomTitle else { return "" }
+        return recording.title
+    }
+
+    /// Renames the recording; an empty title puts the default back (features.md X6).
+    public func rename(to title: String) {
+        do {
+            if let renamed = try library.renameRecording(id: recordingId, to: title) { recording = renamed }
+        } catch {
+            toast = Toast("重命名失败，请重试")
+        }
+    }
+
+    /// Moves the local recording to 最近删除 (features.md D1b); nothing is sent to the card
+    /// (product-spec.md §3.3).
     public func delete() {
         if isLoaded { player.stop() }
         do {
-            try library.deleteRecording(id: recordingId)
+            try library.trashRecording(id: recordingId)
             isDeleted = true
         } catch {
             toast = Toast("删除失败，请重试")

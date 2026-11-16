@@ -124,10 +124,111 @@ public final class RecordingLibrary: Sendable {
     public func observeRecordings(onError: @escaping @MainActor (Error) -> Void,
                                   onChange: @escaping @MainActor ([Recording]) -> Void) -> LibraryObservation {
         let observation = ValueObservation.tracking { db in
-            try Recording.order(Column("started_at").desc).fetchAll(db)
+            try Recording.filter(Column("trashed_at") == nil).order(Column("started_at").desc).fetchAll(db)
         }
         return LibraryObservation(observation.start(in: database.writer, scheduling: .immediate,
                                                     onError: onError, onChange: onChange))
+    }
+
+    // MARK: Rename and trash (features.md X6, D1b)
+
+    /// Sets the title; an empty one puts the default back. Returns the stored recording, nil when
+    /// it is not in the library.
+    @discardableResult
+    public func renameRecording(id: UUID, to title: String, now: Date = Date()) throws -> Recording? {
+        try database.writer.write { db in
+            guard var recording = try Recording.fetchOne(db, key: id) else { return nil }
+            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            recording.title = trimmed.isEmpty
+                ? Recording.defaultTitle(for: recording.startedAt) : String(trimmed.prefix(80))
+            recording.updatedAt = now
+            try recording.update(db)
+            return recording
+        }
+    }
+
+    /// Moves a recording to 最近删除: the row and the audio stay, so it can be restored as it
+    /// was. Like a delete, nothing is sent to the card and the SyncItem stays `stored`.
+    public func trashRecording(id: UUID, now: Date = Date()) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE recording SET trashed_at = ?, updated_at = ? WHERE id = ? AND trashed_at IS NULL",
+                           arguments: [now, now, id])
+        }
+        store.removeDecoded(id)
+    }
+
+    public func restoreRecording(id: UUID, now: Date = Date()) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE recording SET trashed_at = NULL, updated_at = ? WHERE id = ?",
+                           arguments: [now, id])
+        }
+    }
+
+    /// Recordings in 最近删除, the most recently deleted first.
+    public func trashedRecordings() throws -> [Recording] {
+        try database.writer.read { db in
+            try Recording.filter(Column("trashed_at") != nil).order(Column("trashed_at").desc).fetchAll(db)
+        }
+    }
+
+    /// 最近删除, now and after every change. Keep the returned observation to keep observing.
+    @MainActor
+    public func observeTrash(onError: @escaping @MainActor (Error) -> Void,
+                             onChange: @escaping @MainActor ([Recording]) -> Void) -> LibraryObservation {
+        let observation = ValueObservation.tracking { db in
+            try Recording.filter(Column("trashed_at") != nil).order(Column("trashed_at").desc).fetchAll(db)
+        }
+        return LibraryObservation(observation.start(in: database.writer, scheduling: .immediate,
+                                                    onError: onError, onChange: onChange))
+    }
+
+    // MARK: Marks (features.md X7)
+
+    /// Adds a mark at `offsetMs` of a card file. A second mark within 2 s of an existing one is
+    /// dropped (a double tap); returns whether a mark was added.
+    @discardableResult
+    public func addMark(deviceId: UUID, cardFileName: String, offsetMs: Int, now: Date = Date()) throws -> Bool {
+        try database.writer.write { db in
+            let near = try RecordingMark
+                .filter(Column("device_id") == deviceId && Column("card_file_name") == cardFileName
+                        && Column("offset_ms") > offsetMs - 2000 && Column("offset_ms") < offsetMs + 2000)
+                .fetchCount(db)
+            guard near == 0 else { return false }
+            var mark = RecordingMark(deviceId: deviceId, cardFileName: cardFileName, offsetMs: max(0, offsetMs),
+                                     createdAt: now)
+            try mark.insert(db)
+            return true
+        }
+    }
+
+    /// Marks of a card file, in playback order.
+    public func marks(deviceId: UUID, cardFileName: String) throws -> [RecordingMark] {
+        try database.writer.read { db in
+            try RecordingMark
+                .filter(Column("device_id") == deviceId && Column("card_file_name") == cardFileName)
+                .order(Column("offset_ms"))
+                .fetchAll(db)
+        }
+    }
+
+    /// Marks of a recording that came from a card, within its length; empty for any other source.
+    public func marks(for recording: Recording) throws -> [RecordingMark] {
+        guard let deviceId = recording.deviceId, let name = recording.cardFileName else { return [] }
+        return try marks(deviceId: deviceId, cardFileName: name).filter { $0.offsetMs <= recording.durationMs }
+    }
+
+    public func deleteMark(id: Int64) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "DELETE FROM recording_mark WHERE id = ?", arguments: [id])
+        }
+    }
+
+    /// Deletes for good what was moved to 最近删除 at or before `cutoff`. Returns how many.
+    @discardableResult
+    public func purgeTrash(trashedBefore cutoff: Date) throws -> Int {
+        let expired = try trashedRecordings().filter { ($0.trashedAt ?? .distantFuture) <= cutoff }
+        for recording in expired { try deleteRecording(id: recording.id) }
+        return expired.count
     }
 
     /// When the newest card recording was stored; nil when none was.
@@ -167,7 +268,8 @@ public final class RecordingLibrary: Sendable {
         }
     }
 
-    /// Deletes a recording, its audio and any decoded copy. The SyncItem stays `stored`, so the file is not
+    /// Deletes a recording for good: the row, its audio and any decoded copy. The UI goes through
+    /// `trashRecording` first (features.md D1b). The SyncItem stays `stored`, so the file is not
     /// synced again, and nothing is sent to the card (prd.md §4.3, T-M1-32).
     public func deleteRecording(id: UUID) throws {
         guard let recording = try database.writer.write({ db -> Recording? in

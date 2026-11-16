@@ -20,6 +20,7 @@ struct RootView: View {
                 OnboardingFlow(env: env)
             }
         }
+        .tint(Theme.accent)
         .debugEntry(env)
     }
 }

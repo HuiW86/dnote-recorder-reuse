@@ -179,13 +179,50 @@ public enum RecordingExporter {
         return target
     }
 
+    /// An AAC `.m4a` copy for the share sheet (features.md E1b): other apps and older systems do
+    /// not open OGG Opus. Decodes and encodes off the main actor; a long recording takes a while.
+    /// `base` is where the export directory is made; the default is the one `cleanUp` empties.
+    public static func exportM4A(for recording: Recording, library: RecordingLibrary,
+                                 in base: URL? = nil) async throws -> URL {
+        let source = library.store.url(forAudioPath: recording.audioPath)
+        guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
+        let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let pcm = dir.appendingPathComponent("decoded.caf")
+        defer { try? FileManager.default.removeItem(at: pcm) }
+        try OggOpusDecoder.decode(source, to: pcm)
+        let target = dir.appendingPathComponent(fileName(for: recording.title, fileExtension: "m4a"))
+        // Scoped so both files are closed, and the m4a finished, before the URL is returned.
+        do {
+            let input = try AVAudioFile(forReading: pcm)
+            let format = input.processingFormat
+            let settings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: format.sampleRate,
+                AVNumberOfChannelsKey: Int(format.channelCount),
+            ]
+            let output = try AVAudioFile(forWriting: target, settings: settings, commonFormat: format.commonFormat,
+                                         interleaved: format.isInterleaved)
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16384) else {
+                throw PlayerError.cannotOpen
+            }
+            while input.framePosition < input.length {
+                try Task.checkCancellation()
+                try input.read(into: buffer)
+                if buffer.frameLength == 0 { break }
+                try output.write(from: buffer)
+            }
+        }
+        return target
+    }
+
     /// `2026-11-01 09:00` -> `2026-11-01 09.00.ogg`; characters file systems reject are replaced.
-    public static func fileName(for title: String) -> String {
+    public static func fileName(for title: String, fileExtension: String = "ogg") -> String {
         let cleaned = title
             .replacingOccurrences(of: ":", with: ".")
             .map { "/\\?%*|\"<>".contains($0) || $0.isNewline ? "_" : $0 }
         let base = String(cleaned).trimmingCharacters(in: .whitespaces)
-        return (base.isEmpty ? "recording" : String(base.prefix(100))) + ".ogg"
+        return (base.isEmpty ? "recording" : String(base.prefix(100))) + "." + fileExtension
     }
 
     /// Removes exported copies; call when the share sheet closes or at launch.

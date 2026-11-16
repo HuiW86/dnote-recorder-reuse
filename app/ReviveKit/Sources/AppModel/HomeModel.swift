@@ -11,8 +11,13 @@ import SyncEngine
 public struct Toast: Equatable, Identifiable, Sendable {
     public let id = UUID()
     public let text: String
+    /// Title of a button on the toast ("撤销"); nil for a plain message.
+    public let action: String?
 
-    public init(_ text: String) { self.text = text }
+    public init(_ text: String, action: String? = nil) {
+        self.text = text
+        self.action = action
+    }
 }
 
 /// An error the user has to act on, shown as a Modal (product-spec.md §7.1).
@@ -102,6 +107,8 @@ public final class HomeModel {
     @ObservationIgnored private let player: RecordingPlayer?
     @ObservationIgnored private var observation: LibraryObservation?
     @ObservationIgnored private var listener: UUID?
+    /// The recording the last delete moved to 最近删除, for "撤销".
+    @ObservationIgnored private var lastTrashed: UUID?
     /// The live sync status watch; an older one stops at its next change.
     @ObservationIgnored private var syncWatch: UUID?
 
@@ -279,6 +286,34 @@ public final class HomeModel {
         session.recordingName.flatMap { SyncEngine.startDate(fileName: $0) }
     }
 
+    // MARK: - Marks (features.md X7)
+
+    /// Bumped by `markNow`, so views that show `markCount` redraw.
+    private var markTick = 0
+
+    /// Marks set in the recording that is running now.
+    public var markCount: Int {
+        _ = markTick
+        guard let device = currentDevice, let name = session.recordingName else { return 0 }
+        return ((try? session.library.marks(deviceId: device.id, cardFileName: name)) ?? []).count
+    }
+
+    /// "标重点": remembers the current position of the running recording. The position is the
+    /// card's own recorded time, so pauses do not shift it; nothing is sent to the card.
+    public func markNow(at date: Date = Date()) {
+        guard status == .recording, let device = currentDevice, let name = session.recordingName,
+              let offset = session.recordedMs(at: date) else {
+            toast = Toast("现在还不能标重点")
+            return
+        }
+        do {
+            try session.library.addMark(deviceId: device.id, cardFileName: name, offsetMs: offset, now: date)
+            markTick += 1
+        } catch {
+            toast = Toast("标记失败，请重试")
+        }
+    }
+
     public func startTapped() {
         if preferences.recordingConsentGiven {
             run(.start)
@@ -334,14 +369,28 @@ public final class HomeModel {
 
     // MARK: - Recordings
 
-    /// Deletes the local recording only; nothing is sent to the card (product-spec.md §3.3).
+    /// Moves the local recording to 最近删除, where it stays 7 days (features.md D1b); nothing is
+    /// sent to the card (product-spec.md §3.3).
     public func delete(_ id: UUID) {
         if player?.recordingId == id { player?.stop() }
         do {
-            try session.library.deleteRecording(id: id)
-            toast = Toast("已删除")
+            try session.library.trashRecording(id: id)
+            lastTrashed = id
+            toast = Toast("已移到最近删除", action: "撤销")
         } catch {
             toast = Toast("删除失败，请重试")
+        }
+    }
+
+    /// "撤销" on the toast: puts the recording just deleted back in the list.
+    public func undoDelete() {
+        guard let id = lastTrashed else { return }
+        lastTrashed = nil
+        do {
+            try session.library.restoreRecording(id: id)
+            toast = Toast("已恢复")
+        } catch {
+            toast = Toast("恢复失败，请重试")
         }
     }
 

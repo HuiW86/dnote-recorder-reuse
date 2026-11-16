@@ -438,9 +438,17 @@ struct HomeModelTests {
         let deletes = h.sent(.deleteFile)
         model.delete(try #require(model.recordings.first).id)
         await waitUntil("gone") { model.recordings.isEmpty }
-        #expect(model.toast?.text == "已删除")
+        #expect(model.toast?.text == "已移到最近删除" && model.toast?.action == "撤销")
         #expect(h.sent(.deleteFile) == deletes)
         #expect(card.files.count == 1)
+        // D1b: the recording waits in 最近删除 with its audio, and "撤销" brings it back.
+        let trashed = try #require(try h.library.trashedRecordings().first)
+        #expect(FileManager.default.fileExists(atPath: h.library.store.url(forAudioPath: trashed.audioPath).path))
+        model.undoDelete()
+        await waitUntil("back") { model.recordings.count == 1 }
+        #expect(model.toast?.text == "已恢复")
+        #expect(try h.library.trashedRecordings().isEmpty)
+        #expect(h.sent(.deleteFile) == deletes)
     }
 
     /// A second paired card. `peripheral` nil means one CoreBluetooth no longer knows.

@@ -342,3 +342,48 @@ def split_opus_frames(buf: bytes, frame_len: int = 40):
         frames.append(buf[i:i + frame_len])
         i += frame_len
     return frames, buf[i:]
+
+
+# ------------------------------------------------------------------ Opus 帧头 (TOC)
+
+def opus_toc(first_byte: int) -> dict:
+    """Decode the first byte of an Opus packet (TOC, RFC 6716 section 3.1).
+
+    frame_us is one frame's duration in microseconds. code 0 means one frame per packet,
+    1 and 2 mean two, 3 means the count is in the packet's second byte.
+    """
+    config = first_byte >> 3
+    if config < 12:
+        mode, frame_us = "SILK", (10000, 20000, 40000, 60000)[config % 4]
+        bandwidth = ("NB", "MB", "WB")[config // 4]
+    elif config < 16:
+        mode, frame_us = "Hybrid", (10000, 20000)[config % 2]
+        bandwidth = ("SWB", "FB")[(config - 12) // 2]
+    else:
+        mode, frame_us = "CELT", (2500, 5000, 10000, 20000)[config % 4]
+        bandwidth = ("NB", "WB", "SWB", "FB")[(config - 16) // 4]
+    return {"config": config, "mode": mode, "bandwidth": bandwidth, "frame_us": frame_us,
+            "stereo": bool(first_byte & 0x04), "code": first_byte & 0x03}
+
+
+def opus_toc_stats(frames) -> dict:
+    """How often each TOC byte occurs across fixed-length frames: {toc_byte: count}."""
+    stats = {}
+    for f in frames:
+        if f:
+            stats[f[0]] = stats.get(f[0], 0) + 1
+    return stats
+
+
+def opus_frames_match_card_format(frames) -> bool:
+    """True when every frame's TOC byte says one mono 20 ms frame per packet: what
+    split_opus_frames and the OGG muxer assume (#66). The bytes may differ between frames
+    (an encoder can switch mode); misaligned data fails because about 1 byte in 28 passes."""
+    stats = opus_toc_stats(frames)
+    if not stats:
+        return False
+    for byte in stats:
+        toc = opus_toc(byte)
+        if toc["frame_us"] != 20000 or toc["code"] != 0 or toc["stereo"]:
+            return False
+    return True

@@ -8,6 +8,8 @@ enum Route: Hashable {
     case recording(UUID)
     case device(UUID)
     case settings, about, privacy, permissions
+    /// 最近删除 (features.md D1b), from settings.
+    case trash
     /// P02 → P03 from home: "重新搜索" after `unknownCard`; "重新配对" goes to P03 directly.
     case connectGuide, pairing
 }
@@ -32,7 +34,8 @@ struct HomeView: View {
                 switch route {
                 case .recording(let id): RecordingDetailView(env: env, recordingId: id)
                 case .device(let id): DeviceView(env: env, deviceId: id)
-                case .settings: SettingsView(diagnostics: env.diagnostics)
+                case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
+                case .trash: TrashView(env: env)
                 case .about: AboutView()
                 case .privacy: PrivacyView()
                 case .permissions: PermissionsView()
@@ -56,6 +59,8 @@ private struct HomeContent: View {
     @Binding var path: [Route]
     @State private var pendingDelete: Recording?
     @State private var showsSwitcher = false
+    /// The full-screen recording page (design-spec.md §3).
+    @State private var showsStage = false
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -89,7 +94,7 @@ private struct HomeContent: View {
                                 presenting: pendingDelete) { recording in
                 Button("删除录音", role: .destructive) { model.delete(recording.id) }
             } message: { _ in
-                Text("只删除手机上的这条录音，录音卡不受影响。")
+                Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
             }
             .alert(model.prompt?.title ?? "", isPresented: promptBinding, presenting: model.prompt) { prompt in
                 Button(prompt.actionTitle) {
@@ -106,7 +111,19 @@ private struct HomeContent: View {
             } message: { prompt in
                 Text(prompt.message)
             }
-            .toast($model.toast)
+            .toast($model.toast) { model.undoDelete() }
+            .fullScreenCover(isPresented: $showsStage) {
+                RecordingStage(model: model) { showsStage = false }
+            }
+            .onChange(of: model.status) { old, new in
+                let wasRecording = old == .recording || old == .paused
+                let isRecording = new == .recording || new == .paused
+                if isRecording, !wasRecording, !model.showsConsent, !showsSwitcher {
+                    showsStage = true
+                } else if !isRecording {
+                    showsStage = false
+                }
+            }
             .task(id: model.syncCard) {
                 doneCollapsed = false
                 guard case .done = model.syncCard else { return }
@@ -123,13 +140,19 @@ private struct HomeContent: View {
                     BluetoothBanner(problem: problem)
                 }
                 if model.status == .recording || model.status == .paused {
-                    RecordingStatusCard(model: model)
+                    Button { showsStage = true } label: {
+                        RecordingStatusCard(model: model)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("打开录音页")
                 }
                 if let card = model.syncCard, !(isDone(card) && doneCollapsed) {
                     SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
                 }
             }
             .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
 
             if let error = model.loadError {
                 ContentUnavailableView {
@@ -140,28 +163,37 @@ private struct HomeContent: View {
                     ShareLink(item: error) { Text("导出诊断信息") }
                 }
                 .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             } else if model.recordings.isEmpty {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
                                            description: Text("按卡上的录音键，或点下方开始录音"))
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
             } else {
-                Section {
-                    ForEach(model.recordings, id: \.id) { recording in
-                        NavigationLink(value: Route.recording(recording.id)) {
-                            RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                // One card per day (design-spec.md §3).
+                ForEach(DayGroup.group(model.recordings)) { day in
+                    Section {
+                        ForEach(day.recordings, id: \.id) { recording in
+                            NavigationLink(value: Route.recording(recording.id)) {
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                            }
+                            .swipeActions {
+                                // No destructive role: it animates the row away before the user confirms.
+                                Button("删除") { pendingDelete = recording }
+                                    .tint(.red)
+                            }
                         }
-                        .swipeActions {
-                            // No destructive role: it animates the row away before the user confirms.
-                            Button("删除") { pendingDelete = recording }
-                                .tint(.red)
-                        }
+                    } header: {
+                        Text(day.title).textCase(nil)
                     }
+                    .listRowBackground(Theme.surface)
                 }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
+        .paperBackground()
     }
 
     private var header: some View {
@@ -170,7 +202,7 @@ private struct HomeContent: View {
                 .font(.largeTitle.bold())
             if let card = model.syncCard, isDone(card), doneCollapsed {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Theme.ok)
                     .accessibilityLabel("全部录音已存入手机")
             }
         }
@@ -198,17 +230,57 @@ private struct HomeContent: View {
     }
 }
 
+/// Recordings of one calendar day, newest day first, in the order the model gives them.
+private struct DayGroup: Identifiable {
+    let id: Date
+    let title: String
+    var recordings: [Recording]
+
+    static func group(_ recordings: [Recording], calendar: Calendar = .current, now: Date = Date()) -> [DayGroup] {
+        var groups: [DayGroup] = []
+        for recording in recordings {
+            let day = calendar.startOfDay(for: recording.startedAt)
+            if let last = groups.indices.last, groups[last].id == day {
+                groups[last].recordings.append(recording)
+            } else {
+                groups.append(DayGroup(id: day, title: title(day, calendar: calendar, now: now), recordings: [recording]))
+            }
+        }
+        return groups
+    }
+
+    /// "今天", "昨天", "11月7日", and "2025年11月7日" for another year.
+    private static func title(_ day: Date, calendar: Calendar, now: Date) -> String {
+        if calendar.isDate(day, inSameDayAs: now) { return "今天" }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(day, inSameDayAs: yesterday) { return "昨天" }
+        let c = calendar.dateComponents([.year, .month, .day], from: day)
+        let monthDay = "\(c.month ?? 0)月\(c.day ?? 0)日"
+        return c.year == calendar.component(.year, from: now) ? monthDay : "\(c.year ?? 0)年" + monthDay
+    }
+}
+
 private struct RecordingRow: View {
     let recording: Recording
     let deviceName: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(RecordingText.title(recording))
-                .font(.body)
-            Text(RecordingText.subtitle(recording, deviceName: deviceName))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            Image(systemName: "waveform")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 40, height: 40)
+                .background(Theme.accentWash, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(RecordingText.title(recording))
+                    .font(.headline)
+                    .foregroundStyle(Theme.ink)
+                Text(RecordingText.subtitle(recording, deviceName: deviceName))
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.inkMuted)
+                    .monospacedDigit()
+            }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
