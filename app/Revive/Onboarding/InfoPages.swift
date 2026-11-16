@@ -38,6 +38,7 @@ private struct InfoPage: View {
             }
         }
         .listStyle(.insetGrouped)
+        .paperBackground()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }

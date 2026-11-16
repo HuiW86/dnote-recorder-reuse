@@ -17,11 +17,12 @@ struct ScrollingPage<Content: View, Footer: View>: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
+        .background(Theme.paper)
         .safeAreaInset(edge: .bottom) {
             footer
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(Color(uiColor: .systemBackground))
+                .background(Theme.paper)
         }
     }
 }

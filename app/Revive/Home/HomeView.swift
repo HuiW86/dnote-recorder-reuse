@@ -130,6 +130,8 @@ private struct HomeContent: View {
                 }
             }
             .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
 
             if let error = model.loadError {
                 ContentUnavailableView {
@@ -140,28 +142,37 @@ private struct HomeContent: View {
                     ShareLink(item: error) { Text("导出诊断信息") }
                 }
                 .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             } else if model.recordings.isEmpty {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
                                            description: Text("按卡上的录音键，或点下方开始录音"))
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
             } else {
-                Section {
-                    ForEach(model.recordings, id: \.id) { recording in
-                        NavigationLink(value: Route.recording(recording.id)) {
-                            RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                // One card per day (design-spec.md §3).
+                ForEach(DayGroup.group(model.recordings)) { day in
+                    Section {
+                        ForEach(day.recordings, id: \.id) { recording in
+                            NavigationLink(value: Route.recording(recording.id)) {
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                            }
+                            .swipeActions {
+                                // No destructive role: it animates the row away before the user confirms.
+                                Button("删除") { pendingDelete = recording }
+                                    .tint(.red)
+                            }
                         }
-                        .swipeActions {
-                            // No destructive role: it animates the row away before the user confirms.
-                            Button("删除") { pendingDelete = recording }
-                                .tint(.red)
-                        }
+                    } header: {
+                        Text(day.title).textCase(nil)
                     }
+                    .listRowBackground(Theme.surface)
                 }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
+        .paperBackground()
     }
 
     private var header: some View {
@@ -170,7 +181,7 @@ private struct HomeContent: View {
                 .font(.largeTitle.bold())
             if let card = model.syncCard, isDone(card), doneCollapsed {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Theme.ok)
                     .accessibilityLabel("全部录音已存入手机")
             }
         }
@@ -198,17 +209,57 @@ private struct HomeContent: View {
     }
 }
 
+/// Recordings of one calendar day, newest day first, in the order the model gives them.
+private struct DayGroup: Identifiable {
+    let id: Date
+    let title: String
+    var recordings: [Recording]
+
+    static func group(_ recordings: [Recording], calendar: Calendar = .current, now: Date = Date()) -> [DayGroup] {
+        var groups: [DayGroup] = []
+        for recording in recordings {
+            let day = calendar.startOfDay(for: recording.startedAt)
+            if let last = groups.indices.last, groups[last].id == day {
+                groups[last].recordings.append(recording)
+            } else {
+                groups.append(DayGroup(id: day, title: title(day, calendar: calendar, now: now), recordings: [recording]))
+            }
+        }
+        return groups
+    }
+
+    /// "今天", "昨天", "11月7日", and "2025年11月7日" for another year.
+    private static func title(_ day: Date, calendar: Calendar, now: Date) -> String {
+        if calendar.isDate(day, inSameDayAs: now) { return "今天" }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(day, inSameDayAs: yesterday) { return "昨天" }
+        let c = calendar.dateComponents([.year, .month, .day], from: day)
+        let monthDay = "\(c.month ?? 0)月\(c.day ?? 0)日"
+        return c.year == calendar.component(.year, from: now) ? monthDay : "\(c.year ?? 0)年" + monthDay
+    }
+}
+
 private struct RecordingRow: View {
     let recording: Recording
     let deviceName: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(RecordingText.title(recording))
-                .font(.body)
-            Text(RecordingText.subtitle(recording, deviceName: deviceName))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            Image(systemName: "waveform")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 40, height: 40)
+                .background(Theme.accentWash, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(RecordingText.title(recording))
+                    .font(.headline)
+                    .foregroundStyle(Theme.ink)
+                Text(RecordingText.subtitle(recording, deviceName: deviceName))
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.inkMuted)
+                    .monospacedDigit()
+            }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)

@@ -93,7 +93,7 @@ struct RecordingStatusCard: View {
         HStack(spacing: 12) {
             Image(systemName: paused ? "pause.circle.fill" : "waveform")
                 .font(.title2)
-                .foregroundStyle(paused ? Color.secondary : Color.red)
+                .foregroundStyle(paused ? Color.secondary : Theme.record)
                 .symbolEffect(.variableColor.iterative, isActive: !paused && !reduceMotion)
             VStack(alignment: .leading, spacing: 2) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -117,7 +117,7 @@ struct RecordingStatusCard: View {
             Spacer()
         }
         .padding(12)
-        .background(.red.opacity(paused ? 0.05 : 0.1), in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.record.opacity(paused ? 0.05 : 0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
         .accessibilityElement(children: .combine)
     }
 }
@@ -164,7 +164,8 @@ struct SyncStatusCard: View {
             }
         }
         .padding(12)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
         .accessibilityElement(children: .contain)
     }
 
@@ -173,7 +174,7 @@ struct SyncStatusCard: View {
         case .checking, .syncing:
             ProgressView()
         case .done:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok)
         case .waitingForRecording:
             Image(systemName: "clock").foregroundStyle(.secondary)
         case .disconnected:

@@ -55,6 +55,7 @@ private struct DeviceContent: View {
             actions
         }
         .listStyle(.insetGrouped)
+        .paperBackground()
         .task(id: model.isConnected) { await model.load() }
         .toast($model.toast)
         .alert("名称", isPresented: $renaming) {
@@ -261,6 +262,7 @@ private struct LevelPicker: View {
             }
         }
         .listStyle(.insetGrouped)
+        .paperBackground()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }

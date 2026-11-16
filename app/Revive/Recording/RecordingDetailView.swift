@@ -100,6 +100,7 @@ private struct RecordingDetailContent: View {
             }
         }
         .listStyle(.plain)
+        .paperBackground()
     }
 }
 

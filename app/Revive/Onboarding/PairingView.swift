@@ -80,6 +80,7 @@ private struct PairingContent: View {
             }
         }
         .listStyle(.insetGrouped)
+        .paperBackground()
     }
 
     private var notFound: some View {

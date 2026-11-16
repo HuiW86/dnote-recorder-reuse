@@ -21,6 +21,7 @@ struct SettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .paperBackground()
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -49,6 +50,7 @@ struct AboutView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .paperBackground()
         .navigationTitle("关于")
         .navigationBarTitleDisplayMode(.inline)
     }
