@@ -177,9 +177,9 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
   - `disconnected`：不计次数，保留临时文件，等重连触发。
   - `phoneStorageFull`：本轮停止，等下一次触发。
   - `fileNotFound`：立即重新列表一次。
-  - `decryptFailed`：不再重试，原始字节已留在诊断目录。
+  - `decryptFailed`：同一个 App 构建内不再重试，原始字节已留在诊断目录。换了构建号（`CFBundleVersion`）后，App 启动时把这些项退回 `discovered`，下一轮按正常路径重新下载一次；仍然失败就记下新的构建号，等再下一个构建（#59）。失败原因可能是 App 自己的解密缺陷，升级修好后要能自动补回；卡上文件始终不动。
 - 下载中途断开（App 仍在运行）：保留临时文件，重连后按其长度续传（§2.3）。
-- App 被杀或崩溃后重启：`downloading` 一律回到 `discovered`，临时文件清掉，从头下载。临时文件可能没有完整落盘，不拿它续传。
+- App 被杀或崩溃后重启：`downloading` 一律回到 `discovered`，临时文件清掉，从头下载。临时文件可能没有完整落盘，不拿它续传。这是有意的（#59 复核后保留）：协议帧没有校验和（`PROTOCOL.md` §3），解密只校验文件头 24 字节（§4.2），续传接上一段没落盘完整的数据也会「成功」，得到错乱的音频，开了「同步后删除」时会丢掉唯一副本；代价是重启后长录音要重下，M3 的 WiFi 快传做完后会小很多。
 - **在 App 里删除本地录音不会让它重新同步回来**：删除 Recording 和 OGG 文件，但 SyncItem 保持 `stored`，列表比对时照常跳过；也不向卡发任何命令（`test-spec.md` T-M1-32）。
 - 删除只在 `stored` 之后发生。`0x91` 发出后连接断开、不确定是否删成功的，下次列表里不在就记为已删除，还在就重新删。
 - 实现（#39）：下载中的字节写到 `tmp/<SyncItem id>.part`，OGG 先写到 `staging/` 并 `fsync`，再原子移动到 `audio/`。启动恢复（`RecordingLibrary.recoverAfterLaunch`）会清空 `tmp/` 和 `staging/`，并删掉 `audio/` 里没有 Recording 记录的 OGG：这是「写完 OGG、事务未提交时崩溃」留下的孤儿文件。系统不能直接播放 OGG 时，播放器把录音解码成 `decoded/<Recording id>.caf`；删除录音时一并删除，启动恢复时也会删掉没有 Recording 记录的副本和没解码完的 `.part` 文件（#40）。
@@ -229,7 +229,7 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `source` | TEXT | `card` / `import`（M4）/ `realtime`（M3） |
 | `card_file_name` | TEXT NULL | 卡上文件名 |
 | `card_file_size` | INTEGER NULL | 卡上文件大小（加密时含文件头） |
-| `started_at` | DATETIME | 从文件名解析，按设备时间；解析失败用同步时间 |
+| `started_at` | DATETIME | 从文件名解析，按设备时间；解析失败用同步时间。按同步时手机的当前时区解析：App 每次连接都用手机本地时间校时（`0x87`，不带时区），所以「上次连接后录的、手机换时区后才同步」的录音会偏差两地时差。只在跨时区出行时出现，有意不处理（#59） |
 | `duration_ms` | INTEGER | 由 OGG 帧数计算 |
 | `audio_path` | TEXT | 相对路径 |
 | `audio_sha256` | TEXT | OGG 文件的哈希 |
@@ -248,6 +248,7 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `last_error` | TEXT NULL | §6 的错误码 |
 | `recording_id` | UUID NULL | 进入 `stored` 后关联 |
 | `deleted_on_card_at` | DATETIME NULL | — |
+| `failed_build` | TEXT NULL | 记下 `decryptFailed` 时的 App 构建号；其他错误为空。迁移 `v2` 新增，旧行为空，视为「其他构建」（§4.3，#59） |
 
 迁移：用版本化的迁移脚本，只增不改；每次发版前在旧版本数据上跑一遍升级测试。
 
@@ -270,7 +271,7 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `fileNotFound` | `0x70` 回 `0xF0` | 否 | 标记该 SyncItem，重新列表 |
 | `transferFailed` | `0x70` 回 `0x40`，或长度不符 | 是 | 自动重试 |
 | `cardBusy` | `0x70` 只回 1 字节 `0x40`，卡拒绝传输（#38） | 否 | 保留已下载部分，不计失败次数，停止本轮；提示长按关机再开机 |
-| `decryptFailed` | 文件头校验不通过 | 否 | 保留卡上文件，原始字节存到诊断目录，提示反馈 |
+| `decryptFailed` | 文件头校验不通过 | 否（换构建号后重试一次，§4.3） | 保留卡上文件，原始字节存到诊断目录，提示反馈 |
 | `unexpectedReply(cmd)` | 回包格式不符合协议，或设置写入后读回不一致 | 是 | 重试 1 次后提示反馈 |
 | `invalidArgument` | 参数非法（如增益超出 1～9），没有发出任何命令 | 否 | 程序错误，记日志 |
 | `bondStorageFailed` | Keychain 读写 bondId 失败 | 是 | 提示重试配对 |
