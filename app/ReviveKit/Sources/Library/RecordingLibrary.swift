@@ -28,6 +28,22 @@ public final class RecordingLibrary: Sendable {
         store.removeDecoded(except: known)
     }
 
+    /// Items that failed with `lastError` (SyncEngine passes `decryptFailed`) in another app
+    /// build, or before builds were recorded, go back to `discovered`, so the next pass downloads
+    /// them once more: a newer build may fix the cause (#59). Nothing is sent to the card.
+    /// Returns how many items were reset.
+    @discardableResult
+    public func retryFailures(_ lastError: String, notFailedIn currentBuild: String) throws -> Int {
+        try database.writer.write { db in
+            try db.execute(sql: """
+                UPDATE sync_item SET state = ?, last_error = NULL, failed_build = NULL
+                WHERE state = ? AND last_error = ? AND (failed_build IS NULL OR failed_build <> ?)
+                """, arguments: [SyncState.discovered.rawValue, SyncState.failed.rawValue,
+                                 lastError, currentBuild])
+            return db.changesCount
+        }
+    }
+
     // MARK: Devices
 
     /// Inserts or updates the device with this serial.
@@ -78,6 +94,7 @@ public final class RecordingLibrary: Sendable {
             item.state = deleteAfterSync ? .deletePending : .stored
             item.recordingId = recording.id
             item.lastError = nil
+            item.failedBuild = nil
             try item.update(db)
             return item
         }
@@ -225,8 +242,9 @@ public final class RecordingLibrary: Sendable {
     }
 }
 
-/// Failed sync items: `retryable` can be retried, `undecryptable` never are. `autoRetrying` is
-/// the part of `retryable` that still has automatic retries left; the rest wait for the user.
+/// Failed sync items: `retryable` can be retried, `undecryptable` only by another app build
+/// (#59). `autoRetrying` is the part of `retryable` that still has automatic retries left; the
+/// rest wait for the user.
 public struct FailureCounts: Equatable, Sendable {
     public var retryable: Int
     public var undecryptable: Int

@@ -234,6 +234,73 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    /// T-M1-22b (#59): an undecryptable file is downloaded again once per app build, never in the
+    /// build it failed in. Rows from before builds were recorded count as another build.
+    @Test func decryptFailureIsRetriedOnceByAnotherBuild() async throws {
+        var corrupt = encrypted
+        corrupt[corrupt.startIndex + 40] ^= 0xFF
+        let h = try await Harness(files: [.init(name: "bad.opus", content: corrupt)])  // no build: an old row
+        #expect(try h.items.first?.failedBuild == nil)
+        var options = testOptions
+
+        // The first launch of a build that records builds retries the old row once.
+        options.appBuild = "1"
+        try h.restart(options: options)
+        #expect(try h.items.first?.state == .discovered)
+        var before = h.downloads.count
+        await h.engine.syncNow()
+        #expect(h.downloads.count > before)
+        var item = try #require(try h.items.first)
+        #expect(item.state == .failed && item.lastError == "decryptFailed" && item.failedBuild == "1")
+
+        // Same build after a relaunch: not downloaded again.
+        try h.restart(options: options)
+        #expect(try h.items.first?.state == .failed)
+        before = h.downloads.count
+        await h.engine.syncNow()
+        #expect(h.downloads.count == before)
+        #expect(h.engine.failures == FailureCounts(retryable: 0, undecryptable: 1))
+
+        // A new build that still cannot decrypt it: one more download, then it stays put.
+        options.appBuild = "2"
+        try h.restart(options: options)
+        #expect(try h.items.first?.state == .discovered)
+        before = h.downloads.count
+        await h.engine.syncNow()
+        #expect(h.downloads.count > before)
+        item = try #require(try h.items.first)
+        #expect(item.state == .failed && item.failedBuild == "2")
+        before = h.downloads.count
+        await h.engine.syncNow()
+        #expect(h.downloads.count == before)
+        #expect(h.card.files.map(\.name) == ["bad.opus"])  // the card file is never touched
+        #expect(h.deletes.isEmpty)
+        h.checkNoForbiddenWrites()
+    }
+
+    /// #59: a build that fixed the cause stores the file; same name and size, so the same item.
+    @Test func decryptFailureIsStoredByAFixedBuild() async throws {
+        var corrupt = encrypted
+        corrupt[corrupt.startIndex + 40] ^= 0xFF
+        var options = testOptions
+        options.appBuild = "1"
+        let h = try await Harness(files: [.init(name: "bad.opus", content: corrupt)], options: options)
+        #expect(try h.items.first?.state == .failed)
+
+        // Stand-in for a decryption fix: the next download yields bytes this build can decrypt.
+        h.card.files = [.init(name: "bad.opus", content: encrypted)]
+        options.appBuild = "2"
+        try h.restart(options: options)
+        await h.engine.syncNow()
+        let item = try #require(try h.items.first)
+        #expect(item.state == .stored && item.lastError == nil && item.failedBuild == nil)
+        let recordings = try h.recordings
+        #expect(recordings.count == 1)
+        #expect(try Data(contentsOf: h.library.store.url(forAudioPath: recordings[0].audioPath)) == expectedOgg)
+        #expect(h.engine.failures == FailureCounts(retryable: 0, undecryptable: 0))
+        h.checkNoForbiddenWrites()
+    }
+
     /// T-M1-23: the app dies between writing the OGG and committing the transaction.
     @Test func crashBeforeCommitRedownloadsOnce() async throws {
         var frozen = false

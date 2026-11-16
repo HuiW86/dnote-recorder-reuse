@@ -24,7 +24,7 @@ public enum SyncCard: Equatable, Sendable {
 
     public enum Action: Equatable, Sendable {
         case retry
-        /// "导出诊断信息": undecryptable files are not retried, the user reports them (product-spec.md §7.1).
+        /// "导出诊断信息": this build does not retry undecryptable files, the user reports them (product-spec.md §7.1).
         case exportDiagnostics
     }
 
