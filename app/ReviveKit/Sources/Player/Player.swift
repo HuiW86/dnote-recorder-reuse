@@ -181,11 +181,12 @@ public enum RecordingExporter {
 
     /// An AAC `.m4a` copy for the share sheet (features.md E1b): other apps and older systems do
     /// not open OGG Opus. Decodes and encodes off the main actor; a long recording takes a while.
-    public static func exportM4A(for recording: Recording, library: RecordingLibrary) async throws -> URL {
+    /// `base` is where the export directory is made; the default is the one `cleanUp` empties.
+    public static func exportM4A(for recording: Recording, library: RecordingLibrary,
+                                 in base: URL? = nil) async throws -> URL {
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("export", isDirectory: true)
+        let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let pcm = dir.appendingPathComponent("decoded.caf")

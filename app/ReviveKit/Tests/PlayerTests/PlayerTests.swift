@@ -167,7 +167,11 @@ struct PlayerTests {
     /// E1b: the M4A copy opens with the system reader and is as long as the recording.
     @Test func exportsM4A() async throws {
         let f = try Fixture()
-        let url = try await RecordingExporter.exportM4A(for: f.recording, library: f.library)
+        // Its own directory: other tests call `cleanUp`, which empties the shared one while this
+        // test is suspended in the export.
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("m4a-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: base) }
+        let url = try await RecordingExporter.exportM4A(for: f.recording, library: f.library, in: base)
         #expect(url.lastPathComponent == "2026-11-01 09.00.m4a")
         let file = try AVAudioFile(forReading: url)
         let seconds = Double(file.length) / file.fileFormat.sampleRate
@@ -175,7 +179,6 @@ struct PlayerTests {
         // Only the m4a is left in the export directory.
         let siblings = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
         #expect(siblings == [url.lastPathComponent])
-        RecordingExporter.cleanUp()
     }
 
     @Test func exportM4AReportsMissingAudio() async throws {
