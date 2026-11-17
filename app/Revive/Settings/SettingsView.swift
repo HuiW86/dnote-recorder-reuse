@@ -17,6 +17,7 @@ struct SettingsView: View {
             } footer: {
                 Text("在这部手机上删除的录音会保留 7 天，期间可以恢复。")
             }
+            .surfaceRows()
             Section {
                 Toggle("同步完成时通知", isOn: notificationsBinding)
             } footer: {
@@ -24,11 +25,13 @@ struct SettingsView: View {
                      ? "系统没有允许闻笺发通知。请到系统「设置」→「通知」→「闻笺」里打开后再试。"
                      : "闻笺不在前台时，录音同步到手机后提醒你。通知只在这部手机上产生。")
             }
+            .surfaceRows()
             Section {
                 Toggle("本机转写（试验）", isOn: $preferences.onDeviceTranscriptEnabled)
             } footer: {
                 Text("打开后，录音详情里可以把录音转成文字。识别在这部手机上完成，不联网；第一次使用时系统会询问语音识别权限。准确度还没有充分验证。")
             }
+            .surfaceRows()
             Section {
                 NavigationLink("权限说明", value: Route.permissions)
                 DiagnosticShareLink(log: diagnostics)
@@ -37,10 +40,12 @@ struct SettingsView: View {
             } footer: {
                 Text("诊断信息记录连接和同步的过程，不含录音，序列号已脱敏。只在你分享时离开这部手机。")
             }
+            .surfaceRows()
             Section("关于") {
                 NavigationLink("关于", value: Route.about)
                 NavigationLink("隐私政策", value: Route.privacy)
             }
+            .surfaceRows()
         }
         .listStyle(.insetGrouped)
         .paperBackground()
@@ -73,20 +78,22 @@ struct AboutView: View {
         List {
             Section {
                 VStack(spacing: 6) {
-                    Text("闻笺").font(.title2.bold())
-                    Text("版本 \(Self.version)").foregroundStyle(.secondary)
+                    Text("闻笺").font(.title2.bold()).foregroundStyle(Theme.ink)
+                    Text("版本 \(Self.version)").foregroundStyle(Theme.inkMuted)
                     // The only place the brand may appear (CLAUDE.md rule 5).
-                    Text("适用于 D·NOTE 录音卡").foregroundStyle(.secondary)
+                    Text("适用于 D·NOTE 录音卡").foregroundStyle(Theme.inkMuted)
                 }
                 .font(.subheadline)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
+            .surfaceRows()
             Section("开源许可") {
                 NavigationLink("GRDB.swift") {
                     LicenseView(name: "GRDB.swift", text: Self.grdbLicense)
                 }
             }
+            .surfaceRows()
         }
         .listStyle(.insetGrouped)
         .paperBackground()
@@ -129,9 +136,11 @@ private struct LicenseView: View {
         ScrollView {
             Text(text)
                 .font(.footnote.monospaced())
+                .foregroundStyle(Theme.ink)
                 .textSelection(.enabled)
                 .padding()
         }
+        .background(Theme.paper)
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
     }

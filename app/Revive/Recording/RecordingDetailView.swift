@@ -14,7 +14,7 @@ struct RecordingDetailView: View {
             if let model {
                 RecordingDetailContent(model: model)
             } else {
-                ProgressView()
+                ProgressView().paperPage()
             }
         }
         .onAppear {
@@ -41,6 +41,7 @@ private struct RecordingDetailContent: View {
         Group {
             if model.recording == nil {
                 ContentUnavailableView("这条录音已删除", systemImage: "trash")
+                    .paperPage()
             } else if model.audioMissing {
                 ContentUnavailableView {
                     Label("找不到这条录音的音频文件", systemImage: "exclamationmark.triangle")
@@ -48,6 +49,7 @@ private struct RecordingDetailContent: View {
                     Button("删除这条记录", role: .destructive) { confirmingDelete = true }
                         .buttonStyle(.borderedProminent)
                 }
+                .paperPage()
             } else {
                 content
             }
@@ -223,12 +225,15 @@ private struct PlayerCard: View {
                         Text(Self.clock(duration.rounded(), hours: duration >= 3600))
                     }
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.inkMuted)
                 }
             }
             HStack(spacing: 40) {
                 Button { model.skip(by: -15) } label: {
                     Image(systemName: "gobackward.15").font(.title2)
+                        .foregroundStyle(Theme.ink)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("后退 15 秒")
                 Button { model.togglePlay() } label: {
@@ -238,6 +243,7 @@ private struct PlayerCard: View {
                         } else {
                             Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .font(.system(size: 48))
+                                .foregroundStyle(Theme.accent)
                         }
                     }
                     .frame(width: 56, height: 56)
@@ -245,6 +251,9 @@ private struct PlayerCard: View {
                 .accessibilityLabel(model.isPlaying ? "暂停" : "播放")
                 Button { model.skip(by: 15) } label: {
                     Image(systemName: "goforward.15").font(.title2)
+                        .foregroundStyle(Theme.ink)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("前进 15 秒")
             }
@@ -253,14 +262,14 @@ private struct PlayerCard: View {
             if model.isPreparing {
                 Text("正在准备播放")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.inkMuted)
                     .frame(maxWidth: .infinity)
             }
         }
         .padding(16)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
-        .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
+        .shadow(color: Theme.shadow, radius: 10, y: 4)
     }
 
     private static func clock(_ seconds: Double, hours: Bool) -> String {

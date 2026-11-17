@@ -14,6 +14,7 @@ struct ConnectGuideView: View {
                     .accessibilityHidden(true)
                 Text("把录音卡靠近手机，按住**录音键**，等**白灯闪烁**后松手")
                     .font(.title3)
+                    .foregroundStyle(Theme.ink)
                     .multilineTextAlignment(.center)
             }
             .padding(.vertical, 24)
@@ -36,22 +37,24 @@ private struct CardSketch: View {
 
     var body: some View {
         ZStack {
+            // A drawing of the physical card, so its corner follows the card, not Theme.Radius.
             RoundedRectangle(cornerRadius: 18)
-                .stroke(.primary, lineWidth: 2)
+                .stroke(Theme.ink, lineWidth: 2)
             VStack(spacing: 16) {
+                // The card's white indicator light, drawn in white on purpose.
                 Circle()
                     .fill(.white)
-                    .overlay(Circle().stroke(.secondary, lineWidth: 1))
+                    .overlay(Circle().stroke(Theme.inkMuted, lineWidth: 1))
                     .frame(width: 10, height: 10)
                     .shadow(color: .white, radius: lit ? 6 : 0)
                     .opacity(lit ? 1 : 0.25)
                 Circle()
-                    .stroke(.tint, lineWidth: 3)
+                    .stroke(Theme.accent, lineWidth: 3)
                     .frame(width: 44, height: 44)
-                    .overlay(Circle().fill(.tint.opacity(0.25)).padding(8))
+                    .overlay(Circle().fill(Theme.accentWash).padding(8))
                 Text("录音键")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.inkMuted)
             }
         }
         .onAppear {

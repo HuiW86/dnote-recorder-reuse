@@ -14,7 +14,7 @@ struct DeviceView: View {
             if let model {
                 DeviceContent(env: env, model: model)
             } else {
-                ProgressView()
+                ProgressView().paperPage()
             }
         }
         .navigationTitle(model?.device?.name ?? "")
@@ -40,17 +40,20 @@ private struct DeviceContent: View {
     var body: some View {
         List {
             if model.firmwareUnverified {
+                // Unverified firmware is a warning: system orange (design-spec.md §2.1, CLAUDE.md rule 7).
                 Label(FirmwareText.unverified, systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline)
                     .foregroundStyle(.orange)
+                    .surfaceRows()
             }
             general
             if model.isConnected {
                 settings
             } else {
                 Section {
-                    Text("连接后可修改设置").foregroundStyle(.secondary)
+                    Text("连接后可修改设置").foregroundStyle(Theme.inkMuted)
                 }
+                .surfaceRows()
             }
             actions
         }
@@ -96,11 +99,11 @@ private struct DeviceContent: View {
                 LabeledContent("名称") {
                     HStack(spacing: 4) {
                         Text(model.device?.name ?? "")
-                        Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
+                        Image(systemName: "chevron.right").font(.footnote).foregroundStyle(Theme.inkMuted)
                     }
                 }
             }
-            .foregroundStyle(.primary)
+            .foregroundStyle(Theme.ink)
             if let battery = model.battery {
                 LabeledContent("电量", value: "\(battery)%")
             }
@@ -110,6 +113,7 @@ private struct DeviceContent: View {
             LabeledContent("序列号", value: model.maskedSerial)
             LabeledContent("固件版本", value: model.firmware)
         }
+        .surfaceRows()
     }
 
     @ViewBuilder private var settings: some View {
@@ -120,18 +124,19 @@ private struct DeviceContent: View {
                     LevelPicker(title: "降噪等级", note: "等级越高，环境噪声压得越低，人声也可能变闷。",
                                 value: s.noiseLevel) { model.set(.noiseLevel($0)) }
                 } label: {
-                    row("降噪等级", .noiseLevel) { Text("\(s.noiseLevel)").foregroundStyle(.secondary) }
+                    row("降噪等级", .noiseLevel) { Text("\(s.noiseLevel)").foregroundStyle(Theme.inkMuted) }
                 }
                 .disabled(model.pending.contains(.noiseLevel))
                 NavigationLink {
                     LevelPicker(title: "麦克风增益", note: "增益越高，录音音量越大，也更容易录进杂音。",
                                 value: s.gain) { model.set(.gain($0)) }
                 } label: {
-                    row("麦克风增益", .gain) { Text("\(s.gain)").foregroundStyle(.secondary) }
+                    row("麦克风增益", .gain) { Text("\(s.gain)").foregroundStyle(Theme.inkMuted) }
                 }
                 .disabled(model.pending.contains(.gain))
                 toggle("声控录音（VAD）", .vad, s.vad) { .vad($0) }
             }
+            .surfaceRows()
             Section("其他") {
                 toggle("指示灯", .led, s.led) { .led($0) }
                 toggle("振动", .motor, s.motor) { .motor($0) }
@@ -149,14 +154,16 @@ private struct DeviceContent: View {
                 Toggle("同步后删除卡上录音", isOn: deleteAfterSyncBinding)
                 #endif
             }
+            .surfaceRows()
         } else if model.switchesFailed {
             Section {
                 HStack {
-                    Text("读取失败").foregroundStyle(.secondary)
+                    Text("读取失败").foregroundStyle(Theme.inkMuted)
                     Spacer()
                     Button("重试") { Task { await model.load(force: true) } }
                 }
             }
+            .surfaceRows()
         } else {
             Section {
                 HStack {
@@ -165,6 +172,7 @@ private struct DeviceContent: View {
                     Spacer()
                 }
             }
+            .surfaceRows()
         }
     }
 
@@ -178,6 +186,7 @@ private struct DeviceContent: View {
         } footer: {
             if let reason = model.unpairBlockedReason { Text(reason) }
         }
+        .surfaceRows()
     }
 
     // MARK: Rows
@@ -251,15 +260,16 @@ private struct LevelPicker: View {
                         dismiss()
                     } label: {
                         HStack {
-                            Text("\(level)").foregroundStyle(.primary)
+                            Text("\(level)").foregroundStyle(Theme.ink)
                             Spacer()
-                            if level == value { Image(systemName: "checkmark").foregroundStyle(.tint) }
+                            if level == value { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
                         }
                     }
                 }
             } footer: {
                 Text(note)
             }
+            .surfaceRows()
         }
         .listStyle(.insetGrouped)
         .paperBackground()

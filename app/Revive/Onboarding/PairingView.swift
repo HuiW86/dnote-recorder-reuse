@@ -17,6 +17,7 @@ struct PairingView: View {
             } else {
                 ContentUnavailableView(CardServiceError.bluetoothUnsupported.userText ?? "",
                                        systemImage: "exclamationmark.triangle")
+                    .paperPage()
             }
         }
         .navigationTitle("连接录音卡")
@@ -43,11 +44,12 @@ private struct PairingContent: View {
         Group {
             if let problem = model.bluetoothProblem {
                 BluetoothProblemView(problem: problem) { model.scan() }
+                    .paperPage()
             } else {
                 switch model.phase {
                 case .scanning: scanList
-                case .notFound: notFound
-                case .working, .failed: PairingStepsView(model: model)
+                case .notFound: notFound.paperPage()
+                case .working, .failed: PairingStepsView(model: model).paperPage()
                 case .done: done
                 }
             }
@@ -67,7 +69,7 @@ private struct PairingContent: View {
             Section {
                 ForEach(model.candidates) { card in
                     Button { model.select(card) } label: { CandidateRow(card: card) }
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Theme.ink)
                 }
             } header: {
                 HStack(spacing: 8) {
@@ -78,6 +80,7 @@ private struct PairingContent: View {
             } footer: {
                 Text("看不到你的卡？按住录音键，白灯闪烁后松手")
             }
+            .surfaceRows()
         }
         .listStyle(.insetGrouped)
         .paperBackground()
@@ -99,11 +102,11 @@ private struct PairingContent: View {
             VStack(spacing: 24) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Theme.ok)
                     .accessibilityHidden(true)
-                Text("配对完成").font(.title2.bold())
+                Text("配对完成").font(.title2.bold()).foregroundStyle(Theme.ink)
                 if let name = model.selected?.displayName {
-                    Text(name).foregroundStyle(.secondary)
+                    Text(name).foregroundStyle(Theme.inkMuted)
                 }
             }
             .multilineTextAlignment(.center)
@@ -130,25 +133,26 @@ private struct CandidateRow: View {
             if !stacked {
                 Image(systemName: "rectangle.portrait")
                     .font(.title2)
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(Theme.accent)
                     .accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(card.displayName).font(.body)
                 Text("电量 \(card.battery)% · 固件 \(card.firmware)")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.inkMuted)
             }
             if !stacked { Spacer() }
             if card.firmwareUnverified {
+                // Same warning colour as P07's firmware notice: system orange (design-spec.md §2.1).
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(.orange)
                     .accessibilityLabel(FirmwareText.unverified)
             }
             if !stacked {
                 Image(systemName: "chevron.right")
                     .font(.footnote)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.inkMuted)
                     .accessibilityHidden(true)
             }
         }
@@ -164,12 +168,13 @@ private struct PairingStepsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             if let name = model.selected?.displayName {
-                Text(name).font(.title3.bold())
+                Text(name).font(.title3.bold()).foregroundStyle(Theme.ink)
             }
             ForEach(PairingModel.Step.allCases, id: \.self) { step in
                 StepRow(title: Self.title(step), state: state(of: step))
             }
             if case .failed(_, let error) = model.phase {
+                // An error keeps the system red, not the brand red (design-spec.md §2.1).
                 Text(error.userText ?? "出了点问题，请重试")
                     .foregroundStyle(.red)
                 HStack {
@@ -214,14 +219,14 @@ private struct StepRow: View {
         HStack(spacing: 12) {
             Group {
                 switch state {
-                case .pending: Image(systemName: "circle").foregroundStyle(.tertiary)
+                case .pending: Image(systemName: "circle").foregroundStyle(Theme.inkMuted)
                 case .active: ProgressView()
-                case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok)
                 case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
                 }
             }
             .frame(width: 24)
-            Text(title).foregroundStyle(state == .pending ? .secondary : .primary)
+            Text(title).foregroundStyle(state == .pending ? Theme.inkMuted : Theme.ink)
         }
         .accessibilityElement(children: .combine)
         .accessibilityValue(Self.spoken(state))

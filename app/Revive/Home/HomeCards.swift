@@ -14,11 +14,18 @@ struct DeviceChip: View {
     let openSwitcher: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 0) {
             Button(action: openDevice) {
                 HStack(spacing: 6) {
-                    Image(systemName: "rectangle.portrait")
-                        .imageScale(.small)
+                    if device != nil {
+                        Circle()
+                            .fill(isConnected ? Theme.ok : Theme.inkMuted)
+                            .frame(width: 8, height: 8)
+                            .accessibilityHidden(true)
+                    } else {
+                        Image(systemName: "rectangle.portrait")
+                            .imageScale(.small)
+                    }
                     if let device {
                         Text(device.name).lineLimit(1)
                         trailing
@@ -26,6 +33,10 @@ struct DeviceChip: View {
                         Text("添加录音卡")
                     }
                 }
+                .foregroundStyle(Theme.ink)
+                // 44 pt tall to tap; the drawn chip below is shorter.
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
             .disabled(device == nil)
             .accessibilityElement(children: .combine)
@@ -33,8 +44,8 @@ struct DeviceChip: View {
             Button(action: openSwitcher) {
                 Image(systemName: "chevron.down")
                     .imageScale(.small)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 2)
+                    .foregroundStyle(Theme.inkMuted)
+                    .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("切换录音卡")
@@ -43,9 +54,21 @@ struct DeviceChip: View {
         .font(.subheadline.weight(.medium))
         // The toolbar offers too little width and the name collapses to nothing.
         .fixedSize()
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.quaternary, in: Capsule())
+        .padding(.leading, 12)
+        // design-spec.md §3 设备条: surface card with a hairline, inset so the tap area stays 44 pt.
+        .background {
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
+                .fill(Theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line, lineWidth: 1))
+                .padding(.vertical, 5)
+        }
+    }
+
+    private var isConnected: Bool {
+        switch status {
+        case .idle, .recording, .paused: true
+        default: false
+        }
     }
 
     @ViewBuilder private var trailing: some View {
@@ -55,10 +78,11 @@ struct DeviceChip: View {
         case .idle, .recording, .paused:
             if let battery {
                 Image(systemName: batterySymbol(battery))
-                    .foregroundStyle(battery <= 20 ? .red : .secondary)
+                    // Low battery keeps the system warning red (design-spec.md §2.1).
+                    .foregroundStyle(battery <= 20 ? Color.red : Theme.inkMuted)
             }
         default:
-            Text("未连接").foregroundStyle(.secondary)
+            Text("未连接").foregroundStyle(Theme.inkMuted)
         }
     }
 
@@ -93,7 +117,7 @@ struct RecordingStatusCard: View {
         HStack(spacing: 12) {
             Image(systemName: paused ? "pause.circle.fill" : "waveform")
                 .font(.title2)
-                .foregroundStyle(paused ? Color.secondary : Theme.record)
+                .foregroundStyle(paused ? Theme.inkMuted : Theme.record)
                 .symbolEffect(.variableColor.iterative, isActive: !paused && !reduceMotion)
             VStack(alignment: .leading, spacing: 2) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -111,13 +135,15 @@ struct RecordingStatusCard: View {
                 if let start = model.recordingStartedAt {
                     Text("开始于 \(RecordingText.time(start))")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.inkMuted)
                 }
             }
             Spacer()
         }
         .padding(12)
-        .background(Theme.record.opacity(paused ? 0.05 : 0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .foregroundStyle(Theme.ink)
+        .background(paused ? Theme.surface : Theme.accentWash, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
         .accessibilityElement(children: .combine)
     }
 }
@@ -175,14 +201,14 @@ struct SyncStatusCard: View {
                     Text(card.title).font(.subheadline.weight(.medium))
                     if case .done(let at) = card {
                         Text(RecordingText.dateTime(at))
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(Theme.inkMuted)
                     }
                 }
                 Spacer()
                 if case .syncing(_, _, let fraction) = card {
                     Text(fraction, format: .percent.precision(.fractionLength(0)))
                         .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.inkMuted)
                 }
                 switch card.action {
                 case .retry?:
@@ -199,7 +225,7 @@ struct SyncStatusCard: View {
                 ProgressView(value: fraction)
             }
             if let detail = card.detail {
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+                Text(detail).font(.caption).foregroundStyle(Theme.inkMuted)
             }
         }
         .padding(12)
@@ -215,10 +241,11 @@ struct SyncStatusCard: View {
         case .done:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok)
         case .waitingForRecording:
-            Image(systemName: "clock").foregroundStyle(.secondary)
+            Image(systemName: "clock").foregroundStyle(Theme.inkMuted)
         case .disconnected:
-            Image(systemName: "bolt.horizontal.circle").foregroundStyle(.secondary)
+            Image(systemName: "bolt.horizontal.circle").foregroundStyle(Theme.inkMuted)
         default:
+            // A sync problem is a warning: system orange, not the brand red (design-spec.md §2.1).
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         }
     }
@@ -253,7 +280,10 @@ struct RecordControlBar: View {
         .padding(.horizontal)
         .padding(.top, 10)
         .padding(.bottom, 6)
-        .background(.bar)
+        .background(Theme.surface)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Theme.line).frame(height: 1)
+        }
     }
 
     /// The round record button floating at the bottom right (design-spec.md §3), with the
@@ -276,9 +306,9 @@ struct RecordControlBar: View {
                 ZStack {
                     Circle().fill(enabled ? Theme.record : Theme.inkMuted.opacity(0.35))
                     if busy {
-                        ProgressView().tint(.white)
+                        ProgressView().tint(Theme.onDark)
                     } else {
-                        Circle().fill(.white).frame(width: 22, height: 22)
+                        Circle().fill(Theme.onDark).frame(width: 22, height: 22)
                     }
                 }
                 .frame(width: 64, height: 64)
@@ -300,7 +330,7 @@ struct RecordControlBar: View {
         }
     }
 
-    private func button(_ title: String, symbol: String, command: HomeModel.Command, tint: Color = .accentColor,
+    private func button(_ title: String, symbol: String, command: HomeModel.Command, tint: Color = Theme.accent,
                         enabled: Bool = true, action: @escaping () -> Void) -> some View {
         let running = model.pendingCommand == command
         return Button(action: action) {
@@ -328,15 +358,15 @@ struct ConsentSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("录音前请确认").font(.title2.bold())
+            Text("录音前请确认").font(.title2.bold()).foregroundStyle(Theme.ink)
             Text("请先征得对方同意再开始录音，并避免录制敏感信息。")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.inkMuted)
             Button {
                 agreed.toggle()
             } label: {
                 Label("我已征得对方同意", systemImage: agreed ? "checkmark.square.fill" : "square")
             }
-            .foregroundStyle(.primary)
+            .foregroundStyle(Theme.ink)
             .accessibilityAddTraits(agreed ? .isSelected : [])
             Spacer()
             Button(action: onStart) {
@@ -348,6 +378,8 @@ struct ConsentSheet: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(24)
+        .tint(Theme.accent)
+        .paperPage()
         .presentationDetents([.medium])
     }
 }
