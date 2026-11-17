@@ -96,6 +96,11 @@ private final class Harness {
         get throws { try library.recordings() }
     }
 
+    /// Read in a synchronous getter: in an async test the same call picks GRDB's async `read`.
+    var devices: [Device] {
+        get throws { try library.database.writer.read { try Device.fetchAll($0) } }
+    }
+
     var downloads: [CardRequest] { card.sentRequests.filter { $0.command == .fileData } }
     var deletes: [CardRequest] { card.sentRequests.filter { $0.command == .deleteFile } }
 
@@ -331,7 +336,7 @@ struct SyncEngineTests {
     /// only then deleted from the card, with "同步后删除" off.
     @Test func discardedFileIsStoredThenTrashedThenDeletedFromCard() async throws {
         let h = try await Harness()
-        let device = try #require(try h.library.database.writer.read { try Device.fetchOne($0) })
+        let device = try #require(try h.devices.first)
         h.card.files = [.init(name: "a.opus", content: plainOpus(frames: 10, seed: 0)),
                         .init(name: "b.opus", content: plainOpus(frames: 10, seed: 1))]
         try h.library.requestDiscard(deviceId: device.id, cardFileName: "a.opus")
@@ -359,7 +364,7 @@ struct SyncEngineTests {
     /// X10: "不要" for a file already stored, then "撤销" before and after the card delete.
     @Test func discardAfterStoreAndUndo() async throws {
         let h = try await Harness(files: [.init(name: "a.opus", content: plainOpus(frames: 10, seed: 0))])
-        let device = try #require(try h.library.database.writer.read { try Device.fetchOne($0) })
+        let device = try #require(try h.devices.first)
         #expect(try h.items.first?.state == .stored)
 
         // Undone before the next pass: nothing is sent to the card.
@@ -385,7 +390,7 @@ struct SyncEngineTests {
     /// X10 and rule 2: a discarded file whose phone copy is gone is not deleted from the card.
     @Test func discardNeverDeletesWithoutALocalCopy() async throws {
         let h = try await Harness(files: [.init(name: "a.opus", content: plainOpus(frames: 10, seed: 0))])
-        let device = try #require(try h.library.database.writer.read { try Device.fetchOne($0) })
+        let device = try #require(try h.devices.first)
         try h.library.requestDiscard(deviceId: device.id, cardFileName: "a.opus")
         try h.library.deleteRecording(id: try #require(try h.recordings.first).id)  // deleted for good
         await h.engine.syncNow()
