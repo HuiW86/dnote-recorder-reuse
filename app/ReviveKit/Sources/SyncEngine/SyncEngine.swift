@@ -25,6 +25,9 @@ public enum SyncStatus: Equatable, Sendable {
 @MainActor
 @Observable
 public final class SyncEngine {
+    public enum Trigger: String, Sendable {
+        case connection, recordingStopped, manual, retry, discard
+    }
     public struct Options: Sendable {
         /// Off by default (prd.md §4.5).
         public var deleteAfterSync: Bool
@@ -77,6 +80,10 @@ public final class SyncEngine {
     /// Runs after each pass saves the card's row (`lastSeenAt`, battery, space), so cached
     /// copies of the paired cards can be re-read (product-spec.md P08 "上次连接").
     @ObservationIgnored public var onDeviceSaved: (@MainActor (Device) -> Void)?
+    /// Redacted diagnostics: why a pass was requested, and whether it was queued behind one.
+    @ObservationIgnored public var onSyncRequested: (@MainActor (Trigger, Bool) -> Void)?
+    /// Counts only; filenames and recording contents are never included.
+    @ObservationIgnored public var onPassCompleted: (@MainActor (Int, Int, Int) -> Void)?
     public private(set) var status: SyncStatus = .idle
     /// Set while a pass downloads files; nil otherwise.
     public private(set) var progress: Progress?
@@ -131,12 +138,12 @@ public final class SyncEngine {
     public func handle(_ event: CardEvent) {
         switch event {
         case .stateChanged(.connected):
-            requestSync()
+            requestSync(.connection)
         case .recordingStopped:
             let delay = options.recordingStoppedDelay
             Task { [weak self] in
                 try? await Task.sleep(for: delay)
-                self?.requestSync()
+                self?.requestSync(.recordingStopped)
             }
         default:
             break
@@ -144,7 +151,12 @@ public final class SyncEngine {
     }
 
     /// Starts a pass, or queues one more if a pass is running. Also the pull-to-refresh entry.
-    public func requestSync() {
+    public func requestSync(_ trigger: Trigger = .manual) {
+        // A manual or event-triggered pass replaces the scheduled retry. Otherwise a timer
+        // based on an old file list can trigger another pass after the situation has changed.
+        retryTimer?.cancel()
+        retryTimer = nil
+        onSyncRequested?(trigger, pass != nil)
         guard pass == nil else {
             rerunRequested = true
             return
@@ -241,13 +253,15 @@ public final class SyncEngine {
 
             // With "同步后删除" off this only deletes files the user discarded (features.md X10).
             try await deletePending(device)
+            try checkSameCard()
             status = .idle
             lastCompletedAt = now()
+            onPassCompleted?(listed.count, queue.count, failures.autoRetrying)
             if relistAfterNotFound {
                 relistAfterNotFound = false
                 rerunRequested = true
             }
-            scheduleRetry(device)
+            scheduleRetry(device, listed: listed)
         } catch {
             let code = SyncFailure.code(error)
             log.error("sync pass stopped: \(code, privacy: .public)")
@@ -476,17 +490,18 @@ public final class SyncEngine {
 
     // MARK: - Retries
 
-    private func scheduleRetry(_ device: Device) {
+    private func scheduleRetry(_ device: Device, listed: Set<Key>) {
         guard retryTimer == nil,
               let items = try? library.syncItems(deviceId: device.id) else { return }
-        let retryable = items.filter(retriesLeft)
-        guard let attempts = retryable.map(\.attempts).min() else { return }
+        let retryable = items.filter { listed.contains(Key($0)) && retriesLeft($0) }
+        guard let attempts = retryable.map(\.attempts).min(), let card = passCard else { return }
         let delay = options.retryDelays[attempts - 1]
         retryTimer = Task { [weak self] in
-            try? await Task.sleep(for: delay)
-            guard let self else { return }
+            do { try await Task.sleep(for: delay) } catch { return }
+            guard !Task.isCancelled, let self else { return }
             self.retryTimer = nil
-            self.requestSync()
+            guard self.service.linkState == .connected, self.service.peripheralId == card else { return }
+            self.requestSync(.retry)
         }
     }
 
