@@ -431,7 +431,7 @@ public final class HomeModel {
             lastDiscarded = finished
             lastTrashed = nil
             toast = Toast("这条不会保留", action: "撤销")
-            session.syncEngine.requestSync()
+            session.syncEngine.requestSync(.discard)
         } catch {
             toast = Toast("操作失败，请重试")
         }
