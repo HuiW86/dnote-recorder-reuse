@@ -23,9 +23,10 @@ struct DeviceSwitcherSheet: View {
                         } label: {
                             DeviceSwitcherRow(row: row)
                         }
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Theme.ink)
                     }
                 }
+                .surfaceRows()
                 Section {
                     Button {
                         path.append(.connectGuide)
@@ -33,7 +34,10 @@ struct DeviceSwitcherSheet: View {
                         Label("添加录音卡", systemImage: "plus")
                     }
                 }
+                .surfaceRows()
             }
+            .listStyle(.insetGrouped)
+            .paperBackground()
             .navigationTitle("录音卡")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -66,6 +70,7 @@ struct DeviceSwitcherSheet: View {
                 Text(prompt.message)
             }
         }
+        .tint(Theme.accent)
         .presentationDetents([.medium, .large])
     }
 
@@ -87,12 +92,12 @@ private struct DeviceSwitcherRow: View {
                 Text(row.name)
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.inkMuted)
             }
             Spacer()
             if row.isCurrent {
                 Image(systemName: "checkmark")
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(Theme.accent)
                     .accessibilityLabel("当前录音卡")
             }
         }

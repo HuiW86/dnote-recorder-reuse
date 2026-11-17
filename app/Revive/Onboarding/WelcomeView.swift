@@ -30,6 +30,7 @@ struct WelcomeView: View {
                     Button("去设置") { openSettings() }
                         .buttonStyle(.borderedProminent)
                 }
+                .paperPage()
             } else {
                 intro
             }
@@ -47,15 +48,16 @@ struct WelcomeView: View {
             VStack(spacing: 24) {
                 Image(systemName: "rectangle.portrait.on.rectangle.portrait")
                     .font(.system(size: 64))
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(Theme.accent)
                     .accessibilityHidden(true)
                 VStack(spacing: 8) {
                     Text("让你的录音卡重新可用")
                         .font(.title2.bold())
+                        .foregroundStyle(Theme.ink)
                         .multilineTextAlignment(.center)
                     Text("不用登录、不用联网，录音只保存在这部手机上")
                         .font(.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.inkMuted)
                         .multilineTextAlignment(.center)
                 }
                 VStack(alignment: .leading, spacing: 16) {
@@ -67,7 +69,7 @@ struct WelcomeView: View {
                 .padding(.top, 8)
                 HStack(spacing: 4) {
                     Button("隐私政策") { path.append(.privacy) }
-                    Text("·").foregroundStyle(.secondary)
+                    Text("·").foregroundStyle(Theme.inkMuted)
                     Button("权限说明") { path.append(.permissions) }
                 }
                 .font(.footnote)
@@ -111,12 +113,12 @@ private struct PermissionRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: symbol)
-                .foregroundStyle(.tint)
+                .foregroundStyle(Theme.accent)
                 .frame(width: 24)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                Text(title).font(.headline).foregroundStyle(Theme.ink)
+                Text(detail).font(.subheadline).foregroundStyle(Theme.inkMuted)
             }
         }
         .accessibilityElement(children: .combine)

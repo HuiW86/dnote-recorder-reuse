@@ -13,6 +13,7 @@ struct TrashView: View {
                 TrashContent(model: model)
             } else {
                 ContentUnavailableView("无法读取录音", systemImage: "exclamationmark.triangle")
+                    .paperPage()
             }
         }
         .navigationTitle("最近删除")
@@ -35,8 +36,7 @@ private struct TrashContent: View {
             if model.recordings.isEmpty {
                 ContentUnavailableView("没有最近删除的录音", systemImage: "trash",
                                        description: Text("在这部手机上删除的录音会在这里保留 7 天"))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Theme.paper)
+                    .paperPage()
             } else {
                 list
             }
@@ -94,7 +94,7 @@ private struct TrashContent: View {
             } footer: {
                 Text("向右滑恢复，向左滑彻底删除。到期后自动删除。")
             }
-            .listRowBackground(Theme.surface)
+            .surfaceRows()
         }
         .listStyle(.insetGrouped)
         .paperBackground()
