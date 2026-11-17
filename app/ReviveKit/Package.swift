@@ -9,7 +9,7 @@ let package = Package(
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "ReviveKit", targets: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "AppModel",
+            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "Transcription", "AppModel",
         ]),
     ],
     dependencies: [
@@ -30,7 +30,11 @@ let package = Package(
         .target(name: "Player", dependencies: ["Library"]),
         // Screen state for the SwiftUI app (no views): one session over the device stack,
         // onboarding, pairing, home and recording detail (product-spec.md). Tested against the fake card.
-        .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player"]),
+        // On-device speech recognition of stored recordings (features.md X9). Offline: no
+        // networking, enforced by scripts/check-m1-rules.sh like the M1 modules.
+        .target(name: "Transcription", dependencies: ["Library", "Player"]),
+        .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player",
+                                                 "Transcription"]),
 
         // Fake card and evidence replay for integration tests (test-spec.md §2). Lives under
         // Tests/ and is not part of the product, so it never ships in the app.
@@ -46,6 +50,7 @@ let package = Package(
             "CardProtocol", "CardLink", "CardService", "CardTestSupport",
         ]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
+        .testTarget(name: "TranscriptionTests", dependencies: ["Library", "Transcription"]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "CardTestSupport",

@@ -1,6 +1,7 @@
 import AppModel
 import Player
 import SwiftUI
+import Transcription
 
 /// P06 recording detail: player, file info, export, delete (product-spec.md §4.2).
 struct RecordingDetailView: View {
@@ -18,7 +19,10 @@ struct RecordingDetailView: View {
         }
         .onAppear {
             if model == nil, let library = env.library, let player = env.player {
-                model = RecordingDetailModel(recordingId: recordingId, library: library, player: player)
+                // On-device transcription is behind a switch until its quality is measured (#67).
+                let transcriber = env.preferences.onDeviceTranscriptEnabled ? OnDeviceTranscriber(library: library) : nil
+                model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
+                                             transcriber: transcriber)
             }
         }
         .onDisappear { model?.leave() }
@@ -131,6 +135,9 @@ private struct RecordingDetailContent: View {
                 }
                 .listRowBackground(Color.clear)
             }
+            if model.canTranscribe || model.transcript != nil {
+                transcriptSection
+            }
             Section {
                 LabeledContent("时长", value: model.durationText)
                 if let source = model.sourceText {
@@ -148,6 +155,44 @@ private struct RecordingDetailContent: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
         }
+    }
+}
+
+extension RecordingDetailContent {
+    /// 文字稿 (features.md X9): made on this phone; tapping a line plays from there.
+    @ViewBuilder fileprivate var transcriptSection: some View {
+        Section {
+            if let transcript = model.transcript {
+                ForEach(Array(transcript.segments.enumerated()), id: \.offset) { _, segment in
+                    Button { model.play(from: segment) } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text(model.timeText(segment))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(Theme.inkMuted)
+                            Text(segment.text)
+                                .foregroundStyle(Theme.ink)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    .accessibilityHint("从这里播放")
+                }
+            }
+            if model.isTranscribing {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在这部手机上转成文字，长录音需要一些时间")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkMuted)
+                }
+            } else if model.canTranscribe {
+                Button(model.transcript == nil ? "转成文字" : "重新转写") { model.transcribe() }
+            }
+        } header: {
+            Text("文字稿")
+        } footer: {
+            Text("在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+        }
+        .listRowBackground(Color.clear)
     }
 }
 

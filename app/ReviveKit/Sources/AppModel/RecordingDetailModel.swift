@@ -3,6 +3,7 @@ import Library
 import Observation
 import os
 import Player
+import Transcription
 
 /// Recording detail: player, file info, export and delete (product-spec.md P06).
 @MainActor
@@ -20,6 +21,9 @@ public final class RecordingDetailModel {
     public private(set) var isExporting = false
     /// Points marked while recording, in playback order (features.md X7).
     public private(set) var marks: [RecordingMark] = []
+    /// The stored text of this recording, if it has been transcribed (features.md X9).
+    public private(set) var transcript: Transcript?
+    public private(set) var isTranscribing = false
     /// Set after a delete; the page closes.
     public private(set) var isDeleted = false
     public var toast: Toast?
@@ -27,12 +31,17 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private let deviceNames: [UUID: String]
     @ObservationIgnored private var playTask: Task<Void, Never>?
+    /// Nil when on-device transcription is switched off.
+    @ObservationIgnored private let transcriber: (any SpeechTranscribing)?
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "Detail")
 
-    public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer) {
+    public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
+                transcriber: (any SpeechTranscribing)? = nil) {
         self.recordingId = recordingId
         self.library = library
         self.player = player
+        self.transcriber = transcriber
+        transcript = try? library.transcript(recordingId: recordingId)
         recording = try? library.recording(id: recordingId)
         deviceNames = Dictionary(((try? library.pairedDevices()) ?? []).map { ($0.id, $0.name) },
                                  uniquingKeysWith: { a, _ in a })
@@ -97,9 +106,58 @@ public final class RecordingDetailModel {
         player.seek(to: time)
     }
 
+    // MARK: - Transcript (features.md X9)
+
+    /// "转成文字" is offered when transcription is switched on and nothing is running.
+    public var canTranscribe: Bool { transcriber != nil && recording != nil && !audioMissing }
+
+    /// Recognizes the recording on this phone and stores the text. Replaces an earlier transcript.
+    public func transcribe(language: String = "zh-CN") {
+        guard let transcriber, let recording, !isTranscribing else { return }
+        isTranscribing = true
+        Task {
+            defer { isTranscribing = false }
+            do {
+                let segments = try await transcriber.transcribe(recording, language: language)
+                let result = Transcript(recordingId: recording.id, engine: OnDeviceTranscriber.engineName,
+                                        language: language, segments: segments, createdAt: Date())
+                try library.saveTranscript(result)
+                transcript = result
+            } catch let error as TranscriptionError {
+                toast = Toast(Self.text(for: error))
+            } catch {
+                toast = Toast("转写失败，请重试")
+            }
+        }
+    }
+
+    private static func text(for error: TranscriptionError) -> String {
+        switch error {
+        case .permissionDenied: "没有语音识别权限，请到系统「设置」里为闻笺打开"
+        case .unsupportedLanguage: "这部手机不支持离线识别这种语言"
+        case .noSpeech: "没有识别到说话声"
+        case .audioMissing: "找不到这条录音的音频文件"
+        case .failed: "转写失败，请重试"
+        }
+    }
+
+    /// "00:18:06" for a transcript line.
+    public func timeText(_ segment: TranscriptSegment) -> String {
+        RecordingText.clock(seconds: segment.startMs / 1000)
+    }
+
+    /// Plays from a transcript line.
+    public func play(from segment: TranscriptSegment) {
+        play(fromMs: segment.startMs)
+    }
+
     /// Plays from a mark; loads the recording first when it is not the one in the player.
     public func play(from mark: RecordingMark) {
-        let target = Double(mark.offsetMs) / 1000
+        play(fromMs: mark.offsetMs)
+    }
+
+    private func play(fromMs offsetMs: Int) {
+        let target = Double(offsetMs) / 1000
         if isLoaded {
             player.seek(to: target)
             return

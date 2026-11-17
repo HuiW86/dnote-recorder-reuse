@@ -275,7 +275,21 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 - 卡上的删除仍由 SyncEngine 在 `deletePending` 上执行，执行前照旧检查手机上有没有这条录音（硬规则 2）。「同步后删除」关着时，只删有请求的文件。
 - 卡上确认删除后请求清除。撤销：删掉请求，录音从最近删除恢复，还没发出的卡上删除取消；已经从卡上删掉的不能恢复，手机上的那份保留。
 
-### 5.6 M1.5 对已有字段的使用
+### 5.6 `transcript`（M1.5，迁移 `v5`）
+
+录音的文字稿（`features.md` X9，M2 的 F1 沿用）。主键 `recording_id`，随录音删除。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `recording_id` | UUID PK FK | — |
+| `engine` | TEXT | 谁生成的；本机识别为 `on-device` |
+| `language` | TEXT | 如 `zh-CN` |
+| `segments` | TEXT（JSON） | 每句 `{startMs, text}` |
+| `created_at` | DATETIME | — |
+
+本机转写在 `Transcription` 模块里，用系统语音识别并强制离线（`requiresOnDeviceRecognition`），不联网，纳入 `scripts/check-m1-rules.sh` 的检查。设置里的开关默认关闭，质量由 #67 测量后再决定是否默认打开。
+
+### 5.7 M1.5 对已有字段的使用
 
 - `recording.trashed_at`（`v1` 已预留）：非空表示在「最近删除」里，行和音频都保留；满 7 天后在 App 启动时彻底删除（D1b）。首页列表只列 `trashed_at` 为空的。
 - `recording.title`：同步时写入 `yyyy-MM-dd HH:mm`；用户重命名后写入用户的标题（X6）。是否改过名按标题的形状判断，不另加字段。

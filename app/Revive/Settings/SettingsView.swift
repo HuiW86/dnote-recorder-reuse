@@ -25,6 +25,11 @@ struct SettingsView: View {
                      : "闻笺不在前台时，录音同步到手机后提醒你。通知只在这部手机上产生。")
             }
             Section {
+                Toggle("本机转写（试验）", isOn: $preferences.onDeviceTranscriptEnabled)
+            } footer: {
+                Text("打开后，录音详情里可以把录音转成文字。识别在这部手机上完成，不联网；第一次使用时系统会询问语音识别权限。准确度还没有充分验证。")
+            }
+            Section {
                 NavigationLink("权限说明", value: Route.permissions)
                 DiagnosticShareLink(log: diagnostics)
             } header: {

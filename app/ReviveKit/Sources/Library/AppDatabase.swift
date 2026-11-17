@@ -97,6 +97,17 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // Text of a recording (features.md X9, later F1). One per recording; removed with it.
+        migrator.registerMigration("v5") { db in
+            try db.create(table: "transcript") { t in
+                t.primaryKey("recording_id", .blob).references("recording", onDelete: .cascade)
+                t.column("engine", .text).notNull()
+                t.column("language", .text).notNull()
+                t.column("segments", .text).notNull()
+                t.column("created_at", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

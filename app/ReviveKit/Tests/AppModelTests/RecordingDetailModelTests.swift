@@ -6,6 +6,7 @@ import Library
 import Player
 import SyncEngine
 import Testing
+import Transcription
 
 // Recording detail (product-spec.md P06) on a synthetic recording.
 
@@ -70,6 +71,35 @@ struct RecordingDetailModelTests {
         #expect(FileManager.default.fileExists(atPath: f.library.store.url(forAudioPath: f.recording.audioPath).path))
     }
 
+    /// X9: the transcript is stored, survives a reload, and failures become a toast.
+    @Test func transcribesStoresAndReportsFailures() async throws {
+        let f = try await DetailFixture()
+        let off = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(!off.canTranscribe && off.transcript == nil)
+
+        let segments = [TranscriptSegment(startMs: 0, text: "那就下周三。"), TranscriptSegment(startMs: 1200, text: "好的")]
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         transcriber: FakeTranscriber(result: .success(segments)))
+        #expect(model.canTranscribe)
+        model.transcribe()
+        await waitUntil("transcribed") { model.transcript != nil && !model.isTranscribing }
+        #expect(model.transcript?.segments == segments)
+        #expect(model.timeText(segments[1]) == "00:00:01")
+        let reloaded = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(reloaded.transcript?.segments == segments)
+
+        let failing = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                           transcriber: FakeTranscriber(result: .failure(.unsupportedLanguage)))
+        failing.transcribe()
+        await waitUntil("toast") { failing.toast != nil }
+        #expect(failing.toast?.text == "这部手机不支持离线识别这种语言")
+        #expect(failing.transcript?.segments == segments)  // the earlier text stays
+
+        // Removed with the recording.
+        try f.library.deleteRecording(id: f.recording.id)
+        #expect(try f.library.transcript(recordingId: f.recording.id) == nil)
+    }
+
     @Test func missingAudioIsShownNotPlayed() async throws {
         let f = try await DetailFixture()
         try FileManager.default.removeItem(at: f.library.store.url(forAudioPath: f.recording.audioPath))
@@ -93,5 +123,13 @@ struct RecordingDetailModelTests {
         let url = try #require(model.exportFile())
         #expect(url.lastPathComponent == "2026-11-07 14.02.ogg")
         RecordingExporter.cleanUp()
+    }
+}
+
+private struct FakeTranscriber: SpeechTranscribing {
+    let result: Result<[TranscriptSegment], TranscriptionError>
+
+    func transcribe(_ recording: Recording, language: String) async throws -> [TranscriptSegment] {
+        try result.get()
     }
 }

@@ -11,6 +11,7 @@ public final class Preferences {
         static let currentDevice = "revive.currentDevice"
         static let recordingConsent = "revive.recordingConsent"
         static let syncNotifications = "revive.syncNotifications"
+        static let onDeviceTranscript = "revive.onDeviceTranscript"
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
     }
 
@@ -45,6 +46,18 @@ public final class Preferences {
         }
         set {
             withMutation(keyPath: \.syncNotificationsEnabled) { defaults.set(newValue, forKey: Key.syncNotifications) }
+        }
+    }
+
+    /// "本机转写（试验）" (features.md X9). Off by default until its quality on real recordings
+    /// has been measured (#67).
+    public var onDeviceTranscriptEnabled: Bool {
+        get {
+            access(keyPath: \.onDeviceTranscriptEnabled)
+            return defaults.bool(forKey: Key.onDeviceTranscript)
+        }
+        set {
+            withMutation(keyPath: \.onDeviceTranscriptEnabled) { defaults.set(newValue, forKey: Key.onDeviceTranscript) }
         }
     }
 

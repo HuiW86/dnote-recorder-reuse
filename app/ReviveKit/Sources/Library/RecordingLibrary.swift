@@ -249,6 +249,17 @@ public final class RecordingLibrary: Sendable {
                          arguments: [deviceId, cardFileName]) ?? 0 > 0
     }
 
+    // MARK: Transcripts (features.md X9)
+
+    /// Stores the transcript of a recording, replacing an earlier one.
+    public func saveTranscript(_ transcript: Transcript) throws {
+        try database.writer.write { db in try transcript.save(db) }
+    }
+
+    public func transcript(recordingId: UUID) throws -> Transcript? {
+        try database.writer.read { try Transcript.fetchOne($0, key: recordingId) }
+    }
+
     // MARK: Marks (features.md X7)
 
     /// Adds a mark at `offsetMs` of a card file. A second mark within 2 s of an existing one is
