@@ -271,6 +271,27 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    @Test func failedManualListDoesNotLoseScheduledRetry() async throws {
+        var options = testOptions
+        options.retryDelays = [.milliseconds(500), .milliseconds(500), .milliseconds(500)]
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options,
+                                  faults: [.chunkStatus(index: 1, status: 0x40)])
+        #expect(try h.items.first?.state == .failed)
+        let before = h.card.sentRequests.filter { $0.command == .listFiles }.count
+        h.card.faults = [.noResponse(.listFiles)]
+        let manual = Task { await h.engine.syncNow() }
+        await waitUntil("manual list was sent") {
+            h.card.sentRequests.filter { $0.command == .listFiles }.count > before
+        }
+        // The timed-out request has already been dropped; the scheduled retry can now succeed.
+        h.card.faults = []
+        await manual.value
+        try await waitUntil("scheduled retry stored recording") { try h.items.first?.state == .stored }
+        #expect(try h.recordings.count == 1)
+        #expect(h.deletes.isEmpty)
+        h.checkNoForbiddenWrites()
+    }
+
     @Test func syncDiagnosticsExposeReasonAndCounts() async throws {
         let h = try await Harness()
         var requests: [(SyncEngine.Trigger, Bool)] = []
