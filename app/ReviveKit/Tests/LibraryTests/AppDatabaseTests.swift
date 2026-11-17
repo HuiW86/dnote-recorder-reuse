@@ -39,6 +39,24 @@ struct AppDatabaseTests {
         #expect(try lib.retryFailures("decryptFailed", notFailedIn: "2") == 0)
     }
 
+    /// A library from before summaries (v5) gains the summary table and keeps its recordings.
+    @Test func v5LibraryUpgradesToV6() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v5")
+        let recordingId = UUID()
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO recording (id, source, started_at, duration_ms, audio_path, audio_sha256, title,
+                                       created_at, updated_at)
+                VALUES (?, 'import', ?, 1000, 'audio/x.ogg', 'x', 't', ?, ?)
+                """, arguments: [recordingId, Date(), Date(), Date()])
+        }
+        #expect(try queue.read { try $0.tableExists("summary") } == false)
+        let db = try AppDatabase(queue)
+        #expect(try db.writer.read { try $0.tableExists("summary") })
+        #expect(try db.writer.read { try Recording.fetchOne($0, key: recordingId) }?.id == recordingId)
+    }
+
     @Test func onDiskDatabaseIsCreatedInGivenDirectory() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -181,6 +199,44 @@ struct RecordingLibraryTests {
         let reset = try #require(try lib.renameRecording(id: id, to: "   "))
         #expect(reset.title == Recording.defaultTitle(for: r.startedAt) && !reset.hasCustomTitle)
         #expect(try lib.renameRecording(id: UUID(), to: "x") == nil)
+    }
+
+    /// G1: a summary round-trips its JSON columns, is replaced on save, keeps todo ticks, and
+    /// goes away with its recording.
+    @Test func summaryIsStoredAndFollowsTheRecording() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try lib.database.writer.read { try $0.tableExists("summary") })
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        _ = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
+        #expect(try lib.summary(recordingId: id) == nil)
+
+        let created = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = Summary(
+            recordingId: id, scene: "meeting", title: "周会排期", summary: "下周三上线。",
+            sections: [SummarySection(heading: "结论与决定", items: ["下周三上线", "老王负责测试"])],
+            todos: [SummaryTodo(text: "老王周二前测完"), SummaryTodo(text: "小李发通知", done: true)],
+            tags: ["排期", "上线"], people: ["老王", "小李"], model: "deepseek-chat", createdAt: created)
+        try lib.saveSummary(first)
+        #expect(try lib.summary(recordingId: id) == first)
+
+        let ticked = try #require(try lib.setTodoDone(recordingId: id, index: 0, done: true))
+        #expect(ticked.todos.map(\.done) == [true, true])
+        #expect(try lib.summary(recordingId: id)?.todos.map(\.done) == [true, true])
+        #expect(try lib.setTodoDone(recordingId: id, index: 5, done: true) == nil)
+        #expect(try lib.setTodoDone(recordingId: UUID(), index: 0, done: true) == nil)
+
+        var second = first
+        second.title = "重新生成"
+        second.todos = []
+        try lib.saveSummary(second)
+        #expect(try lib.summary(recordingId: id) == second)
+
+        try lib.deleteRecording(id: id)
+        #expect(try lib.summary(recordingId: id) == nil)
     }
 
     @Test func recoveryResetsDownloadsAndRemovesOrphans() throws {
