@@ -86,6 +86,17 @@ public final class AppDatabase: Sendable {
             try db.create(index: "recording_mark_file", on: "recording_mark", columns: ["device_id", "card_file_name"])
         }
 
+        // "不要这条" (features.md X10): the user does not want a card file. The request waits for
+        // the file to be stored, then the recording goes to 最近删除 and the card copy is deleted.
+        migrator.registerMigration("v4") { db in
+            try db.create(table: "discard_request") { t in
+                t.column("device_id", .blob).notNull().references("device", onDelete: .cascade)
+                t.column("card_file_name", .text).notNull()
+                t.column("created_at", .datetime).notNull()
+                t.primaryKey(["device_id", "card_file_name"])
+            }
+        }
+
         return migrator
     }
 

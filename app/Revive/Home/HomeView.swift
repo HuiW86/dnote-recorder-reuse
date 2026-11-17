@@ -146,6 +146,10 @@ private struct HomeContent: View {
                     .buttonStyle(.plain)
                     .accessibilityHint("打开录音页")
                 }
+                if let finished = model.justRecorded {
+                    KeepOrDiscardCard(finished: finished, keep: { model.keepJustRecorded() },
+                                      discard: { model.discardJustRecorded() })
+                }
                 if let card = model.syncCard, !(isDone(card) && doneCollapsed) {
                     SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
                 }

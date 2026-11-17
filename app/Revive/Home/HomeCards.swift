@@ -122,6 +122,45 @@ struct RecordingStatusCard: View {
     }
 }
 
+/// "留着 / 不要" for the recording that just ended (features.md X10). Not answering keeps it.
+struct KeepOrDiscardCard: View {
+    let finished: FinishedRecording
+    let keep: () -> Void
+    let discard: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let buttons = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 12))
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text("不要的话，同步到手机后会移到「最近删除」，并从录音卡上删除")
+                    .font(.caption)
+                    .foregroundStyle(Theme.inkMuted)
+            }
+            buttons {
+                Button(action: keep) {
+                    Text("留着").frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .buttonStyle(.borderedProminent)
+                Button(action: discard) {
+                    Text("不要").frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(12)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
+    }
+
+    private var title: String {
+        guard let ms = finished.recordedMs else { return "刚录完一条" }
+        return "刚录完一条 · \(RecordingText.clock(seconds: ms / 1000))"
+    }
+}
+
 /// Sync state (product-spec.md P05 SyncStatusCard).
 struct SyncStatusCard: View {
     let card: SyncCard

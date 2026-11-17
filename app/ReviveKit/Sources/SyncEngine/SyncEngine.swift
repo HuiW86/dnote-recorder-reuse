@@ -239,7 +239,8 @@ public final class SyncEngine {
             progress = nil
             failures = try failureCounts(device, listed: listed)
 
-            if passDeletesAfterSync { try await deletePending(device) }
+            // With "同步后删除" off this only deletes files the user discarded (features.md X10).
+            try await deletePending(device)
             status = .idle
             lastCompletedAt = now()
             if relistAfterNotFound {
@@ -428,14 +429,23 @@ public final class SyncEngine {
     private func markDeleted(_ item: inout SyncItem) {
         item.state = .deletedOnCard
         item.deletedOnCardAt = now()
-        do { try library.update(item) } catch { log.error("could not record card delete") }
+        do {
+            try library.update(item)
+            try library.finishDiscard(deviceId: item.deviceId, cardFileName: item.cardFileName)
+        } catch { log.error("could not record card delete") }
     }
 
     // MARK: - Delete after sync
 
     /// `0x91` for items already committed, then a second list to confirm (prd.md §4.1).
     private func deletePending(_ device: Device) async throws {
-        let pending = try library.syncItems(deviceId: device.id).filter { $0.state == .deletePending }
+        // An item is deleted from the card because "同步后删除" is on, or because the user asked
+        // not to keep this recording. Items left `deletePending` by a setting since turned off stay.
+        let pending = try library.syncItems(deviceId: device.id).filter { item in
+            guard item.state == .deletePending else { return false }
+            return try passDeletesAfterSync
+                || library.discardRequested(deviceId: device.id, cardFileName: item.cardFileName)
+        }
         guard !pending.isEmpty else { return }
         var sent: [SyncItem] = []
         for var item in pending {

@@ -96,6 +96,11 @@ private final class Harness {
         get throws { try library.recordings() }
     }
 
+    /// Read in a synchronous getter: in an async test the same call picks GRDB's async `read`.
+    var devices: [Device] {
+        get throws { try library.database.writer.read { try Device.fetchAll($0) } }
+    }
+
     var downloads: [CardRequest] { card.sentRequests.filter { $0.command == .fileData } }
     var deletes: [CardRequest] { card.sentRequests.filter { $0.command == .deleteFile } }
 
@@ -324,6 +329,73 @@ struct SyncEngineTests {
         #expect(try h.recordings.count == 1)
         #expect(h.files(in: "audio").count == 1)
         #expect(h.downloads.count == 2 && h.downloads.last == .download(name: "a.opus", offset: 0))
+        h.checkNoForbiddenWrites()
+    }
+
+    /// X10: "不要" asked before the file is synced. It is still stored first, then trashed, and
+    /// only then deleted from the card, with "同步后删除" off.
+    @Test func discardedFileIsStoredThenTrashedThenDeletedFromCard() async throws {
+        let h = try await Harness()
+        let device = try #require(try h.devices.first)
+        h.card.files = [.init(name: "a.opus", content: plainOpus(frames: 10, seed: 0)),
+                        .init(name: "b.opus", content: plainOpus(frames: 10, seed: 1))]
+        try h.library.requestDiscard(deviceId: device.id, cardFileName: "a.opus")
+        await h.engine.syncNow()
+
+        let recordings = try h.recordings
+        #expect(recordings.count == 2)
+        let discarded = try #require(recordings.first { $0.cardFileName == "a.opus" })
+        #expect(discarded.trashedAt != nil)
+        #expect(FileManager.default.fileExists(atPath: h.library.store.url(forAudioPath: discarded.audioPath).path))
+        #expect(recordings.first { $0.cardFileName == "b.opus" }?.trashedAt == nil)
+        // Only the discarded file left the card, and only after its download.
+        #expect(h.deletes == [.delete(name: "a.opus")])
+        #expect(h.card.files.map(\.name) == ["b.opus"])
+        let sent = h.card.sentRequests
+        let download = try #require(sent.firstIndex(of: .download(name: "a.opus", offset: 0)))
+        let delete = try #require(sent.firstIndex(of: .delete(name: "a.opus")))
+        #expect(download < delete)
+        #expect(try h.items.first { $0.cardFileName == "a.opus" }?.state == .deletedOnCard)
+        #expect(try h.items.first { $0.cardFileName == "b.opus" }?.state == .stored)
+        #expect(try !h.library.discardRequested(deviceId: device.id, cardFileName: "a.opus"))
+        h.checkNoForbiddenWrites()
+    }
+
+    /// X10: "不要" for a file already stored, then "撤销" before and after the card delete.
+    @Test func discardAfterStoreAndUndo() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: plainOpus(frames: 10, seed: 0))])
+        let device = try #require(try h.devices.first)
+        #expect(try h.items.first?.state == .stored)
+
+        // Undone before the next pass: nothing is sent to the card.
+        try h.library.requestDiscard(deviceId: device.id, cardFileName: "a.opus")
+        #expect(try h.recordings.first?.trashedAt != nil)
+        #expect(try h.items.first?.state == .deletePending)
+        #expect(try h.library.cancelDiscard(deviceId: device.id, cardFileName: "a.opus"))
+        #expect(try h.recordings.first?.trashedAt == nil)
+        #expect(try h.items.first?.state == .stored)
+        await h.engine.syncNow()
+        #expect(h.deletes.isEmpty && h.card.files.count == 1)
+
+        // Not undone: the next pass deletes the card copy; the phone copy waits in 最近删除.
+        try h.library.requestDiscard(deviceId: device.id, cardFileName: "a.opus")
+        await h.engine.syncNow()
+        #expect(h.deletes == [.delete(name: "a.opus")])
+        #expect(h.card.files.isEmpty)
+        #expect(try h.library.trashedRecordings().count == 1)
+        #expect(try !h.library.cancelDiscard(deviceId: device.id, cardFileName: "a.opus"))  // request is done
+        h.checkNoForbiddenWrites()
+    }
+
+    /// X10 and rule 2: a discarded file whose phone copy is gone is not deleted from the card.
+    @Test func discardNeverDeletesWithoutALocalCopy() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: plainOpus(frames: 10, seed: 0))])
+        let device = try #require(try h.devices.first)
+        try h.library.requestDiscard(deviceId: device.id, cardFileName: "a.opus")
+        try h.library.deleteRecording(id: try #require(try h.recordings.first).id)  // deleted for good
+        await h.engine.syncNow()
+        #expect(h.deletes.isEmpty)
+        #expect(h.card.files.count == 1)
         h.checkNoForbiddenWrites()
     }
 
