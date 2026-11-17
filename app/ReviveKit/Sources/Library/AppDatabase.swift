@@ -108,6 +108,23 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // Summary of a recording (features.md G1, G2a). One per recording; removed with it.
+        // The list columns hold JSON.
+        migrator.registerMigration("v6") { db in
+            try db.create(table: "summary") { t in
+                t.primaryKey("recording_id", .blob).references("recording", onDelete: .cascade)
+                t.column("scene", .text).notNull()
+                t.column("title", .text).notNull()
+                t.column("summary", .text).notNull()
+                t.column("sections", .text).notNull()
+                t.column("todos", .text).notNull()
+                t.column("tags", .text).notNull()
+                t.column("people", .text).notNull()
+                t.column("model", .text).notNull()
+                t.column("created_at", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

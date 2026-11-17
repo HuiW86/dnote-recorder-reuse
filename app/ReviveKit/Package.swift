@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "ReviveKit", targets: [
             "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "Transcription", "AppModel",
+            "Assistant",
         ]),
     ],
     dependencies: [
@@ -35,6 +36,9 @@ let package = Package(
         .target(name: "Transcription", dependencies: ["Library", "Player"]),
         .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player",
                                                  "Transcription"]),
+        // Summaries through a service the user configures (features.md X11, G1; ADR-009). The one
+        // module allowed to use the network: no device module may depend on it (CLAUDE.md rule 3).
+        .target(name: "Assistant", dependencies: ["Library"]),
 
         // Fake card and evidence replay for integration tests (test-spec.md §2). Lives under
         // Tests/ and is not part of the product, so it never ships in the app.
@@ -51,6 +55,7 @@ let package = Package(
         ]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
         .testTarget(name: "TranscriptionTests", dependencies: ["Library", "Transcription"]),
+        .testTarget(name: "AssistantTests", dependencies: ["Library", "Assistant"]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "CardTestSupport",

@@ -260,6 +260,30 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Transcript.fetchOne($0, key: recordingId) }
     }
 
+    // MARK: Summaries (features.md G1)
+
+    /// Stores the summary of a recording, replacing an earlier one.
+    public func saveSummary(_ summary: Summary) throws {
+        try database.writer.write { db in try summary.save(db) }
+    }
+
+    public func summary(recordingId: UUID) throws -> Summary? {
+        try database.writer.read { try Summary.fetchOne($0, key: recordingId) }
+    }
+
+    /// Ticks or unticks the todo at `index`. Returns the stored summary, nil when there is no
+    /// summary or no todo at that index.
+    @discardableResult
+    public func setTodoDone(recordingId: UUID, index: Int, done: Bool) throws -> Summary? {
+        try database.writer.write { db in
+            guard var stored = try Summary.fetchOne(db, key: recordingId),
+                  stored.todos.indices.contains(index) else { return nil }
+            stored.todos[index].done = done
+            try stored.update(db)
+            return stored
+        }
+    }
+
     // MARK: Marks (features.md X7)
 
     /// Adds a mark at `offsetMs` of a card file. A second mark within 2 s of an existing one is
