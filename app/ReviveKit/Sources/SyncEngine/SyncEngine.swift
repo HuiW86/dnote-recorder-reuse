@@ -152,10 +152,6 @@ public final class SyncEngine {
 
     /// Starts a pass, or queues one more if a pass is running. Also the pull-to-refresh entry.
     public func requestSync(_ trigger: Trigger = .manual) {
-        // A manual or event-triggered pass replaces the scheduled retry. Otherwise a timer
-        // based on an old file list can trigger another pass after the situation has changed.
-        retryTimer?.cancel()
-        retryTimer = nil
         onSyncRequested?(trigger, pass != nil)
         guard pass == nil else {
             rerunRequested = true
@@ -491,8 +487,11 @@ public final class SyncEngine {
     // MARK: - Retries
 
     private func scheduleRetry(_ device: Device, listed: Set<Key>) {
-        guard retryTimer == nil,
-              let items = try? library.syncItems(deviceId: device.id) else { return }
+        // Only a completed pass with a fresh list may replace the previous timer. A failed
+        // manual check must not cancel an otherwise valid automatic retry.
+        guard let items = try? library.syncItems(deviceId: device.id) else { return }
+        retryTimer?.cancel()
+        retryTimer = nil
         let retryable = items.filter { listed.contains(Key($0)) && retriesLeft($0) }
         guard let attempts = retryable.map(\.attempts).min(), let card = passCard else { return }
         let delay = options.retryDelays[attempts - 1]
