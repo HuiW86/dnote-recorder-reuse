@@ -28,6 +28,7 @@ struct HomeView: View {
                 } else {
                     ContentUnavailableView(CardServiceError.bluetoothUnsupported.userText ?? "",
                                            systemImage: "exclamationmark.triangle")
+                        .paperPage()
                 }
             }
             .navigationDestination(for: Route.self) { route in
@@ -192,7 +193,7 @@ private struct HomeContent: View {
                     } header: {
                         Text(day.title).textCase(nil)
                     }
-                    .listRowBackground(Theme.surface)
+                    .surfaceRows()
                 }
             }
         }
@@ -204,6 +205,7 @@ private struct HomeContent: View {
         HStack(spacing: 8) {
             Text("全部录音 (\(model.recordings.count))")
                 .font(.largeTitle.bold())
+                .foregroundStyle(Theme.ink)
             if let card = model.syncCard, isDone(card), doneCollapsed {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Theme.ok)
@@ -305,8 +307,13 @@ private struct BluetoothBanner: View {
 
     var body: some View {
         HStack {
-            Label(problem.userText ?? "", systemImage: "antenna.radiowaves.left.and.right.slash")
-                .font(.subheadline)
+            // A warning keeps the system orange, on the icon only (design-spec.md §2.1).
+            Label {
+                Text(problem.userText ?? "").foregroundStyle(Theme.ink)
+            } icon: {
+                Image(systemName: "antenna.radiowaves.left.and.right.slash").foregroundStyle(.orange)
+            }
+            .font(.subheadline)
             Spacer()
             if problem == .bluetoothUnauthorized {
                 Button("去设置") {
@@ -316,6 +323,7 @@ private struct BluetoothBanner: View {
             }
         }
         .padding(12)
-        .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
     }
 }

@@ -9,7 +9,7 @@ extension View {
         overlay(alignment: .top) {
             if let current = toast.wrappedValue {
                 HStack(spacing: 12) {
-                    Text(current.text)
+                    Text(current.text).foregroundStyle(Theme.ink)
                     if let action = current.action, let onAction {
                         Button(action) {
                             toast.wrappedValue = nil
@@ -21,7 +21,8 @@ extension View {
                     .font(.subheadline)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(.regularMaterial, in: Capsule())
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
                     .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .id(current.id)
