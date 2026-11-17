@@ -19,7 +19,7 @@ if [[ -n "$forbidden" ]]; then
   fail=1
 fi
 
-m1_modules=(CardProtocol CardLink CardService Library SyncEngine Player AppModel)
+m1_modules=(CardProtocol CardLink CardService Library SyncEngine Player Transcription AppModel)
 for m in "${m1_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue

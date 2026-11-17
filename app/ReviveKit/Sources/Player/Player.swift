@@ -181,6 +181,18 @@ public enum RecordingExporter {
 
     /// An AAC `.m4a` copy for the share sheet (features.md E1b): other apps and older systems do
     /// not open OGG Opus. Decodes and encodes off the main actor; a long recording takes a while.
+    /// The recording as a PCM file the system frameworks can read (the decoded copy the player
+    /// also uses), made if it is not there yet. For speech recognition (features.md X9).
+    public static func decodedPCM(for recording: Recording, library: RecordingLibrary) async throws -> URL {
+        let source = library.store.url(forAudioPath: recording.audioPath)
+        guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
+        let decoded = library.store.decodedURL(for: recording.id)
+        if !FileManager.default.fileExists(atPath: decoded.path) {
+            do { try OggOpusDecoder.decode(source, to: decoded) } catch { throw PlayerError.cannotOpen }
+        }
+        return decoded
+    }
+
     /// `base` is where the export directory is made; the default is the one `cleanUp` empties.
     public static func exportM4A(for recording: Recording, library: RecordingLibrary,
                                  in base: URL? = nil) async throws -> URL {

@@ -129,6 +129,39 @@ public struct RecordingMark: Codable, Equatable, Sendable, Identifiable, Fetchab
     }
 }
 
+/// One sentence of a transcript, with where it starts in the audio.
+public struct TranscriptSegment: Codable, Equatable, Sendable {
+    public var startMs: Int
+    public var text: String
+
+    public init(startMs: Int, text: String) {
+        self.startMs = startMs
+        self.text = text
+    }
+}
+
+/// The text of a recording (features.md X9). `segments` is stored as JSON.
+public struct Transcript: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public var recordingId: UUID
+    /// What produced it: "on-device" for the system recognizer on this phone.
+    public var engine: String
+    public var language: String
+    public var segments: [TranscriptSegment]
+    public var createdAt: Date
+
+    public init(recordingId: UUID, engine: String, language: String, segments: [TranscriptSegment], createdAt: Date) {
+        self.recordingId = recordingId
+        self.engine = engine
+        self.language = language
+        self.segments = segments
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "transcript"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+}
+
 /// States of prd.md §4.1.
 public enum SyncState: String, Codable, Sendable, CaseIterable {
     case discovered, downloading, stored, deletePending, deletedOnCard, failed
