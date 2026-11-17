@@ -19,3 +19,9 @@
 从 PR #80 的源码（head `a640d55500226766e9c3e00ffa9d184eba89835f`）生成 0.1.0 (4) 归档成功：改动的四个源码和测试文件均与该提交的 Git blob 一致。归档在 `/tmp/dnote-79-release/Revive.xcarchive`。尝试 `xcodebuild -exportArchive` 上传时，账号校验阶段发生 Apple 开发者服务 TLS 错误（NSURLError -1200），`EXPORT FAILED`；实际上传未开始。手机上已安装的仍是 0.1.0 (2)，因此未在修复版上进行真机验收。
 
 需在该构建上同时检查：空闲时不反复空检查，真实录音结束与重新连接仍触发同步；用新诊断日志确认本机实际触发来源，并检查真实下载次数。不得仅凭列表数量不变推断没有重复下载。
+
+### 上传续测
+
+2026-11-17（Mac 本地时间）Apple 服务恢复后，按 PR #80 head `b42e8dcf32ac355e63bda1d53a802678437cc6b3` 重新归档 0.1.0 (4)，四个改动源码/测试文件与该提交的 blob 核对一致；归档保存在 `~/.local/share/dnote-acceptance/issue79/Revive-4.xcarchive`。Xcode `-exportArchive` 显示 `Upload succeeded` 和 `EXPORT SUCCEEDED`；这仅证明上传成功，TestFlight 手机端仍显示构建 (2)，处理完成、测试组分发和更新安装尚未确认。升级前手机录音列表 34 条；录音卡当时未连接。PR 的 app-ci 对 head `b42e8dc` 已通过。
+
+随后 TestFlight 出现 0.1.0 (4)，执行更新；`devicectl device info apps` 验证 iPhone 16 上 `com.huiw86.revive` 为 0.1.0 (4)。升级后首页仍显示 34 条，已配对卡入口仍存在；打开一条 21 秒旧录音，原有两段文字稿仍在，播放进度从 0 推进至 3.261 秒（未独立听音）。手机系统设置显示蓝牙打开，但闻笺显示卡未连接，因此尚未完成连接、空闲检查、下载次数和录音结束同步的真机验收；数据完整性和配对可用性也不能仅由列表及入口证明。
