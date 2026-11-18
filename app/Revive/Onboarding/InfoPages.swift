@@ -36,8 +36,9 @@ private struct InfoPage: View {
         List {
             ForEach(sections, id: \.0) { heading, text in
                 Section(heading) {
-                    Text(text)
+                    Text(text).foregroundStyle(Theme.ink)
                 }
+                .surfaceRows()
             }
         }
         .listStyle(.insetGrouped)

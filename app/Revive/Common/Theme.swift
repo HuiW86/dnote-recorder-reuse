@@ -24,6 +24,10 @@ enum Theme {
     static let stage = Color(uiColor: UIColor(hex: 0x14110F))
     /// Connected, stored.
     static let ok = dynamic(light: 0x3F8F4F, dark: 0x6FBF7C)
+    /// White glyphs and text on `record` and on the `stage` page.
+    static let onDark = Color.white
+    /// The only two shadows (design-spec.md §2.2): the floating record button and the player bar.
+    static let shadow = Color.black.opacity(0.08)
 
     enum Radius {
         static let card: CGFloat = 10
@@ -49,5 +53,18 @@ extension View {
     /// The warm page background behind a `List` or `ScrollView`, replacing the system one.
     func paperBackground() -> some View {
         scrollContentBackground(.hidden).background(Theme.paper)
+    }
+
+    /// Puts list rows on the card surface instead of the system row colour, which does not match
+    /// `Theme.surface` in dark mode. Apply to each `Section` (or row) of a `.paperBackground()` list;
+    /// rows meant to float directly on the paper use `.listRowBackground(Color.clear)` instead.
+    func surfaceRows() -> some View {
+        listRowBackground(Theme.surface)
+    }
+
+    /// The paper background for a page that is not a list (empty states, spinners, step lists),
+    /// filling the screen whatever the content's size.
+    func paperPage() -> some View {
+        frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.paper)
     }
 }

@@ -3,9 +3,9 @@ name: app-ci
 on:
   push:
     branches: [main]
-    paths: ["app/**", "scripts/check-m1-rules.sh", ".github/workflows/app-ci.yml"]
+    paths: ["app/**", "scripts/check-m1-rules.sh", "scripts/check-theme.sh", ".github/workflows/app-ci.yml"]
   pull_request:
-    paths: ["app/**", "scripts/check-m1-rules.sh", ".github/workflows/app-ci.yml"]
+    paths: ["app/**", "scripts/check-m1-rules.sh", "scripts/check-theme.sh", ".github/workflows/app-ci.yml"]
 
 jobs:
   test:
@@ -17,6 +17,10 @@ jobs:
       # test-spec.md §3.5 gate 1: forbidden device commands, no networking in M1 modules.
       - name: M1 static rules
         run: scripts/check-m1-rules.sh
+
+      # design-spec.md §2: views take colours from Theme, not literals (#74).
+      - name: Theme colours
+        run: scripts/check-theme.sh
 
       - name: Toolchain
         run: xcodebuild -version && swift --version

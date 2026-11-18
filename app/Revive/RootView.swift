@@ -14,6 +14,7 @@ struct RootView: View {
                 } actions: {
                     ShareLink(item: error) { Text("导出诊断信息") }
                 }
+                .paperPage()
             } else if env.hasPairedDevice {
                 HomeView(env: env)
             } else {
