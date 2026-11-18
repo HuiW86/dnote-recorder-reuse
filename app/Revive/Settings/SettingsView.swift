@@ -59,6 +59,13 @@ struct SettingsView: View {
         .paperBackground()
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // Turned off in the system settings: say so, and the switch reads off (#85).
+            if await SyncNotifier.isDenied() {
+                notificationsRefused = true
+                preferences.syncNotificationsEnabled = false
+            }
+        }
     }
 }
 

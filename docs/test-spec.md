@@ -143,6 +143,16 @@
 | T-M15-13 | X9 不联网（静态） | `scripts/check-m1-rules.sh` 的不联网检查覆盖 `Transcription` 模块；CI 通过 |
 | T-M15-14 | 迁移 `v3`～`v5` | 新建数据库时所有迁移都已应用，外键开启 |
 | T-M15-15 | 界面颜色只来自 `Theme`（#74） | `scripts/check-theme.sh` 在 `app/Revive/` 下（`Common/Theme.swift` 和 `Debug/` 除外）找不到具体颜色值、被 `Theme` 取代的系统背景和填充、黑色阴影和彩色淡底；系统警告色 `.red`、`.orange` 允许；CI 通过 |
+| T-M15-16 | X7 首页标重点（#85） | 不在录音时标：Toast「现在还不能标重点」，计数 0；录音中连点两下只记 1 个；停止并入库后录音中计数归 0，列表行上这条的重点数为 1；没有禁发命令 |
+| T-M15-17 | X10 首页「不要」与撤销（#85） | 停止后出现「刚录完」，文件名是录音中的那个；「不要」后卡片消失，Toast「这条不会保留」带「撤销」；卡上文件在入库后被删，这条在最近删除里、不在列表里；撤销后 Toast「已保留」，这条回到列表 |
+| T-M15-18 | X10 不理就是留着（#85） | 出现后到时自动消失；入库后最近删除为空，卡上文件还在 |
+| T-M15-19 | X10 断开期间结束的录音（#85） | 录音中断开，期间卡上停止，重连后补出「刚录完」，文件名一致，没有时长，状态为空闲；重连后仍在录音的不补，等它停止时出现一次且有时长 |
+| T-M15-20 | X9 转写不随页面结束（#85） | 第一个页面开始转写，第二个页面打开时显示转写中、没有文字稿；两个页面再点都不开新的，识别器只被调用 1 次；完成后两个页面都显示同一份文字稿，库里也是它 |
+| T-M15-21 | X9 转写失败的提示与开关（#85） | 解码失败提示「这条录音的音频无法解码，转不了文字」；打开的页面提示后不再留着；没有页面时失败的，下一个打开的页面提示一次，再下一个不提示；本机转写开关切换后，已打开页面的「转成文字」立即跟着变 |
+| T-M15-22 | 详情页删除走首页（#85） | 首页删除失败时页面不关闭；成功后页面关闭，录音在最近删除里 |
+| T-M15-23 | 播放条倍速、导出文件名（#85） | 倍速依次为 1.25×、1.5×、2×、0.75×、1×；播放时播放器用当前倍速；导出 OGG 的文件名是显示的标题「11月7日 14.02.ogg」，改名后是「周会.ogg」 |
+| T-M15-24 | D1b 最近删除页、X8 通知内容（#85） | 最近删除按删除时间倒序；剩 6.5 天显示「还剩 6 天」，剩半天显示「今天到期」；没有卡上副本的算最后一份；恢复、彻底删除（音频文件也删）、清空的 Toast 和结果正确。通知只数这一轮新入库、来自卡、不在最近删除的录音；只有一条时带它的 id，多条时不带 |
+| T-M15-25 | 迁移 `v2`→最新（#85，`prd.md` §5.3） | `v2` 的库（卡、录音、`stored` 的 SyncItem）升级后所有迁移已应用，新表都在，原有行不变；新表能给旧录音记重点、存文字稿、「不要」再撤销 |
 
 实现：
 
@@ -163,16 +173,24 @@
 | T-M15-13 | `scripts/check-m1-rules.sh`（CI 第一步） |
 | T-M15-14 | `AppDatabaseTests` `inMemoryDatabaseOpensAndMigrates` |
 | T-M15-15 | `scripts/check-theme.sh` |
+| T-M15-16 | `HomeModelTests` `marksFollowTheRunningRecording` |
+| T-M15-17 | `HomeModelTests` `discardStoresThenTrashesAndDeletesFromCard` |
+| T-M15-18 | `HomeModelTests` `unansweredOfferKeepsTheRecording` |
+| T-M15-19 | `HomeModelTests` `recordingThatEndedWhileAwayIsOfferedOnReconnect`、`recordingStillGoingAfterReconnectIsOfferedWhenItStops` |
+| T-M15-20 | `RecordingDetailModelTests` `reopenedPageSeesTheRunningTranscription` |
+| T-M15-21 | `RecordingDetailModelTests` `failureOfALeftRunIsToldOnTheNextPage`、`transcriptionSwitchAppliesToAnOpenPage` |
+| T-M15-22 | `RecordingDetailModelTests` `deleteGoesThroughHome` |
+| T-M15-23 | `RecordingDetailModelTests` `speedStepsAndStays`、`exportsUnderTitle` |
+| T-M15-24 | `Tests/AppModelTests/TrashModelTests.swift` `listsCountsDownRestoresAndDeletesForGood`、`countsNewCardRecordingsAndOpensASingleOne` |
+| T-M15-25 | `AppDatabaseTests` `v2LibraryUpgradesToCurrent` |
 
 **没有自动用例覆盖的部分**（代码已合并，靠 §3.6.2 和界面走查）：
 
-- 首页的「留着 / 不要」：录音停止后出现、10 s 后当作留着、`HomeModel.discardJustRecorded` 和撤销（库和同步引擎这一层由 T-M15-06、07 覆盖，页面状态这一层没有）
-- `HomeModel.markNow`：录音中按卡的已录时间记标记、暂停和未报时间时的 Toast、P13 上的计数
-- 本地通知 `SyncNotifier`（在 App 目标里，不在 ReviveKit，测不到）
-- `TrashModel` 的剩余天数文字（「还剩 N 天」「今天到期」）、清空
-- 真实的系统语音识别 `OnDeviceTranscriber`（T-M15-10 用的是假识别器）
-- 从 `v2` 的旧库升级到 `v5` 的迁移（现有升级用例只到 `v2`）；真机上随 T-M1-56 一起验
-- 录音页 P13 的自动打开和关闭
+- 本地通知真正发出、点通知打开录音、开关跟随系统设置（`SyncNotifier`、`NotificationRouter` 在 App 目标里；通知内容由 T-M15-24 覆盖）
+- 真实的系统语音识别 `OnDeviceTranscriber`，包括解码失败时报 `unreadableAudio`（T-M15-10、20、21 用的是假识别器）
+- 暂停中标重点的 Toast（T-M15-16 只测了空闲时）
+- 旧库升级在真机上随 T-M1-56 一起验（自动用例见 T-M15-25）
+- 录音页 P13 的自动打开和关闭；倍速按钮、重点刻度、设备条文字、同步状态一行小字这些纯界面部分（T-M15-57 走查）
 
 #### 3.6.2 真机用例
 
@@ -185,7 +203,7 @@
 | T-M15-52 | 重点落在说话的那一刻（含暂停） | ① App 里开始录音；② 在第 10 s、第 60 s 各说一句「标记一」「标记二」并同时点「标重点」；③ 暂停 ≥ 20 s 再继续；④ 继续后约 30 s 说「标记三」并点「标重点」；⑤ 停止、同步，在 P06 逐个点重点播放；另做一遍用卡上按键开始录音 | 每个重点开始播放的位置与对应那句话的开头相差在 ±2 s 内（在电脑上看波形或听，记下每个的差值）；暂停之后的「标记三」同样在 ±2 s 内；两种开始方式都满足 |
 | T-M15-53 | 录音中报的文件名等于同步后的文件名（X7、X10 的前提） | ① App 里开始录音，记下录音中卡报的文件名（卡上按键开始时诊断日志有 `recording started <名>`；App 开始时取 `0x51` 回包，用 DEBUG 构建的协议日志看）；② 停止；③ `python dnote.py list` 和 App 同步后的 `card_file_name` 对照；④ 用卡上按键再做一遍；⑤ 录音中断开连接再重连，再做一遍（重连后的文件名来自 `0x56`） | 三种情况下，录音中拿到的文件名与卡上列表、同步后的记录逐字一致；不一致时 X7 的重点和 X10 的「不要」都会对不上，X7、X10 不能验收 |
 | T-M15-54 | 「不要」只在手机有这份之后删卡（硬规则 2） | ① 「同步后删除」保持关；② 录一条，停止后点「不要」；③ 同步完成前、完成后各跑一次 `python dnote.py list`；④ 在 P14 找到这条并播放；⑤ 另录一条，点「不要」后在 5 s 内点「撤销」，同步后再 `list`；⑥ 再录一条，点「不要」后立即把卡带离到断开，等 1 分钟再带回 | ③ 同步完成前卡上还有这个文件，完成后没有；协议日志里这个文件的 `0x70` 下载在 `0x91` 之前；④ 能完整播放；⑤ 卡上文件还在，列表里有这条；⑥ 断开期间卡上文件还在，重连同步后才删；全程没有其他文件被删 |
-| T-M15-55 | 后台同步后的通知 | ① P09 打开「同步完成时通知」并允许；② App 退到后台、锁屏，各按卡上按键录一条 ≥ 30 s 的再停止；③ 再做一遍但 App 在前台；④ 在系统设置里关掉闻笺的通知，再做一遍后台 | ② 后台、锁屏各 3 次，每次在同步完成后出现「录音已同步」/「1 条新录音已存入手机」，记下从停止到通知的时间；③ 前台时不出现通知；④ 不出现通知，App 不崩溃 |
+| T-M15-55 | 后台同步后的通知 | ① P09 打开「同步完成时通知」并允许；② App 退到后台、锁屏，各按卡上按键录一条 ≥ 30 s 的再停止；③ 再做一遍但 App 在前台；④ 点 ② 里的一条通知；⑤ 在系统设置里关掉闻笺的通知，再做一遍后台，然后回到 App 打开 P09 | ② 后台、锁屏各 3 次，每次在同步完成后出现「录音已同步」/「1 条新录音已存入手机」，记下从停止到通知的时间；③ 前台时不出现通知；④ 打开 App 并直接进入这条录音的 P06（#85）；⑤ 不出现通知，App 不崩溃，P09 的开关是关、说明是「系统没有允许……」（#85） |
 | T-M15-56 | 本机转写：5 分钟和 30 分钟真实录音，飞行模式 | ① 开飞行模式（蓝牙可开）；② P09 打开「本机转写（试验）」；③ 对一条约 5 分钟、一条 ≥ 30 分钟的多人中文录音点「转成文字」，计时；④ 转写期间锁屏一次再解锁 | 记录：每条耗时、是否完成、手机型号和 iOS 版本、识别出的字数。通过线：两条都完成（出现文字稿或明确的失败 Toast，不卡死、不崩溃），文字稿每句的时间点击后跳到的位置与那句话相差 ≤ 3 s（抽查 5 句）；全程抓包无网络请求。字错率不在本用例判定，交给 #67 |
 | T-M15-57 | 浅色、深色模式的界面走查 | 按 `product-spec.md` §9 的「M1.5 和改版第一步」逐项，在浅色、深色两种模式下各走一遍，对照 `design-spec.md` §2、§3 截图 | 每项都有截图；颜色与 `design-spec.md` §2.1 的变量一致；正文对比度 ≥ 4.5:1（用取色工具量 `ink`/`inkMuted` 与 `paper`/`surface`）；P13 在浅色模式下也是深色底；`product-spec.md` §7.5 第 7 条列的未实现部分不算失败，但要在截图里标出 |
 | T-M15-58 | Opus 帧头真机统计（#66） | 按 `evidence/v66-opus-toc/README.md`：用 `pull` 留下的 `.raw` 跑 `python dnote.py toc`，输出存为 `toc-v1.50.txt`；样本至少 3 个文件（1 分钟以内、30 分钟以上、按键发起各一条；至少一条有人说话、一条基本安静）；#8 的其他卡各取一条 | 每个文件都是 `matches 20 ms mono: yes` 才算通过；有 `NO` 时按该 README 的判据表分情况处理，结论写进 README。注意 `backend-design.md` §7.2 H2 记录实时流里见过 TOC `0x4b`，它的帧数码是 3，而现行检查（Swift `OpusTOC.isCardFormat` 和 Python `opus_frames_match_card_format`）只接受帧数码 0；文件里若也出现 `0x4b`，会被判为不符，按判据表第 2 行处理 |

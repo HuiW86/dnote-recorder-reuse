@@ -80,7 +80,7 @@ struct RecordingDetailModelTests {
 
         let segments = [TranscriptSegment(startMs: 0, text: "那就下周三。"), TranscriptSegment(startMs: 1200, text: "好的")]
         let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
-                                         transcriber: FakeTranscriber(result: .success(segments)))
+                                         transcriber: { FakeTranscriber(result: .success(segments)) })
         #expect(model.canTranscribe)
         model.transcribe()
         await waitUntil("transcribed") { model.transcript != nil && !model.isTranscribing }
@@ -90,7 +90,7 @@ struct RecordingDetailModelTests {
         #expect(reloaded.transcript?.segments == segments)
 
         let failing = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
-                                           transcriber: FakeTranscriber(result: .failure(.unsupportedLanguage)))
+                                           transcriber: { FakeTranscriber(result: .failure(.unsupportedLanguage)) })
         failing.transcribe()
         await waitUntil("toast") { failing.toast != nil }
         #expect(failing.toast?.text == "这部手机不支持离线识别这种语言")
@@ -152,8 +152,144 @@ struct RecordingDetailModelTests {
         let f = try await DetailFixture()
         let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
         let url = try #require(model.exportFile())
-        #expect(url.lastPathComponent == "2026-11-07 14.02.ogg")
+        // Named as the page shows it (#85), with the colon a file name cannot hold.
+        #expect(url.lastPathComponent == "11月7日 14.02.ogg")
+        model.rename(to: "周会")
+        #expect(try #require(model.exportFile()).lastPathComponent == "周会.ogg")
         RecordingExporter.cleanUp()
+    }
+
+    /// #85: leaving the page while text is being made and opening it again shows the run, and a
+    /// second tap starts nothing that could overwrite it.
+    @Test func reopenedPageSeesTheRunningTranscription() async throws {
+        let f = try await DetailFixture()
+        let jobs = TranscriptionJobs(library: f.library)
+        let slow = SlowTranscriber()
+        let first = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         transcriber: { slow }, transcriptions: jobs)
+        first.transcribe()
+        #expect(first.isTranscribing)
+        let second = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                          transcriber: { slow }, transcriptions: jobs)
+        #expect(second.isTranscribing)
+        #expect(second.transcript == nil)
+        second.transcribe()
+        first.transcribe()
+        await waitUntil("done") { second.transcript != nil && !second.isTranscribing }
+        #expect(slow.calls == 1)
+        #expect(second.transcript?.segments.map(\.text) == ["第一遍"])
+        #expect(first.transcript == second.transcript)
+        #expect(try f.library.transcript(recordingId: f.recording.id)?.segments.map(\.text) == ["第一遍"])
+    }
+
+    /// #85: a failure is told once, on the page open when it happens or on the next one; a file
+    /// that is there but does not decode is not reported as missing.
+    @Test func failureOfALeftRunIsToldOnTheNextPage() async throws {
+        let f = try await DetailFixture()
+        let jobs = TranscriptionJobs(library: f.library)
+        let failing = FakeTranscriber(result: .failure(.unreadableAudio))
+        let first = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         transcriber: { failing }, transcriptions: jobs)
+        first.transcribe()
+        await waitUntil("told") { first.toast != nil }
+        #expect(first.toast?.text == "这条录音的音频无法解码，转不了文字")
+        #expect(jobs.failures.isEmpty)
+
+        // No page open when this one fails.
+        let later = TranscriptionJobs(library: f.library)
+        later.start(f.recording, with: failing, language: "zh-CN")
+        await waitUntil("failed") { !later.isRunning(f.recording.id) }
+        let second = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                          transcriber: { failing }, transcriptions: later)
+        #expect(second.toast?.text == "这条录音的音频无法解码，转不了文字")
+        let third = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         transcriber: { failing }, transcriptions: later)
+        #expect(third.toast == nil)
+    }
+
+    /// #85: turning on-device transcription on or off in settings applies to an open page.
+    @Test func transcriptionSwitchAppliesToAnOpenPage() async throws {
+        let f = try await DetailFixture()
+        let preferences = Preferences(defaults: UserDefaults(suiteName: "detail-\(UUID().uuidString)")!)
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         transcriber: {
+                                             guard preferences.onDeviceTranscriptEnabled else { return nil }
+                                             return FakeTranscriber(result: .success([]))
+                                         })
+        #expect(!model.canTranscribe)
+        preferences.onDeviceTranscriptEnabled = true
+        #expect(model.canTranscribe)
+        preferences.onDeviceTranscriptEnabled = false
+        #expect(!model.canTranscribe)
+    }
+
+    /// #85: with home there, the page deletes through it (home then offers "撤销"); the page
+    /// closes only when the delete happened.
+    @Test func deleteGoesThroughHome() async throws {
+        let f = try await DetailFixture()
+        let home = DeleteSpy(library: f.library)
+        home.succeeds = false
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         onDelete: { home.delete($0) })
+        model.delete()
+        #expect(home.ids == [f.recording.id])
+        #expect(!model.isDeleted)
+        home.succeeds = true
+        model.delete()
+        #expect(model.isDeleted)
+        #expect(try f.library.recording(id: f.recording.id)?.trashedAt != nil)
+    }
+
+    /// design-spec.md §3 播放条: the speed button steps through the speeds and back to normal,
+    /// and the player keeps the speed for the next recording.
+    @Test func speedStepsAndStays() async throws {
+        let f = try await DetailFixture()
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(model.rateText == "1×")
+        var seen: [String] = []
+        for _ in RecordingDetailModel.rates {
+            model.nextRate()
+            seen.append(model.rateText)
+        }
+        #expect(seen == ["1.25×", "1.5×", "2×", "0.75×", "1×"])
+        model.nextRate()
+        model.togglePlay()
+        await waitUntil("playing") { model.isPlaying }
+        f.player.volume = 0
+        #expect(f.player.rate == 1.25)
+        f.player.stop()
+        #expect(model.markFractions.isEmpty)
+    }
+}
+
+/// Counts its runs; each takes a moment, so a second tap can come in meanwhile.
+private final class SlowTranscriber: SpeechTranscribing, @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var calls: Int { lock.withLock { count } }
+
+    func transcribe(_ recording: Recording, language: String) async throws -> [TranscriptSegment] {
+        lock.withLock { count += 1 }
+        try await Task.sleep(for: .milliseconds(300))
+        return [TranscriptSegment(startMs: 0, text: "第一遍")]
+    }
+}
+
+/// Home's delete as the page sees it.
+@MainActor
+private final class DeleteSpy {
+    let library: RecordingLibrary
+    var succeeds = true
+    var ids: [UUID] = []
+
+    init(library: RecordingLibrary) { self.library = library }
+
+    func delete(_ id: UUID) -> Bool {
+        ids.append(id)
+        guard succeeds else { return false }
+        try? library.trashRecording(id: id)
+        return true
     }
 }
 

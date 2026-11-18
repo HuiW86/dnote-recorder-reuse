@@ -550,4 +550,102 @@ struct HomeModelTests {
         h.card.advertise()
         await waitUntil("idle again") { model.status == .idle }
     }
+
+    // MARK: - Marks and keep or discard (features.md X7, X10; #85)
+
+    /// X7: a mark needs a running recording; a double tap adds one; the list row of the stored
+    /// recording counts it.
+    @Test func marksFollowTheRunningRecording() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        await h.session.syncEngine.idle()
+        model.markNow()
+        #expect(model.toast?.text == "现在还不能标重点")
+        #expect(model.markCount == 0)
+
+        h.preferences.recordingConsentGiven = true
+        model.startTapped()
+        await waitUntil("recording") { model.status == .recording && model.pendingCommand == nil }
+        let name = try #require(h.session.recordingName)
+        model.markNow()
+        model.markNow()  // within 2 s of the first: a double tap
+        #expect(model.markCount == 1)
+
+        model.stopRecording()
+        await waitUntil("stored") { model.recordings.contains { $0.cardFileName == name } }
+        #expect(model.markCount == 0)
+        let stored = try #require(model.recordings.first { $0.cardFileName == name })
+        #expect(model.markCount(for: stored) == 1)
+        h.checkNoForbiddenWrites()
+    }
+
+    /// X10 "不要": the recording is still stored first, then goes to 最近删除 and its card file is
+    /// deleted (CLAUDE.md rule 2). "撤销" afterwards brings the phone copy back.
+    @Test func discardStoresThenTrashesAndDeletesFromCard() async throws {
+        let (h, model) = try await recordingHome()
+        model.keepOfferDuration = .seconds(30)
+        let name = try #require(h.session.recordingName)
+        model.stopRecording()
+        await waitUntil("offered") { model.justRecorded != nil }
+        #expect(model.justRecorded?.cardFileName == name)
+
+        model.discardJustRecorded()
+        #expect(model.justRecorded == nil)
+        #expect(model.toast?.text == "这条不会保留" && model.toast?.action == "撤销")
+        await waitUntil("deleted from card") { !h.card.files.contains { $0.name == name } }
+        let trashed = try h.library.trashedRecordings()
+        #expect(trashed.contains { $0.cardFileName == name })
+        #expect(!model.recordings.contains { $0.cardFileName == name })
+
+        model.undoDelete()
+        #expect(model.toast?.text == "已保留")
+        await waitUntil("back in the list") { model.recordings.contains { $0.cardFileName == name } }
+        h.checkNoForbiddenWrites()
+    }
+
+    /// X10: not answering keeps the recording; nothing goes to 最近删除.
+    @Test func unansweredOfferKeepsTheRecording() async throws {
+        let (h, model) = try await recordingHome()
+        model.keepOfferDuration = .milliseconds(100)
+        let name = try #require(h.session.recordingName)
+        model.stopRecording()
+        await waitUntil("offered") { model.justRecorded != nil }
+        await waitUntil("closed") { model.justRecorded == nil }
+        await waitUntil("stored") { model.recordings.contains { $0.cardFileName == name } }
+        #expect(try h.library.trashedRecordings().isEmpty)
+        #expect(h.card.files.contains { $0.name == name })
+    }
+
+    /// #85: a recording that ended while the card was away is offered once the card is back,
+    /// without a length (the card did not say when it stopped).
+    @Test func recordingThatEndedWhileAwayIsOfferedOnReconnect() async throws {
+        let (h, model) = try await recordingHome()
+        model.keepOfferDuration = .seconds(30)
+        let name = try #require(h.session.recordingName)
+        h.card.dropLink()
+        await waitUntil("waiting") { model.status == .waiting }
+        #expect(model.justRecorded == nil)
+        h.card.stopWithPushesLost()
+        h.card.advertise()
+        await waitUntil("offered") { model.justRecorded != nil }
+        #expect(model.justRecorded?.cardFileName == name)
+        #expect(model.justRecorded?.recordedMs == nil)
+        #expect(model.status == .idle)
+    }
+
+    /// #85: still recording after the reconnect: nothing is offered until it stops, then once.
+    @Test func recordingStillGoingAfterReconnectIsOfferedWhenItStops() async throws {
+        let (h, model) = try await recordingHome()
+        model.keepOfferDuration = .seconds(30)
+        let name = try #require(h.session.recordingName)
+        h.card.dropLink()
+        await waitUntil("waiting") { model.status == .waiting }
+        h.card.advertise()
+        await waitUntil("recording again") { model.status == .recording && h.session.recordingName == name }
+        #expect(model.justRecorded == nil)
+        h.card.pressButtonToStop()
+        await waitUntil("offered") { model.justRecorded != nil }
+        #expect(model.justRecorded?.cardFileName == name)
+        #expect(model.justRecorded?.recordedMs != nil)
+    }
 }

@@ -7,6 +7,8 @@ import Transcription
 struct RecordingDetailView: View {
     let env: AppEnvironment
     let recordingId: UUID
+    /// Home's delete, so its "撤销" toast follows a delete made here (#85).
+    var onDelete: (@MainActor (UUID) -> Bool)?
     @State private var model: RecordingDetailModel?
 
     var body: some View {
@@ -19,10 +21,16 @@ struct RecordingDetailView: View {
         }
         .onAppear {
             if model == nil, let library = env.library, let player = env.player {
-                // On-device transcription is behind a switch until its quality is measured (#67).
-                let transcriber = env.preferences.onDeviceTranscriptEnabled ? OnDeviceTranscriber(library: library) : nil
-                model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
-                                             transcriber: transcriber, assistant: env.assistantConfig)
+                // On-device transcription is behind a switch until its quality is measured (#67);
+                // read each time, so turning it on or off applies to this page too.
+                let preferences = env.preferences
+                model = RecordingDetailModel(
+                    recordingId: recordingId, library: library, player: player,
+                    transcriber: {
+                        guard preferences.onDeviceTranscriptEnabled else { return nil }
+                        return OnDeviceTranscriber(library: library)
+                    },
+                    transcriptions: env.transcriptions, assistant: env.assistantConfig, onDelete: onDelete)
             }
         }
         .onDisappear { model?.leave() }
@@ -267,6 +275,9 @@ private struct PlayerCard: View {
                         }
                     }
                     .accessibilityLabel("播放进度")
+                    if !model.markFractions.isEmpty {
+                        MarkTicks(fractions: model.markFractions)
+                    }
                     HStack {
                         Text(Self.clock(position, hours: duration >= 3600))
                         Spacer()
@@ -309,6 +320,18 @@ private struct PlayerCard: View {
             }
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
+            .overlay(alignment: .trailing) {
+                Button { model.nextRate() } label: {
+                    Text(model.rateText)
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Theme.ink)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("倍速")
+                .accessibilityValue(model.rateText)
+            }
             if model.isPreparing {
                 Text("正在准备播放")
                     .font(.caption)
@@ -325,5 +348,26 @@ private struct PlayerCard: View {
     private static func clock(_ seconds: Double, hours: Bool) -> String {
         let s = max(0, Int(seconds))
         return hours ? RecordingText.clock(seconds: s) : String(format: "%02d:%02d", s / 60, s % 60)
+    }
+}
+
+/// 重点 under the scrubber, one tick per mark (design-spec.md §3 播放条). Inset by the slider
+/// thumb's radius so a tick lines up with the thumb at that point.
+private struct MarkTicks: View {
+    let fractions: [Double]
+    private let inset: CGFloat = 14
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = max(0, geometry.size.width - inset * 2)
+            ForEach(Array(fractions.enumerated()), id: \.offset) { _, fraction in
+                Capsule()
+                    .fill(Theme.accent)
+                    .frame(width: 3, height: 6)
+                    .position(x: inset + width * fraction, y: 3)
+            }
+        }
+        .frame(height: 6)
+        .accessibilityHidden(true)
     }
 }

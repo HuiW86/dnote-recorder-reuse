@@ -9,6 +9,8 @@ public enum TranscriptionError: Error, Equatable, Sendable {
     /// The recognizer heard no speech.
     case noSpeech
     case audioMissing
+    /// The audio file is there but could not be decoded for the recognizer.
+    case unreadableAudio
     case failed(String)
 }
 

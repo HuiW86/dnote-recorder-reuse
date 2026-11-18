@@ -306,6 +306,12 @@ public final class HomeModel {
         return ((try? session.library.marks(deviceId: device.id, cardFileName: name)) ?? []).count
     }
 
+    /// Marks of a stored recording, for the number on its list row (design-spec.md §3).
+    public func markCount(for recording: Recording) -> Int {
+        _ = markTick
+        return ((try? session.library.marks(for: recording)) ?? []).count
+    }
+
     /// "标重点": remembers the current position of the running recording. The position is the
     /// card's own recorded time, so pauses do not shift it; nothing is sent to the card.
     public func markNow(at date: Date = Date()) {
@@ -378,16 +384,20 @@ public final class HomeModel {
     // MARK: - Recordings
 
     /// Moves the local recording to 最近删除, where it stays 7 days (features.md D1b); nothing is
-    /// sent to the card (product-spec.md §3.3).
-    public func delete(_ id: UUID) {
+    /// sent to the card (product-spec.md §3.3). P06 deletes through here too, so the "撤销"
+    /// toast is the same from the list and from the page (#85). Returns whether it was moved.
+    @discardableResult
+    public func delete(_ id: UUID) -> Bool {
         if player?.recordingId == id { player?.stop() }
         do {
             try session.library.trashRecording(id: id)
             lastTrashed = id
             lastDiscarded = nil
             toast = Toast("已移到最近删除", action: "撤销")
+            return true
         } catch {
             toast = Toast("删除失败，请重试")
+            return false
         }
     }
 

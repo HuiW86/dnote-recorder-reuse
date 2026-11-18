@@ -35,6 +35,10 @@ final class AppEnvironment {
     private(set) var hasPairedDevice: Bool
     /// One player for the whole app, so leaving a page does not cut playback off.
     let player: RecordingPlayer?
+    /// Taps on the sync notification (#85); the notification center's delegate.
+    let notifications = NotificationRouter()
+    /// On-device transcriptions, kept past the detail page that started them (#85).
+    let transcriptions: TranscriptionJobs?
     /// Exported from P09; written by the card session (product-spec.md §8).
     let diagnostics = DiagnosticLog(
         fileURL: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -67,6 +71,7 @@ final class AppEnvironment {
             diagnostics.add("app", "purged \(purged) recording(s) from trash")
         }
         player = library.map { RecordingPlayer(library: $0) }
+        transcriptions = library.map { TranscriptionJobs(library: $0) }
         RecordingExporter.cleanUp()
     }
 

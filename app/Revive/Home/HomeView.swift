@@ -35,7 +35,8 @@ struct HomeView: View {
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
-                case .recording(let id): RecordingDetailView(env: env, recordingId: id)
+                case .recording(let id):
+                    RecordingDetailView(env: env, recordingId: id, onDelete: deleteFromDetail)
                 case .device(let id): DeviceView(env: env, deviceId: id)
                 case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
                 case .trash: TrashView(env: env)
@@ -48,12 +49,24 @@ struct HomeView: View {
                 }
             }
         }
+        // A tapped sync notification about one recording opens it (#85).
+        .onChange(of: env.notifications.recordingToOpen, initial: true) { _, id in
+            guard let id else { return }
+            env.notifications.recordingToOpen = nil
+            path = [.recording(id)]
+        }
         .onAppear {
             if model == nil, let session = env.startBluetooth() {
                 model = HomeModel(session: session, preferences: env.preferences, player: env.player)
             }
             model?.start()
         }
+    }
+
+    /// P06 deletes through home, so the list's "撤销" toast follows (#85).
+    private var deleteFromDetail: (@MainActor (UUID) -> Bool)? {
+        guard let model else { return nil }
+        return { model.delete($0) }
     }
 }
 
@@ -185,7 +198,8 @@ private struct HomeContent: View {
                     Section {
                         ForEach(day.recordings, id: \.id) { recording in
                             NavigationLink(value: Route.recording(recording.id)) {
-                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording),
+                                             markCount: model.markCount(for: recording))
                             }
                             .swipeActions {
                                 // No destructive role: it animates the row away before the user confirms.
@@ -272,6 +286,8 @@ private struct DayGroup: Identifiable {
 private struct RecordingRow: View {
     let recording: Recording
     let deviceName: String?
+    /// 重点 set while recording; shown on the right when there are any (design-spec.md §3).
+    let markCount: Int
 
     var body: some View {
         HStack(spacing: 12) {
@@ -290,6 +306,13 @@ private struct RecordingRow: View {
                     .foregroundStyle(Theme.inkMuted)
                     .monospacedDigit()
             }
+            Spacer(minLength: 8)
+            if markCount > 0 {
+                Label("\(markCount)", systemImage: "bookmark.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption.weight(.medium).monospacedDigit())
+                    .foregroundStyle(Theme.accent)
+            }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
@@ -300,6 +323,7 @@ private struct RecordingRow: View {
     private var accessibilityText: String {
         var parts = [RecordingText.title(recording), RecordingText.duration(ms: recording.durationMs)]
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
+        if markCount > 0 { parts.append("\(markCount) 处重点") }
         return parts.joined(separator: "，")
     }
 }

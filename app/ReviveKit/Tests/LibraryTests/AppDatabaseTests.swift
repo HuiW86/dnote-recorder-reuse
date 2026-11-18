@@ -57,6 +57,53 @@ struct AppDatabaseTests {
         #expect(try db.writer.read { try Recording.fetchOne($0, key: recordingId) }?.id == recordingId)
     }
 
+    /// prd.md §5.3, #85: a library as the last M1 build left it (v2) goes all the way to the
+    /// current schema in one launch, keeps its rows, and the M1.5 tables work on them.
+    @Test func v2LibraryUpgradesToCurrent() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v2")
+        let deviceId = UUID(), recordingId = UUID(), now = Date(timeIntervalSince1970: 1_800_000_000)
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO device (id, sn, name, firmware, paired_at) VALUES (?, 'S', 'card', '1.50', ?)",
+                           arguments: [deviceId, now])
+            try db.execute(sql: """
+                INSERT INTO recording (id, device_id, source, card_file_name, card_file_size, started_at, duration_ms,
+                                       audio_path, audio_sha256, title, created_at, updated_at)
+                VALUES (?, ?, 'card', '20261101090000.opus', 10, ?, 60000, 'audio/x.ogg', 'x', '2026-11-01 09:00', ?, ?)
+                """, arguments: [recordingId, deviceId, now, now, now])
+            try db.execute(sql: """
+                INSERT INTO sync_item (device_id, card_file_name, card_file_size, state, attempts, recording_id, failed_build)
+                VALUES (?, '20261101090000.opus', 10, 'stored', 1, ?, NULL)
+                """, arguments: [deviceId, recordingId])
+        }
+        let db = try AppDatabase(queue)
+        let applied = try db.writer.read { try AppDatabase.migrator.appliedIdentifiers($0) }
+        #expect(applied == Set(AppDatabase.migrator.migrations))
+        for table in ["recording_mark", "discard_request", "transcript", "summary"] {
+            #expect(try db.writer.read { try $0.tableExists(table) }, "\(table)")
+        }
+
+        let lib = RecordingLibrary(database: db, store: try AudioStore(
+            root: FileManager.default.temporaryDirectory.appendingPathComponent("lib-\(UUID().uuidString)")))
+        defer { try? FileManager.default.removeItem(at: lib.store.root) }
+        let recording = try #require(try lib.recording(id: recordingId))
+        #expect(recording.title == "2026-11-01 09:00" && recording.trashedAt == nil)
+        #expect(try lib.syncItems(deviceId: deviceId).first?.state == .stored)
+        #expect(try lib.pairedDevices().map(\.id) == [deviceId])
+
+        // The new tables take rows for the old recording.
+        #expect(try lib.addMark(deviceId: deviceId, cardFileName: "20261101090000.opus", offsetMs: 5000))
+        #expect(try lib.marks(for: recording).count == 1)
+        try lib.saveTranscript(Transcript(recordingId: recordingId, engine: "test", language: "zh-CN",
+                                          segments: [TranscriptSegment(startMs: 0, text: "好")], createdAt: now))
+        #expect(try lib.transcript(recordingId: recordingId) != nil)
+        #expect(try lib.cardCopyRemains(recordingId: recordingId))
+        try lib.requestDiscard(deviceId: deviceId, cardFileName: "20261101090000.opus", now: now)
+        #expect(try lib.recording(id: recordingId)?.trashedAt != nil)
+        #expect(try lib.cancelDiscard(deviceId: deviceId, cardFileName: "20261101090000.opus", now: now))
+        #expect(try lib.recording(id: recordingId)?.trashedAt == nil)
+    }
+
     @Test func onDiskDatabaseIsCreatedInGivenDirectory() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }

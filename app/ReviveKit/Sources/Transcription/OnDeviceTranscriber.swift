@@ -27,8 +27,11 @@ public final class OnDeviceTranscriber: SpeechTranscribing {
         let audio: URL
         do {
             audio = try await RecordingExporter.decodedPCM(for: recording, library: library)
-        } catch {
+        } catch PlayerError.audioMissing {
             throw TranscriptionError.audioMissing
+        } catch {
+            // A file that is there but does not decode is not "missing" (#85).
+            throw TranscriptionError.unreadableAudio
         }
 
         let request = SFSpeechURLRecognitionRequest(url: audio)

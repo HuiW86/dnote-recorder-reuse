@@ -3,6 +3,7 @@
 
 import SwiftUI
 import UIKit
+import UserNotifications
 
 @main
 struct ReviveApp: App {
@@ -23,6 +24,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         let centrals = options?[.bluetoothCentrals] as? [String] ?? []
         MainActor.assumeIsolated {
+            // Before launch ends, so a tap that launched the app is delivered (#85).
+            UNUserNotificationCenter.current().delegate = env.notifications
             #if DEBUG
             env.debugLog.add("launch: bluetoothCentrals=\(centrals) state=\(application.applicationState.rawValue)")
             #endif

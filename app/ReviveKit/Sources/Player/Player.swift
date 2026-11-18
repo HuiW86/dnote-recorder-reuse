@@ -29,6 +29,10 @@ public final class RecordingPlayer: NSObject {
     public private(set) var duration: TimeInterval = 0
     /// Read on demand (e.g. from a TimelineView); not observed.
     public var currentTime: TimeInterval { player?.currentTime ?? 0 }
+    /// Playback speed (design-spec.md §3 播放条), kept from one recording to the next.
+    public var rate: Float = 1 {
+        didSet { player?.rate = rate }
+    }
 
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private var player: AVAudioPlayer?
@@ -112,6 +116,8 @@ public final class RecordingPlayer: NSObject {
             }
         }
         p.delegate = self
+        p.enableRate = true
+        p.rate = rate
         p.prepareToPlay()
         player = p
         recordingId = recording.id
@@ -166,7 +172,9 @@ extension RecordingPlayer: AVAudioPlayerDelegate {
 
 /// Copies a recording's OGG to a temporary file named after its title, for the share sheet.
 public enum RecordingExporter {
-    public static func exportFile(for recording: Recording, library: RecordingLibrary) throws -> URL {
+    /// `title` names the file; nil uses the stored title.
+    public static func exportFile(for recording: Recording, library: RecordingLibrary,
+                                  title: String? = nil) throws -> URL {
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         // One directory per export so two recordings with the same title do not collide.
@@ -174,7 +182,7 @@ public enum RecordingExporter {
             .appendingPathComponent("export", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let target = dir.appendingPathComponent(fileName(for: recording.title))
+        let target = dir.appendingPathComponent(fileName(for: title ?? recording.title))
         try FileManager.default.copyItem(at: source, to: target)
         return target
     }
@@ -195,7 +203,7 @@ public enum RecordingExporter {
 
     /// `base` is where the export directory is made; the default is the one `cleanUp` empties.
     public static func exportM4A(for recording: Recording, library: RecordingLibrary,
-                                 in base: URL? = nil) async throws -> URL {
+                                 title: String? = nil, in base: URL? = nil) async throws -> URL {
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))
@@ -204,7 +212,7 @@ public enum RecordingExporter {
         let pcm = dir.appendingPathComponent("decoded.caf")
         defer { try? FileManager.default.removeItem(at: pcm) }
         try OggOpusDecoder.decode(source, to: pcm)
-        let target = dir.appendingPathComponent(fileName(for: recording.title, fileExtension: "m4a"))
+        let target = dir.appendingPathComponent(fileName(for: title ?? recording.title, fileExtension: "m4a"))
         // Scoped so both files are closed, and the m4a finished, before the URL is returned.
         do {
             let input = try AVAudioFile(forReading: pcm)
