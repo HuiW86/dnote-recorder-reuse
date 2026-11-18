@@ -2,7 +2,8 @@
 
 app/ReviveKit/Sources/Assistant 中的录音场景分类（场景名称、定义、栏目、关键词，见
 Scene.swift）、总结提示词（含长录音分段压缩、回复解析规则和没有模型时的关键词粗分类，见
-Summarizer.swift）和常见服务商地址列表（见 ServiceConfig.swift），改编自：
+Summarizer.swift）、改写和提问的提示词（见 Rewriter.swift）和常见服务商地址列表（见
+ServiceConfig.swift），改编自：
 
   andyhuo520/beanpod（commit 0d00fab）
   MIT License，Copyright (c) 2026 berryxia

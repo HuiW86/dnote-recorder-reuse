@@ -29,6 +29,9 @@ public final class RecordingDetailModel {
     /// The stored summary (features.md G1), if one was made.
     public private(set) var summary: Summary?
     public private(set) var isSummarizing = false
+    /// Result of the last rewrite or question (features.md X15, G3); shown in a sheet.
+    public var assistantOutput: AssistantOutput?
+    public private(set) var isAsking = false
     /// Set after a delete; the page closes.
     public private(set) var isDeleted = false
     public var toast: Toast?
@@ -215,6 +218,46 @@ public final class RecordingDetailModel {
         }
     }
 
+    // MARK: - Rewrite and ask (features.md X15, G3)
+
+    /// Rewriting and asking need some text and a configured service.
+    public var canRewrite: Bool { (transcript != nil || summary != nil) && assistant?.current() != nil }
+
+    public func rewrite(_ style: RewriteStyle, extra: String = "") {
+        run(title: style.name) { config, material, rewriter in
+            try await rewriter.rewrite(material: material, style: style, extra: extra, config: config)
+        }
+    }
+
+    public func ask(_ question: String) {
+        let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        run(title: trimmed) { config, material, rewriter in
+            try await rewriter.answer(question: trimmed, material: material, config: config)
+        }
+    }
+
+    private func run(title: String,
+                     _ work: @escaping @Sendable (ServiceConfig, String, Rewriter) async throws -> String) {
+        guard let config = assistant?.current(), !isAsking else { return }
+        let material = Rewriter.material(summary: summary, transcript: transcript)
+        guard !material.isEmpty else { return }
+        isAsking = true
+        let rewriter = Rewriter(client: summarizer.client)
+        Task {
+            defer { isAsking = false }
+            do {
+                let text = try await work(config, material, rewriter)
+                assistantOutput = AssistantOutput(title: title, text: text)
+            } catch let error as AssistantError {
+                toast = Toast(AssistantSettingsModel.text(for: error))
+            } catch is CancellationError {
+            } catch {
+                toast = Toast("请求失败，请重试")
+            }
+        }
+    }
+
     /// Ticks or unticks a to-do of the summary.
     public func setTodo(_ index: Int, done: Bool) {
         do {
@@ -389,4 +432,11 @@ public final class RecordingDetailModel {
             toast = Toast("删除失败，请重试")
         }
     }
+}
+
+/// Text the user's service wrote for this recording: a rewrite or an answer.
+public struct AssistantOutput: Equatable, Identifiable, Sendable {
+    public let id = UUID()
+    public let title: String
+    public let text: String
 }
