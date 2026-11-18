@@ -469,6 +469,23 @@ struct HomeModelTests {
         model.filter = .untranscribed
         #expect(model.filteredRecordings.map(\.id) == [marked.id])
         #expect(model.markCount(for: marked) == 1 && model.markCount(for: transcribed) == 0)
+
+        // #89: 星标 from the list row, and 有待办 for a summary with a todo not yet ticked.
+        model.filter = .starred
+        #expect(model.filteredRecordings.isEmpty)
+        model.toggleStar(transcribed.id)
+        await waitUntil("starred") { model.filteredRecordings.map(\.id) == [transcribed.id] }
+        model.toggleStar(transcribed.id)
+        await waitUntil("unstarred") { model.filteredRecordings.isEmpty }
+        try h.library.saveSummary(Summary(recordingId: marked.id, scene: "meeting", title: "T", summary: "S",
+                                          sections: [], todos: [SummaryTodo(text: "a")], tags: [], people: [],
+                                          model: "m", createdAt: Date()))
+        model.filter = .withTodos
+        #expect(model.filteredRecordings.map(\.id) == [marked.id])
+        try h.library.setTodoDone(recordingId: marked.id, index: 0, done: true)
+        #expect(model.filteredRecordings.isEmpty)
+        model.filter = .all
+        #expect(model.days.map { $0.recordings.count }.reduce(0, +) == 2)
     }
 
     /// A second paired card. `peripheral` nil means one CoreBluetooth no longer knows.

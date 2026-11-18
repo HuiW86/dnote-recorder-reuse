@@ -12,6 +12,7 @@ public final class Preferences {
         static let recordingConsent = "revive.recordingConsent"
         static let syncNotifications = "revive.syncNotifications"
         static let onDeviceTranscript = "revive.onDeviceTranscript"
+        static let appearance = "revive.appearance"
         static let assistantBaseURL = Preferences.assistantBaseURLKey
         static let assistantModel = Preferences.assistantModelKey
         static let assistantTranscriptionModel = Preferences.assistantTranscriptionModelKey
@@ -102,6 +103,31 @@ public final class Preferences {
             withMutation(keyPath: \.assistantTranscriptionModel) {
                 defaults.set(newValue, forKey: Key.assistantTranscriptionModel)
             }
+        }
+    }
+
+    /// 外观 in settings (#89): follow the system, or always light or dark.
+    public enum Appearance: String, CaseIterable, Identifiable, Sendable {
+        case system, light, dark
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .system: "跟随系统"
+            case .light: "浅色"
+            case .dark: "深色"
+            }
+        }
+    }
+
+    public var appearance: Appearance {
+        get {
+            access(keyPath: \.appearance)
+            return defaults.string(forKey: Key.appearance).flatMap(Appearance.init(rawValue:)) ?? .system
+        }
+        set {
+            withMutation(keyPath: \.appearance) { defaults.set(newValue.rawValue, forKey: Key.appearance) }
         }
     }
 

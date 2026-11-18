@@ -285,6 +285,23 @@ public final class RecordingDetailModel {
         RecordingText.clock(seconds: segment.startMs / 1000)
     }
 
+    /// The transcript line being played (#89): the last one that starts at or before the
+    /// playback position. Nil while this recording is not in the player.
+    public var currentSegmentIndex: Int? {
+        guard isLoaded, let segments = transcript?.segments else { return nil }
+        return Self.segmentIndex(segments.map(\.startMs), atMs: Int(currentTime * 1000))
+    }
+
+    /// Index of the last start at or before `atMs` in ascending `starts`; nil before the first.
+    public nonisolated static func segmentIndex(_ starts: [Int], atMs: Int) -> Int? {
+        var low = 0, high = starts.count
+        while low < high {
+            let mid = (low + high) / 2
+            if starts[mid] <= atMs { low = mid + 1 } else { high = mid }
+        }
+        return low == 0 ? nil : low - 1
+    }
+
     /// Plays from a transcript line.
     public func play(from segment: TranscriptSegment) {
         play(fromMs: segment.startMs)
@@ -410,6 +427,20 @@ public final class RecordingDetailModel {
     public var editableTitle: String {
         guard let recording, recording.hasCustomTitle else { return "" }
         return recording.title
+    }
+
+    public var isStarred: Bool { recording?.isStarred ?? false }
+
+    /// "标星" / "取消星标" in the page's menu (features.md X21).
+    public func toggleStar() {
+        do {
+            if let updated = try library.setStarred(id: recordingId, !isStarred) {
+                recording = updated
+                toast = Toast(updated.isStarred ? "已标星" : "已取消星标")
+            }
+        } catch {
+            toast = Toast("保存失败，请重试")
+        }
     }
 
     /// Renames the recording; an empty title puts the default back (features.md X6).

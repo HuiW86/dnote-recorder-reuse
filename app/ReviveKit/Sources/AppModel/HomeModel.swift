@@ -437,6 +437,19 @@ public final class HomeModel {
         }
     }
 
+    /// Stars or unstars a recording from its list row (features.md X21).
+    public func toggleStar(_ id: UUID) {
+        guard let recording = recordings.first(where: { $0.id == id }) else { return }
+        do {
+            try session.library.setStarred(id: id, !recording.isStarred)
+        } catch {
+            toast = Toast("保存失败，请重试")
+        }
+    }
+
+    /// The list grouped by day, with each day's count and total length (#89).
+    public var days: [RecordingDay] { RecordingDay.group(filteredRecordings) }
+
     /// A recording was moved to 最近删除 from its own page: the list offers "撤销" like a swipe
     /// delete does (#85).
     public func offerUndo(forTrashed id: UUID) {
@@ -467,15 +480,17 @@ public final class HomeModel {
         }
     }
 
-    /// The filter chips above the list (design-spec.md §3).
+    /// The filter chips above the list (design-spec.md §3, #89).
     public enum Filter: String, CaseIterable, Identifiable, Sendable {
-        case all, marked, untranscribed
+        case all, starred, withTodos, marked, untranscribed
 
         public var id: String { rawValue }
 
         public var title: String {
             switch self {
             case .all: "全部"
+            case .starred: "星标"
+            case .withTodos: "有待办"
             case .marked: "有重点"
             case .untranscribed: "还没转文字"
             }
@@ -489,6 +504,11 @@ public final class HomeModel {
         switch filter {
         case .all:
             return recordings
+        case .starred:
+            return recordings.filter(\.isStarred)
+        case .withTodos:
+            let ids = (try? session.library.recordingIdsWithOpenTodos()) ?? []
+            return recordings.filter { ids.contains($0.id) }
         case .marked:
             let ids = (try? session.library.recordingIdsWithMarks()) ?? []
             return recordings.filter { ids.contains($0.id) }
