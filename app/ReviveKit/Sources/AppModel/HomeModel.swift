@@ -137,7 +137,7 @@ public final class HomeModel {
         }
         if listener == nil {
             listener = session.addListener { [weak self] event in
-                // Bluetooth back on: CoreBluetooth forgot the pending connect, so register it again.
+                // Bluetooth is ready and there is no connection to restore. Connect the selected card.
                 if event == .stateChanged(.idle) { self?.reconnect() }
             }
             let watch = UUID()

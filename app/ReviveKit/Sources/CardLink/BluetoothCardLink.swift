@@ -10,7 +10,7 @@ import Foundation
 /// connected card stops advertising and could not be found by scanning.
 @MainActor
 public final class BluetoothCardLink: NSObject, CardLink {
-    public private(set) var state: LinkState = .idle {
+    public private(set) var state: LinkState = .initializing {
         didSet { if state != oldValue { continuation.yield(.state(state)) } }
     }
     public private(set) var peripheralId: UUID?
@@ -205,7 +205,8 @@ public final class BluetoothCardLink: NSObject, CardLink {
         switch s {
         case .poweredOff: .poweredOff
         case .unauthorized: .unauthorized
-        case .unsupported, .resetting, .unknown: .unsupported
+        case .resetting, .unknown: .initializing
+        case .unsupported: .unsupported
         case .poweredOn: nil
         @unknown default: .unsupported
         }
@@ -240,8 +241,7 @@ extension BluetoothCardLink: CBCentralManagerDelegate {
             } else {
                 state = .idle
             }
-            // The first power-on report does not change `state` (it starts as `.idle`), so a scan
-            // requested earlier is started here rather than on a state event.
+            // Start scans requested before Bluetooth was ready, independent of link state.
             if scanRequested, state != .connected { startScan() }
         }
     }
