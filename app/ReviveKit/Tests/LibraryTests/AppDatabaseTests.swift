@@ -57,6 +57,31 @@ struct AppDatabaseTests {
         #expect(try db.writer.read { try Recording.fetchOne($0, key: recordingId) }?.id == recordingId)
     }
 
+    /// X21: a library from before stars (v6) gains the column; its recordings start unstarred
+    /// and keep their summaries.
+    @Test func v6LibraryUpgradesToV7() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v6")
+        let recordingId = UUID()
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO recording (id, source, started_at, duration_ms, audio_path, audio_sha256, title,
+                                       created_at, updated_at)
+                VALUES (?, 'import', ?, 1000, 'audio/x.ogg', 'x', 't', ?, ?)
+                """, arguments: [recordingId, Date(), Date(), Date()])
+            try db.execute(sql: """
+                INSERT INTO summary (recording_id, scene, title, summary, sections, todos, tags, people, model,
+                                     created_at)
+                VALUES (?, 'meeting', 'T', 'S', '[]', '[{"text":"a","done":false}]', '[]', '[]', 'm', ?)
+                """, arguments: [recordingId, Date()])
+        }
+        #expect(try queue.read { try $0.columns(in: "recording") }.contains { $0.name == "starred_at" } == false)
+        let db = try AppDatabase(queue)
+        let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
+        #expect(!recording.isStarred)
+        #expect(try db.writer.read { try Summary.fetchOne($0, key: recordingId) }?.todos.map(\.text) == ["a"])
+    }
+
     @Test func onDiskDatabaseIsCreatedInGivenDirectory() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -105,6 +130,7 @@ struct RecordingLibraryTests {
         }
         let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
         #expect(recording.title == "2026-11-07 14:02" && recording.trashedAt == nil && !recording.hasCustomTitle)
+        #expect(!recording.isStarred)
         #expect(try db.writer.read { try SyncItem.fetchOne($0) }?.state == .stored)
     }
 
@@ -292,6 +318,75 @@ struct RecordingLibraryTests {
         #expect(try lib.searchRecordings("   ").isEmpty)
         try lib.trashRecording(id: a)
         #expect(try lib.searchRecordings("周会").isEmpty)
+    }
+
+    /// X21: starring is kept across trash and restore, a second star keeps the first time, and
+    /// an unknown id changes nothing.
+    @Test func starRecording() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: UUID(), path: path)
+        r.deviceId = nil
+        try lib.database.writer.write { db in try r.insert(db) }
+        let first = Date(timeIntervalSince1970: 1_000)
+        #expect(try lib.setStarred(id: id, true, now: first)?.starredAt == first)
+        #expect(try lib.setStarred(id: id, true, now: first.addingTimeInterval(60))?.starredAt == first)
+        try lib.trashRecording(id: id)
+        try lib.restoreRecording(id: id)
+        #expect(try lib.recording(id: id)?.isStarred == true)
+        #expect(try lib.setStarred(id: id, false)?.isStarred == false)
+        #expect(try lib.setStarred(id: UUID(), true) == nil)
+    }
+
+    /// #89 总览 and 知识库: open todos across recordings (newest recording first, summary order
+    /// within one), recent summaries by summary time, and nothing from 最近删除.
+    @Test func openTodosAndRecentSummaries() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        func add(startedAt: TimeInterval) throws -> UUID {
+            let id = UUID()
+            let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+            var r = recording(id, device: UUID(), path: path)
+            r.deviceId = nil
+            r.startedAt = Date(timeIntervalSince1970: startedAt)
+            try lib.database.writer.write { db in try r.insert(db) }
+            return id
+        }
+        func summarize(_ id: UUID, at: TimeInterval, todos: [SummaryTodo]) throws {
+            try lib.saveSummary(Summary(recordingId: id, scene: "meeting", title: "T", summary: "S", sections: [],
+                                        todos: todos, tags: [], people: [], model: "m",
+                                        createdAt: Date(timeIntervalSince1970: at)))
+        }
+        let old = try add(startedAt: 100)
+        let new = try add(startedAt: 200)
+        let none = try add(startedAt: 300)
+        let gone = try add(startedAt: 400)
+        try summarize(old, at: 900, todos: [SummaryTodo(text: "a"), SummaryTodo(text: "b", done: true),
+                                            SummaryTodo(text: "c")])
+        try summarize(new, at: 800, todos: [SummaryTodo(text: "d")])
+        try summarize(gone, at: 950, todos: [SummaryTodo(text: "e")])
+        try lib.trashRecording(id: gone)
+
+        let todos = try lib.openTodos()
+        #expect(todos.map(\.text) == ["d", "a", "c"])
+        #expect(todos.map(\.index) == [0, 0, 2])
+        #expect(Set(todos.map(\.id)).count == 3)
+        #expect(try lib.recordingIdsWithOpenTodos() == [old, new])
+        #expect(try lib.recentSummaries().map(\.recording.id) == [old, new])
+        #expect(try lib.recentSummaries(limit: 1).map(\.recording.id) == [old])
+
+        let digest = try lib.digest()
+        #expect(digest.openTodos == todos && digest.recentSummaries.count == 2)
+        #expect(digest.untranscribedCount == 3)  // old, new, none; not the trashed one
+        try lib.saveTranscript(Transcript(recordingId: none, engine: "t", language: "zh-CN", segments: [],
+                                          createdAt: Date()))
+        #expect(try lib.digest().untranscribedCount == 2)
+
+        try lib.setTodoDone(recordingId: new, index: 0, done: true)
+        #expect(try lib.recordingIdsWithOpenTodos() == [old])
+        #expect(!(try lib.recentSummaries().map(\.recording.id).contains(none)))
     }
 
     /// X18: a phone recording keeps its M4A, gets a default title, and an orphaned M4A (crash

@@ -63,6 +63,8 @@ public struct Recording: Codable, Equatable, Sendable, FetchableRecord, Persista
     public var trashedAt: Date?
     public var remoteId: String?
     public var remoteVersion: Int?
+    /// When the user starred it (features.md X21); nil when not starred.
+    public var starredAt: Date?
 
     public init(id: UUID = UUID(), deviceId: UUID?, source: Source, cardFileName: String?, cardFileSize: Int?,
                 startedAt: Date, durationMs: Int, audioPath: String, audioSha256: String, title: String,
@@ -97,6 +99,8 @@ extension Recording {
         f.dateFormat = "yyyy-MM-dd HH:mm"
         return f.string(from: date)
     }
+
+    public var isStarred: Bool { starredAt != nil }
 
     /// True once the user has renamed the recording (features.md X6). Told by the shape of the
     /// title, not by comparing with `startedAt`, so a phone that changed time zone still agrees.
@@ -264,5 +268,48 @@ public struct SyncItem: Codable, Equatable, Sendable, FetchableRecord, MutablePe
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
+    }
+}
+
+/// A todo not yet ticked, with the recording its summary belongs to (the 总览 page, #89).
+public struct OpenTodo: Equatable, Sendable, Identifiable {
+    public var recording: Recording
+    /// Index into `Summary.todos`, for ticking it.
+    public var index: Int
+    public var text: String
+
+    public var id: String { "\(recording.id.uuidString)#\(index)" }
+
+    public init(recording: Recording, index: Int, text: String) {
+        self.recording = recording
+        self.index = index
+        self.text = text
+    }
+}
+
+/// What 总览 and 知识库 show (#89), read in one transaction.
+public struct LibraryDigest: Equatable, Sendable {
+    public var openTodos: [OpenTodo]
+    public var recentSummaries: [SummarizedRecording]
+    /// Recordings not in 最近删除 that have no transcript yet.
+    public var untranscribedCount: Int
+
+    public init(openTodos: [OpenTodo] = [], recentSummaries: [SummarizedRecording] = [], untranscribedCount: Int = 0) {
+        self.openTodos = openTodos
+        self.recentSummaries = recentSummaries
+        self.untranscribedCount = untranscribedCount
+    }
+}
+
+/// A recording with its summary (the 知识库 page, #89).
+public struct SummarizedRecording: Equatable, Sendable, Identifiable {
+    public var recording: Recording
+    public var summary: Summary
+
+    public var id: UUID { recording.id }
+
+    public init(recording: Recording, summary: Summary) {
+        self.recording = recording
+        self.summary = summary
     }
 }

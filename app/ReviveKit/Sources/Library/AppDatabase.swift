@@ -125,6 +125,13 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // Star a recording (features.md X21). Null means not starred.
+        migrator.registerMigration("v7") { db in
+            try db.alter(table: "recording") { t in
+                t.add(column: "starred_at", .datetime)
+            }
+        }
+
         return migrator
     }
 

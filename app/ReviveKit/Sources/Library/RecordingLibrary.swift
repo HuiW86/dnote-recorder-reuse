@@ -207,6 +207,22 @@ public final class RecordingLibrary: Sendable {
                                                     onError: onError, onChange: onChange))
     }
 
+    // MARK: Star (features.md X21)
+
+    /// Stars or unstars a recording. Starring one already starred keeps its first time. Returns
+    /// the stored recording, nil when it is not in the library.
+    @discardableResult
+    public func setStarred(id: UUID, _ starred: Bool, now: Date = Date()) throws -> Recording? {
+        try database.writer.write { db in
+            guard var recording = try Recording.fetchOne(db, key: id) else { return nil }
+            guard recording.isStarred != starred else { return recording }
+            recording.starredAt = starred ? now : nil
+            recording.updatedAt = now
+            try recording.update(db)
+            return recording
+        }
+    }
+
     // MARK: Discard after recording (features.md X10)
 
     /// "不要这条" for a card file. Nothing is deleted here: a file not synced yet is still stored
@@ -318,6 +334,71 @@ public final class RecordingLibrary: Sendable {
     /// Recordings that have a transcript.
     public func recordingIdsWithTranscript() throws -> Set<UUID> {
         try database.writer.read { db in Set(try UUID.fetchAll(db, sql: "SELECT recording_id FROM transcript")) }
+    }
+
+    /// Recordings whose summary has a todo not yet ticked (the 有待办 filter, #89).
+    public func recordingIdsWithOpenTodos() throws -> Set<UUID> {
+        Set(try openTodos().map(\.recording.id))
+    }
+
+    // MARK: Overview and knowledge (#89)
+
+    /// Todos not yet ticked, across recordings not in 最近删除: the newest recording first, and
+    /// in the summary's order within one recording.
+    public func openTodos() throws -> [OpenTodo] {
+        try database.writer.read { try Self.openTodos($0) }
+    }
+
+    /// Recordings not in 最近删除 that have a summary, the most recently summarized first.
+    public func recentSummaries(limit: Int = 20) throws -> [SummarizedRecording] {
+        try database.writer.read { Array(try Self.summarizedRecordings($0, newestSummaryFirst: true).prefix(limit)) }
+    }
+
+    /// What 总览 and 知识库 show, now and after every change to recordings, transcripts or
+    /// summaries. Keep the returned observation to keep observing.
+    @MainActor
+    public func observeDigest(summaryLimit: Int = 20, onError: @escaping @MainActor (Error) -> Void,
+                              onChange: @escaping @MainActor (LibraryDigest) -> Void) -> LibraryObservation {
+        let observation = ValueObservation.tracking { db in try Self.digest(db, summaryLimit: summaryLimit) }
+        return LibraryObservation(observation.start(in: database.writer, scheduling: .immediate,
+                                                    onError: onError, onChange: onChange))
+    }
+
+    public func digest(summaryLimit: Int = 20) throws -> LibraryDigest {
+        try database.writer.read { try Self.digest($0, summaryLimit: summaryLimit) }
+    }
+
+    private static func digest(_ db: Database, summaryLimit: Int) throws -> LibraryDigest {
+        let untranscribed = try Int.fetchOne(db, sql: """
+            SELECT COUNT(*) FROM recording LEFT JOIN transcript ON transcript.recording_id = recording.id
+            WHERE recording.trashed_at IS NULL AND transcript.recording_id IS NULL
+            """) ?? 0
+        return LibraryDigest(openTodos: try openTodos(db),
+                             recentSummaries: Array(try summarizedRecordings(db, newestSummaryFirst: true)
+                                 .prefix(summaryLimit)),
+                             untranscribedCount: untranscribed)
+    }
+
+    private static func openTodos(_ db: Database) throws -> [OpenTodo] {
+        try summarizedRecordings(db, newestSummaryFirst: false).flatMap { item in
+            item.summary.todos.enumerated().compactMap { index, todo in
+                todo.done ? nil : OpenTodo(recording: item.recording, index: index, text: todo.text)
+            }
+        }
+    }
+
+    /// Recordings not in 最近删除 with their summaries: by summary time, or by recording time.
+    private static func summarizedRecordings(_ db: Database, newestSummaryFirst: Bool) throws -> [SummarizedRecording] {
+        let order = newestSummaryFirst ? "summary.created_at DESC" : "recording.started_at DESC"
+        let ids = try UUID.fetchAll(db, sql: """
+            SELECT recording.id FROM recording JOIN summary ON summary.recording_id = recording.id
+            WHERE recording.trashed_at IS NULL ORDER BY \(order)
+            """)
+        return try ids.compactMap { id in
+            guard let recording = try Recording.fetchOne(db, key: id),
+                  let summary = try Summary.fetchOne(db, key: id) else { return nil }
+            return SummarizedRecording(recording: recording, summary: summary)
+        }
     }
 
     // MARK: Search (features.md D2)
