@@ -35,7 +35,8 @@ struct HomeView: View {
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
-                case .recording(let id): RecordingDetailView(env: env, recordingId: id)
+                case .recording(let id):
+                    RecordingDetailView(env: env, recordingId: id) { model?.offerUndo(forTrashed: $0) }
                 case .device(let id): DeviceView(env: env, deviceId: id)
                 case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
                 case .trash: TrashView(env: env)

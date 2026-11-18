@@ -7,12 +7,14 @@ import Transcription
 struct RecordingDetailView: View {
     let env: AppEnvironment
     let recordingId: UUID
+    /// Called after the recording was moved to 最近删除, so the list can offer "撤销" (#85).
+    var onDeleted: (UUID) -> Void = { _ in }
     @State private var model: RecordingDetailModel?
 
     var body: some View {
         Group {
             if let model {
-                RecordingDetailContent(model: model)
+                RecordingDetailContent(model: model, onDeleted: onDeleted)
             } else {
                 ProgressView().paperPage()
             }
@@ -31,6 +33,7 @@ struct RecordingDetailView: View {
 
 private struct RecordingDetailContent: View {
     @Bindable var model: RecordingDetailModel
+    var onDeleted: (UUID) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingDelete = false
     @State private var shareURL: URL?
@@ -105,8 +108,13 @@ private struct RecordingDetailContent: View {
                onDismiss: { RecordingExporter.cleanUp() }) {
             if let shareURL { ShareSheet(url: shareURL).presentationDetents([.medium, .large]) }
         }
+        .onChange(of: model.isTranscribing) { _, running in
+            if !running { model.reloadTranscript() }
+        }
         .onChange(of: model.isDeleted) { _, deleted in
-            if deleted { dismiss() }
+            guard deleted else { return }
+            onDeleted(model.recordingId)
+            dismiss()
         }
         .toast($model.toast)
     }

@@ -437,6 +437,14 @@ public final class HomeModel {
         }
     }
 
+    /// A recording was moved to 最近删除 from its own page: the list offers "撤销" like a swipe
+    /// delete does (#85).
+    public func offerUndo(forTrashed id: UUID) {
+        lastTrashed = id
+        lastDiscarded = nil
+        toast = Toast("已移到最近删除", action: "撤销")
+    }
+
     /// "撤销" on the toast: puts the recording just deleted, or just discarded, back.
     public func undoDelete() {
         if let finished = lastDiscarded {

@@ -77,6 +77,37 @@ struct RecordingLibraryTests {
                   createdAt: Date(), updatedAt: Date())
     }
 
+    /// prd.md §5 (#85): a library from the first TestFlight build (v1) upgrades through every
+    /// later migration with its rows intact, and gains every new table.
+    @Test func v1LibraryUpgradesToTheLatest() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v1")
+        let deviceId = UUID()
+        let recordingId = UUID()
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO device (id, sn, name, firmware) VALUES (?, 'S', 'card', '1.50')",
+                           arguments: [deviceId])
+            try db.execute(sql: """
+                INSERT INTO recording (id, device_id, source, card_file_name, card_file_size, started_at,
+                                       duration_ms, audio_path, audio_sha256, title, created_at, updated_at)
+                VALUES (?, ?, 'card', 'a.opus', 10, ?, 20, 'audio/x.ogg', 'h', '2026-11-07 14:02', ?, ?)
+                """, arguments: [recordingId, deviceId, Date(), Date(), Date()])
+            try db.execute(sql: """
+                INSERT INTO sync_item (device_id, card_file_name, card_file_size, state, attempts, recording_id)
+                VALUES (?, 'a.opus', 10, 'stored', 0, ?)
+                """, arguments: [deviceId, recordingId])
+        }
+        let db = try AppDatabase(queue)
+        let applied = try db.writer.read { try AppDatabase.migrator.appliedIdentifiers($0) }
+        #expect(applied == Set(AppDatabase.migrator.migrations))
+        for table in ["recording_mark", "discard_request", "transcript", "summary"] {
+            #expect(try db.writer.read { try $0.tableExists(table) }, "table \(table)")
+        }
+        let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
+        #expect(recording.title == "2026-11-07 14:02" && recording.trashedAt == nil && !recording.hasCustomTitle)
+        #expect(try db.writer.read { try SyncItem.fetchOne($0) }?.state == .stored)
+    }
+
     @Test func v1CreatesTables() throws {
         let db = try AppDatabase.inMemory()
         for table in ["device", "recording", "sync_item"] {

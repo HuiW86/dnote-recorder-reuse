@@ -53,6 +53,11 @@ final class SyncNotifier {
             UNNotificationRequest(identifier: "revive.sync-done", content: content, trigger: nil))
     }
 
+    /// The user turned notifications off for the app in system Settings.
+    static func isDenied() async -> Bool {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .denied
+    }
+
     /// Asks for permission to show notifications; false when the user has refused.
     static func requestAuthorization() async -> Bool {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false

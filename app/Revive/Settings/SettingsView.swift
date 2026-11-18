@@ -57,6 +57,13 @@ struct SettingsView: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // Notifications turned off in system Settings: the switch follows, instead of showing
+        // a promise the system no longer keeps (#85).
+        .task {
+            guard preferences.syncNotificationsEnabled, await SyncNotifier.isDenied() else { return }
+            preferences.syncNotificationsEnabled = false
+            notificationsRefused = true
+        }
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -24,7 +24,8 @@ public final class RecordingDetailModel {
     public private(set) var marks: [RecordingMark] = []
     /// The stored text of this recording, if it has been transcribed (features.md X9).
     public private(set) var transcript: Transcript?
-    public private(set) var isTranscribing = false
+    /// A transcription of this recording is running, started from this page or an earlier one.
+    public var isTranscribing: Bool { jobs.running.contains(recordingId) }
     /// The stored summary (features.md G1), if one was made.
     public private(set) var summary: Summary?
     public private(set) var isSummarizing = false
@@ -39,18 +40,20 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let transcriber: (any SpeechTranscribing)?
     /// The user's AI service; nil when the app has none (features.md X11).
     @ObservationIgnored private let assistant: AssistantConfigSource?
+    @ObservationIgnored private let jobs: TranscriptionJobs
     @ObservationIgnored private let summarizer: Summarizer
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "Detail")
 
     public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
                 transcriber: (any SpeechTranscribing)? = nil, assistant: AssistantConfigSource? = nil,
-                summarizer: Summarizer = Summarizer()) {
+                summarizer: Summarizer = Summarizer(), jobs: TranscriptionJobs = .shared) {
         self.recordingId = recordingId
         self.library = library
         self.player = player
         self.transcriber = transcriber
         self.assistant = assistant
         self.summarizer = summarizer
+        self.jobs = jobs
         transcript = try? library.transcript(recordingId: recordingId)
         summary = try? library.summary(recordingId: recordingId)
         recording = try? library.recording(id: recordingId)
@@ -124,10 +127,9 @@ public final class RecordingDetailModel {
 
     /// Recognizes the recording on this phone and stores the text. Replaces an earlier transcript.
     public func transcribe(language: String = "zh-CN") {
-        guard let transcriber, let recording, !isTranscribing else { return }
-        isTranscribing = true
-        Task {
-            defer { isTranscribing = false }
+        guard let transcriber, let recording, jobs.begin(recording.id) else { return }
+        Task { [jobs] in
+            defer { jobs.end(recording.id) }
             do {
                 let segments = try await transcriber.transcribe(recording, language: language)
                 let result = Transcript(recordingId: recording.id, engine: OnDeviceTranscriber.engineName,
@@ -201,6 +203,12 @@ public final class RecordingDetailModel {
     /// "会议", "访谈"… for the stored scene code.
     public var sceneName: String? {
         summary.flatMap { RecordingScene(rawValue: $0.scene)?.name }
+    }
+
+    /// Reads the stored transcript again: a transcription started from an earlier page may
+    /// have finished while this one was open.
+    public func reloadTranscript() {
+        transcript = try? library.transcript(recordingId: recordingId)
     }
 
     /// "00:18:06" for a transcript line.
