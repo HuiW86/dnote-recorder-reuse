@@ -483,17 +483,47 @@ public final class HomeModel {
     }
 
     public var filter: Filter = .all
+    /// The folder chip that is selected, if any (features.md D1c); applies on top of `filter`.
+    public var folderFilter: UUID?
+    public private(set) var folders: [Folder] = []
 
-    /// `recordings` narrowed by `filter`, newest first.
+    /// Reads the folders again (they change on the recording page and in the chip menu).
+    public func refreshFolders() {
+        folders = (try? session.library.folders()) ?? []
+        if let folderFilter, !folders.contains(where: { $0.id == folderFilter }) { self.folderFilter = nil }
+    }
+
+    public func renameFolder(_ folder: Folder, to name: String) {
+        try? session.library.renameFolder(id: folder.id, to: name)
+        refreshFolders()
+    }
+
+    /// Deletes the folder; its recordings stay in the list.
+    public func deleteFolder(_ folder: Folder) {
+        do {
+            try session.library.deleteFolder(id: folder.id)
+            toast = Toast("已删除文件夹，里面的录音还在")
+        } catch {
+            toast = Toast("删除失败，请重试")
+        }
+        refreshFolders()
+    }
+
+    /// `recordings` narrowed by `filter` and `folderFilter`, newest first.
     public var filteredRecordings: [Recording] {
+        let inFolder = folderFilter.map { id in recordings.filter { $0.folderId == id } } ?? recordings
+        return Self.narrow(inFolder, by: filter, library: session.library)
+    }
+
+    private static func narrow(_ recordings: [Recording], by filter: Filter, library: RecordingLibrary) -> [Recording] {
         switch filter {
         case .all:
             return recordings
         case .marked:
-            let ids = (try? session.library.recordingIdsWithMarks()) ?? []
+            let ids = (try? library.recordingIdsWithMarks()) ?? []
             return recordings.filter { ids.contains($0.id) }
         case .untranscribed:
-            let ids = (try? session.library.recordingIdsWithTranscript()) ?? []
+            let ids = (try? library.recordingIdsWithTranscript()) ?? []
             return recordings.filter { !ids.contains($0.id) }
         }
     }

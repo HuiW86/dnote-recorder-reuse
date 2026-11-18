@@ -73,6 +73,8 @@ private struct HomeContent: View {
     @State private var phoneConsent = false
     /// Files picker for importing audio (features.md E2).
     @State private var importing = false
+    @State private var folderBeingRenamed: Folder?
+    @State private var folderName = ""
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -106,7 +108,11 @@ private struct HomeContent: View {
             .searchable(text: $query, prompt: "搜索标题、文字稿、纪要")
             .onChange(of: query) { _, text in model.search(text) }
             // The list changed (a sync, a delete): refresh what the search shows.
-            .onChange(of: model.recordings) { _, _ in if !query.isEmpty { model.search(query) } }
+            .onChange(of: model.recordings) { _, _ in
+                if !query.isEmpty { model.search(query) }
+                // A recording may have been moved into a new folder on its page.
+                model.refreshFolders()
+            }
             .refreshable { await model.refresh() }
             .safeAreaInset(edge: .bottom) {
                 RecordControlBar(model: model, recordWithPhone: env.phoneRecorder == nil ? nil : { startPhoneRecording() })
@@ -119,6 +125,13 @@ private struct HomeContent: View {
                     }
                 }
             }
+            .alert("重命名文件夹", isPresented: Binding(get: { folderBeingRenamed != nil },
+                                                     set: { if !$0 { folderBeingRenamed = nil } })) {
+                TextField("文件夹名称", text: $folderName)
+                Button("保存") { if let folder = folderBeingRenamed { model.renameFolder(folder, to: folderName) } }
+                Button("取消", role: .cancel) {}
+            }
+            .onAppear { model.refreshFolders() }
             .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
                 guard case .success(let urls) = result else { return }
                 Task {
@@ -302,8 +315,11 @@ private struct HomeContent: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(HomeModel.Filter.allCases) { filter in
-                    let selected = model.filter == filter
-                    Button { model.filter = filter } label: {
+                    let selected = model.filter == filter && (filter != .all || model.folderFilter == nil)
+                    Button {
+                        model.filter = filter
+                        if filter == .all { model.folderFilter = nil }
+                    } label: {
                         Text(filter.title)
                             .font(.subheadline.weight(selected ? .semibold : .regular))
                             .foregroundStyle(selected ? Theme.onDark : Theme.ink)
@@ -314,6 +330,28 @@ private struct HomeContent: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+                // Folders (features.md D1c): tap to show only that folder; hold for rename and delete.
+                ForEach(model.folders) { folder in
+                    let selected = model.folderFilter == folder.id
+                    Button { model.folderFilter = selected ? nil : folder.id } label: {
+                        Label(folder.name, systemImage: "folder")
+                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? Theme.onDark : Theme.ink)
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 36)
+                            .background(selected ? Theme.accent : Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .contextMenu {
+                        Button("重命名", systemImage: "pencil") {
+                            folderBeingRenamed = folder
+                            folderName = folder.name
+                        }
+                        Button("删除文件夹", systemImage: "trash", role: .destructive) { model.deleteFolder(folder) }
+                    }
                 }
             }
         }

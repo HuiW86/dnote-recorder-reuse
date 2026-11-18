@@ -221,6 +221,23 @@ public struct Summary: Codable, Equatable, Sendable, FetchableRecord, Persistabl
     public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
 }
 
+/// A folder recordings can be put in (features.md D1c). A recording is in at most one.
+public struct Folder: Codable, Equatable, Hashable, Sendable, Identifiable, FetchableRecord, PersistableRecord {
+    public var id: UUID
+    public var name: String
+    public var createdAt: Date
+
+    public init(id: UUID = UUID(), name: String, createdAt: Date = Date()) {
+        self.id = id
+        self.name = name
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "folder"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+}
+
 /// States of prd.md §4.1.
 public enum SyncState: String, Codable, Sendable, CaseIterable {
     case discovered, downloading, stored, deletePending, deletedOnCard, failed

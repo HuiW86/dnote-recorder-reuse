@@ -123,6 +123,37 @@ public final class RecordingDetailModel {
         player.seek(to: time)
     }
 
+    // MARK: - Folder (features.md D1c)
+
+    /// Folders to offer in "移到文件夹", by name.
+    public var folders: [Folder] { (try? library.folders()) ?? [] }
+
+    /// The folder this recording is in, if any.
+    public var folderName: String? {
+        guard let id = recording?.folderId else { return nil }
+        return folders.first { $0.id == id }?.name
+    }
+
+    /// Puts the recording in a folder, or takes it out with nil.
+    public func move(toFolder folderId: UUID?) {
+        do {
+            try library.moveRecording(id: recordingId, toFolder: folderId)
+            recording = try library.recording(id: recordingId)
+        } catch {
+            toast = Toast("移动失败，请重试")
+        }
+    }
+
+    /// "新建文件夹…" in the menu: creates it and moves the recording in.
+    public func moveToNewFolder(named name: String) {
+        do {
+            guard let folder = try library.createFolder(named: name) else { return }
+            move(toFolder: folder.id)
+        } catch {
+            toast = Toast("新建文件夹失败，请重试")
+        }
+    }
+
     // MARK: - Speed and marks on the player bar (design-spec.md §3)
 
     public static let speeds: [Float] = [1, 1.25, 1.5, 2, 0.75]

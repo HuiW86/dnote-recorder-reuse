@@ -48,6 +48,8 @@ private struct RecordingDetailContent: View {
     @State private var shareURL: URL?
     @State private var renaming = false
     @State private var question = ""
+    @State private var newFolder = false
+    @State private var folderName = ""
     @State private var newTitle = ""
 
     var body: some View {
@@ -99,6 +101,18 @@ private struct RecordingDetailContent: View {
                             newTitle = model.editableTitle
                             renaming = true
                         }
+                        Menu("移到文件夹", systemImage: "folder") {
+                            ForEach(model.folders) { folder in
+                                Button(folder.name) { model.move(toFolder: folder.id) }
+                            }
+                            Button("新建文件夹…", systemImage: "folder.badge.plus") {
+                                folderName = ""
+                                newFolder = true
+                            }
+                            if model.recording?.folderId != nil {
+                                Button("移出文件夹", systemImage: "folder.badge.minus") { model.move(toFolder: nil) }
+                            }
+                        }
                         Button("删除录音", systemImage: "trash", role: .destructive) { confirmingDelete = true }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -111,6 +125,11 @@ private struct RecordingDetailContent: View {
             Button("删除录音", role: .destructive) { model.delete() }
         } message: {
             Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
+        }
+        .alert("新建文件夹", isPresented: $newFolder) {
+            TextField("文件夹名称", text: $folderName)
+            Button("新建并移入") { model.moveToNewFolder(named: folderName) }
+            Button("取消", role: .cancel) {}
         }
         .alert("重命名", isPresented: $renaming) {
             TextField("录音名称", text: $newTitle)
@@ -147,6 +166,11 @@ private struct RecordingDetailContent: View {
                     Text(model.startedAtText)
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkMuted)
+                    if let folder = model.folderName {
+                        Label(folder, systemImage: "folder")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.inkMuted)
+                    }
                 }
                 .listRowSeparator(.hidden)
             }

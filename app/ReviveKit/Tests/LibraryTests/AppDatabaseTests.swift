@@ -100,7 +100,7 @@ struct RecordingLibraryTests {
         let db = try AppDatabase(queue)
         let applied = try db.writer.read { try AppDatabase.migrator.appliedIdentifiers($0) }
         #expect(applied == Set(AppDatabase.migrator.migrations))
-        for table in ["recording_mark", "discard_request", "transcript", "summary"] {
+        for table in ["recording_mark", "discard_request", "transcript", "summary", "folder"] {
             #expect(try db.writer.read { try $0.tableExists(table) }, "table \(table)")
         }
         let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
@@ -314,6 +314,32 @@ struct RecordingLibraryTests {
         try lib.recoverAfterLaunch()
         #expect(!FileManager.default.fileExists(atPath: orphan.path))
         #expect(FileManager.default.fileExists(atPath: audio.path))
+    }
+
+    /// D1c: folders hold recordings; deleting a folder keeps its recordings.
+    @Test func foldersHoldRecordings() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        _ = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
+
+        #expect(try lib.createFolder(named: "   ") == nil)
+        let work = try #require(try lib.createFolder(named: " 客户 "))
+        let home = try #require(try lib.createFolder(named: "家里"))
+        #expect(try lib.folders().map(\.name) == ["客户", "家里"].sorted())
+        try lib.moveRecording(id: id, toFolder: work.id)
+        #expect(try lib.recording(id: id)?.folderId == work.id)
+        try lib.renameFolder(id: work.id, to: "客户 A")
+        #expect(try lib.folders().contains { $0.name == "客户 A" })
+        try lib.deleteFolder(id: work.id)
+        #expect(try lib.recording(id: id)?.folderId == nil)  // the recording stays
+        #expect(try lib.folders().map(\.id) == [home.id])
+        try lib.moveRecording(id: id, toFolder: home.id)
+        try lib.moveRecording(id: id, toFolder: nil)
+        #expect(try lib.recording(id: id)?.folderId == nil)
     }
 
     /// X6: rename trims, caps the length and falls back to the default title.
