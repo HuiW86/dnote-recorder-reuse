@@ -1,4 +1,5 @@
 import AppModel
+import Assistant
 import Player
 import SwiftUI
 import Transcription
@@ -7,12 +8,14 @@ import Transcription
 struct RecordingDetailView: View {
     let env: AppEnvironment
     let recordingId: UUID
+    /// Called after the recording was moved to 最近删除, so the list can offer "撤销" (#85).
+    var onDeleted: (UUID) -> Void = { _ in }
     @State private var model: RecordingDetailModel?
 
     var body: some View {
         Group {
             if let model {
-                RecordingDetailContent(model: model)
+                RecordingDetailContent(model: model, onDeleted: onDeleted)
             } else {
                 ProgressView().paperPage()
             }
@@ -20,7 +23,15 @@ struct RecordingDetailView: View {
         .onAppear {
             if model == nil, let library = env.library, let player = env.player {
                 // On-device transcription is behind a switch until its quality is measured (#67).
-                let transcriber = env.preferences.onDeviceTranscriptEnabled ? OnDeviceTranscriber(library: library) : nil
+                // On the phone when that is switched on; otherwise the user's own service, if they
+                // gave it a transcription model (the audio is then uploaded, and the page says so).
+                let transcriber: (any SpeechTranscribing)? = if env.preferences.onDeviceTranscriptEnabled {
+                    OnDeviceTranscriber(library: library)
+                } else if let cloud = env.cloudTranscriptionConfig {
+                    CloudTranscriber(library: library, config: cloud)
+                } else {
+                    nil
+                }
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
                                              transcriber: transcriber, assistant: env.assistantConfig)
             }
@@ -31,6 +42,7 @@ struct RecordingDetailView: View {
 
 private struct RecordingDetailContent: View {
     @Bindable var model: RecordingDetailModel
+    var onDeleted: (UUID) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingDelete = false
     @State private var shareURL: URL?
@@ -65,6 +77,11 @@ private struct RecordingDetailContent: View {
                             }
                             Button("原始文件（OGG）", systemImage: "doc") {
                                 shareURL = model.exportFile()
+                            }
+                            if model.canExportMarkdown {
+                                Button("纪要和文字稿（Markdown）", systemImage: "doc.text") {
+                                    shareURL = model.exportMarkdown()
+                                }
                             }
                         } label: {
                             if model.isExporting {
@@ -105,8 +122,13 @@ private struct RecordingDetailContent: View {
                onDismiss: { RecordingExporter.cleanUp() }) {
             if let shareURL { ShareSheet(url: shareURL).presentationDetents([.medium, .large]) }
         }
+        .onChange(of: model.isTranscribing) { _, running in
+            if !running { model.reloadTranscript() }
+        }
         .onChange(of: model.isDeleted) { _, deleted in
-            if deleted { dismiss() }
+            guard deleted else { return }
+            onDeleted(model.recordingId)
+            dismiss()
         }
         .toast($model.toast)
     }
@@ -232,7 +254,7 @@ extension RecordingDetailContent {
             if model.isTranscribing {
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("正在这部手机上转成文字，长录音需要一些时间")
+                    Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字，长录音需要一些时间")
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkMuted)
                 }
@@ -242,7 +264,9 @@ extension RecordingDetailContent {
         } header: {
             Text("文字稿")
         } footer: {
-            Text("在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+            Text(model.transcriptionUsesNetwork
+                 ? "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
+                 : "在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
         }
         .listRowBackground(Color.clear)
     }
@@ -267,6 +291,7 @@ private struct PlayerCard: View {
                         }
                     }
                     .accessibilityLabel("播放进度")
+                    .overlay(alignment: .leading) { markTicks }
                     HStack {
                         Text(Self.clock(position, hours: duration >= 3600))
                         Spacer()
@@ -306,6 +331,14 @@ private struct PlayerCard: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("前进 15 秒")
+                Button { model.cycleSpeed() } label: {
+                    Text(model.speedText)
+                        .font(.footnote.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Theme.ink)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .background(Theme.paper, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                }
+                .accessibilityLabel("播放速度 \(model.speedText)")
             }
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
@@ -320,6 +353,20 @@ private struct PlayerCard: View {
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
         .shadow(color: Theme.shadow, radius: 10, y: 4)
+    }
+
+    /// The marks as short ticks over the progress bar; not interactive (the 重点 list is).
+    private var markTicks: some View {
+        GeometryReader { proxy in
+            ForEach(Array(model.markPositions.enumerated()), id: \.offset) { _, position in
+                Rectangle()
+                    .fill(Theme.ink)
+                    .frame(width: 2, height: 10)
+                    .position(x: proxy.size.width * position, y: proxy.size.height / 2)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private static func clock(_ seconds: Double, hours: Bool) -> String {

@@ -35,7 +35,8 @@ struct HomeView: View {
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
-                case .recording(let id): RecordingDetailView(env: env, recordingId: id)
+                case .recording(let id):
+                    RecordingDetailView(env: env, recordingId: id) { model?.offerUndo(forTrashed: $0) }
                 case .device(let id): DeviceView(env: env, deviceId: id)
                 case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
                 case .trash: TrashView(env: env)
@@ -62,6 +63,7 @@ private struct HomeContent: View {
     let env: AppEnvironment
     @Binding var path: [Route]
     @State private var pendingDelete: Recording?
+    @State private var query = ""
     @State private var showsSwitcher = false
     /// The full-screen recording page (design-spec.md §3).
     @State private var showsStage = false
@@ -84,6 +86,10 @@ private struct HomeContent: View {
                     .accessibilityLabel("设置")
                 }
             }
+            .searchable(text: $query, prompt: "搜索标题、文字稿、纪要")
+            .onChange(of: query) { _, text in model.search(text) }
+            // The list changed (a sync, a delete): refresh what the search shows.
+            .onChange(of: model.recordings) { _, _ in if !query.isEmpty { model.search(query) } }
             .refreshable { await model.refresh() }
             .safeAreaInset(edge: .bottom) { RecordControlBar(model: model) }
             .sheet(isPresented: $model.showsConsent) {
@@ -172,6 +178,25 @@ private struct HomeContent: View {
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+            } else if let results = model.searchResults {
+                // Search (features.md D2): one flat card, newest first.
+                if results.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                } else {
+                    Section {
+                        ForEach(results, id: \.id) { recording in
+                            NavigationLink(value: Route.recording(recording.id)) {
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording),
+                                             markCount: model.markCount(for: recording))
+                            }
+                        }
+                    } header: {
+                        Text("找到 \(results.count) 条").textCase(nil)
+                    }
+                    .surfaceRows()
+                }
             } else if model.recordings.isEmpty {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
@@ -185,7 +210,8 @@ private struct HomeContent: View {
                     Section {
                         ForEach(day.recordings, id: \.id) { recording in
                             NavigationLink(value: Route.recording(recording.id)) {
-                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording),
+                                             markCount: model.markCount(for: recording))
                             }
                             .swipeActions {
                                 // No destructive role: it animates the row away before the user confirms.
@@ -272,6 +298,7 @@ private struct DayGroup: Identifiable {
 private struct RecordingRow: View {
     let recording: Recording
     let deviceName: String?
+    var markCount = 0
 
     var body: some View {
         HStack(spacing: 12) {
@@ -290,6 +317,12 @@ private struct RecordingRow: View {
                     .foregroundStyle(Theme.inkMuted)
                     .monospacedDigit()
             }
+            Spacer(minLength: 0)
+            if markCount > 0 {
+                Label("\(markCount)", systemImage: "bookmark")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Theme.inkMuted)
+            }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
@@ -300,6 +333,7 @@ private struct RecordingRow: View {
     private var accessibilityText: String {
         var parts = [RecordingText.title(recording), RecordingText.duration(ms: recording.durationMs)]
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
+        if markCount > 0 { parts.append("\(markCount) 处重点") }
         return parts.joined(separator: "，")
     }
 }

@@ -268,6 +268,38 @@ public final class RecordingLibrary: Sendable {
                          arguments: [deviceId, cardFileName]) ?? 0 > 0
     }
 
+    // MARK: Search (features.md D2)
+
+    /// Recordings not in 最近删除 whose title, transcript or summary contains every word of
+    /// `query` (split at spaces), newest first. Case-insensitive for Latin letters. Local only.
+    public func searchRecordings(_ query: String) throws -> [Recording] {
+        let words = query.split(whereSeparator: \.isWhitespace).map(String.init).filter { !$0.isEmpty }
+        guard !words.isEmpty else { return [] }
+        return try database.writer.read { db in
+            var sql = """
+                SELECT recording.* FROM recording
+                LEFT JOIN transcript ON transcript.recording_id = recording.id
+                LEFT JOIN summary ON summary.recording_id = recording.id
+                WHERE recording.trashed_at IS NULL
+                """
+            var arguments: [String] = []
+            for word in words {
+                // Escape LIKE wildcards so a "%" or "_" in the query is matched as typed.
+                let pattern = "%" + word.replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_") + "%"
+                sql += """
+                     AND (recording.title LIKE ? ESCAPE '\\' OR transcript.segments LIKE ? ESCAPE '\\'
+                          OR summary.title LIKE ? ESCAPE '\\' OR summary.summary LIKE ? ESCAPE '\\'
+                          OR summary.sections LIKE ? ESCAPE '\\' OR summary.todos LIKE ? ESCAPE '\\'
+                          OR summary.tags LIKE ? ESCAPE '\\' OR summary.people LIKE ? ESCAPE '\\')
+                    """
+                arguments += Array(repeating: pattern, count: 8)
+            }
+            sql += " ORDER BY recording.started_at DESC"
+            return try Recording.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
+        }
+    }
+
     // MARK: Transcripts (features.md X9)
 
     /// Stores the transcript of a recording, replacing an earlier one.

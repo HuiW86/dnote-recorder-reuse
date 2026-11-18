@@ -24,7 +24,8 @@ public final class RecordingDetailModel {
     public private(set) var marks: [RecordingMark] = []
     /// The stored text of this recording, if it has been transcribed (features.md X9).
     public private(set) var transcript: Transcript?
-    public private(set) var isTranscribing = false
+    /// A transcription of this recording is running, started from this page or an earlier one.
+    public var isTranscribing: Bool { jobs.running.contains(recordingId) }
     /// The stored summary (features.md G1), if one was made.
     public private(set) var summary: Summary?
     public private(set) var isSummarizing = false
@@ -39,18 +40,20 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let transcriber: (any SpeechTranscribing)?
     /// The user's AI service; nil when the app has none (features.md X11).
     @ObservationIgnored private let assistant: AssistantConfigSource?
+    @ObservationIgnored private let jobs: TranscriptionJobs
     @ObservationIgnored private let summarizer: Summarizer
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "Detail")
 
     public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
                 transcriber: (any SpeechTranscribing)? = nil, assistant: AssistantConfigSource? = nil,
-                summarizer: Summarizer = Summarizer()) {
+                summarizer: Summarizer = Summarizer(), jobs: TranscriptionJobs = .shared) {
         self.recordingId = recordingId
         self.library = library
         self.player = player
         self.transcriber = transcriber
         self.assistant = assistant
         self.summarizer = summarizer
+        self.jobs = jobs
         transcript = try? library.transcript(recordingId: recordingId)
         summary = try? library.summary(recordingId: recordingId)
         recording = try? library.recording(id: recordingId)
@@ -117,20 +120,45 @@ public final class RecordingDetailModel {
         player.seek(to: time)
     }
 
+    // MARK: - Speed and marks on the player bar (design-spec.md §3)
+
+    public static let speeds: [Float] = [1, 1.25, 1.5, 2, 0.75]
+
+    /// "1.25×" on the speed button.
+    public var speedText: String {
+        let rate = player.rate
+        return (rate == rate.rounded() ? String(Int(rate)) : String(format: "%g", rate)) + "×"
+    }
+
+    /// Next speed in `speeds`.
+    public func cycleSpeed() {
+        let index = Self.speeds.firstIndex(of: player.rate) ?? 0
+        player.setRate(Self.speeds[(index + 1) % Self.speeds.count])
+    }
+
+    /// Where the marks sit on the progress bar, 0…1.
+    public var markPositions: [Double] {
+        let total = Double(recording?.durationMs ?? 0)
+        guard total > 0 else { return [] }
+        return marks.map { min(1, Double($0.offsetMs) / total) }
+    }
+
     // MARK: - Transcript (features.md X9)
+
+    /// The audio is uploaded to the user's service to transcribe it (ADR-009); the page says so.
+    public var transcriptionUsesNetwork: Bool { transcriber?.usesNetwork ?? false }
 
     /// "转成文字" is offered when transcription is switched on and nothing is running.
     public var canTranscribe: Bool { transcriber != nil && recording != nil && !audioMissing }
 
     /// Recognizes the recording on this phone and stores the text. Replaces an earlier transcript.
     public func transcribe(language: String = "zh-CN") {
-        guard let transcriber, let recording, !isTranscribing else { return }
-        isTranscribing = true
-        Task {
-            defer { isTranscribing = false }
+        guard let transcriber, let recording, jobs.begin(recording.id) else { return }
+        Task { [jobs] in
+            defer { jobs.end(recording.id) }
             do {
                 let segments = try await transcriber.transcribe(recording, language: language)
-                let result = Transcript(recordingId: recording.id, engine: OnDeviceTranscriber.engineName,
+                let result = Transcript(recordingId: recording.id, engine: transcriber.engineName,
                                         language: language, segments: segments, createdAt: Date())
                 try library.saveTranscript(result)
                 transcript = result
@@ -201,6 +229,12 @@ public final class RecordingDetailModel {
     /// "会议", "访谈"… for the stored scene code.
     public var sceneName: String? {
         summary.flatMap { RecordingScene(rawValue: $0.scene)?.name }
+    }
+
+    /// Reads the stored transcript again: a transcription started from an earlier page may
+    /// have finished while this one was open.
+    public func reloadTranscript() {
+        transcript = try? library.transcript(recordingId: recordingId)
     }
 
     /// "00:18:06" for a transcript line.
@@ -305,6 +339,28 @@ public final class RecordingDetailModel {
             toast = Toast("导出失败，请重试")
         }
         return nil
+    }
+
+    /// Summary and transcript can be shared as Markdown (features.md J1).
+    public var canExportMarkdown: Bool { summary != nil || transcript != nil }
+
+    /// A temporary `<title>.md` for the share sheet; nil with a toast on failure.
+    public func exportMarkdown() -> URL? {
+        guard let recording else { return nil }
+        let text = MarkdownExport.markdown(title: title, recording: recording, sceneName: sceneName,
+                                           summary: summary, transcript: transcript)
+        do {
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("export", isDirectory: true)
+                .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = dir.appendingPathComponent(RecordingExporter.fileName(for: recording.title, fileExtension: "md"))
+            try Data(text.utf8).write(to: url, options: .atomic)
+            return url
+        } catch {
+            toast = Toast("导出失败，请重试")
+            return nil
+        }
     }
 
     /// The title to start a rename from: the user's own, or empty for the default one.

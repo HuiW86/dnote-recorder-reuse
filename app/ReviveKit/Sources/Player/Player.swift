@@ -76,6 +76,14 @@ public final class RecordingPlayer: NSObject {
         state = .idle
     }
 
+    /// Playback speed, kept for the next recording too (design-spec.md §3 播放条).
+    public private(set) var rate: Float = 1
+
+    public func setRate(_ newRate: Float) {
+        rate = newRate
+        player?.rate = newRate
+    }
+
     /// Used by tests to keep the speakers quiet.
     public var volume: Float {
         get { player?.volume ?? 1 }
@@ -112,6 +120,8 @@ public final class RecordingPlayer: NSObject {
             }
         }
         p.delegate = self
+        p.enableRate = true
+        p.rate = rate
         p.prepareToPlay()
         player = p
         recordingId = recording.id

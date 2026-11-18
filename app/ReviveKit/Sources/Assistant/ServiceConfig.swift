@@ -92,9 +92,8 @@ extension ServicePreset {
                       keyPage: "https://platform.openai.com/api-keys"),
     ]
 
-    /// Providers with an OpenAI-compatible `/audio/transcriptions`, for the later transcription
-    /// path (ADR-009 item 2). Taken from andyhuo520/beanpod (commit 0d00fab, Shared/CloudASR.swift).
-    /// Not used by this module yet.
+    /// Providers with an OpenAI-compatible `/audio/transcriptions` (`CloudTranscriber`), with the
+    /// model to use. Taken from andyhuo520/beanpod (commit 0d00fab, Shared/CloudASR.swift).
     public static let transcription: [ServicePreset] = [
         ServicePreset(name: "小米 MiMo", baseURL: "https://api.xiaomimimo.com/v1", defaultModel: "mimo-v2.5-asr"),
         ServicePreset(name: "硅基流动", baseURL: "https://api.siliconflow.cn/v1",

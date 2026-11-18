@@ -10,6 +10,8 @@ public final class AssistantSettingsModel {
     public var baseURL: String
     public var model: String
     public var apiKey: String
+    /// Transcription model on the same service; empty keeps audio on the phone.
+    public var transcriptionModel: String
     public private(set) var isTesting = false
     /// Result of the last "测试连接", in words.
     public private(set) var testResult: String?
@@ -27,7 +29,14 @@ public final class AssistantSettingsModel {
         self.client = client
         baseURL = preferences.assistantBaseURL
         model = preferences.assistantModel
+        transcriptionModel = preferences.assistantTranscriptionModel
         apiKey = (try? keyStore.read()) ?? ""
+    }
+
+    /// The transcription model the chosen provider suggests, if it transcribes at all.
+    public var suggestedTranscriptionModel: String? {
+        ServicePreset.transcription.first { $0.baseURL == baseURL.trimmingCharacters(in: .whitespacesAndNewlines) }?
+            .defaultModel
     }
 
     /// The preset whose address is filled in, if any.
@@ -38,6 +47,11 @@ public final class AssistantSettingsModel {
     public func choose(_ preset: ServicePreset) {
         baseURL = preset.baseURL
         if !preset.defaultModel.isEmpty || model.isEmpty { model = preset.defaultModel }
+        // Fill the transcription model only when this provider also transcribes; never turn
+        // audio upload on by itself if the user had left it empty.
+        if !transcriptionModel.isEmpty {
+            transcriptionModel = ServicePreset.transcription.first { $0.baseURL == preset.baseURL }?.defaultModel ?? ""
+        }
         testResult = nil
     }
 
@@ -54,6 +68,7 @@ public final class AssistantSettingsModel {
         let current = config
         preferences.assistantBaseURL = current.baseURL
         preferences.assistantModel = current.model
+        preferences.assistantTranscriptionModel = transcriptionModel.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             try keyStore.save(current.apiKey)
             toast = Toast("已保存")
@@ -67,9 +82,11 @@ public final class AssistantSettingsModel {
         baseURL = ""
         model = ""
         apiKey = ""
+        transcriptionModel = ""
         testResult = nil
         preferences.assistantBaseURL = ""
         preferences.assistantModel = ""
+        preferences.assistantTranscriptionModel = ""
         try? keyStore.delete()
         toast = Toast("已清除")
     }
