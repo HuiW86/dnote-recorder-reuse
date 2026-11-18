@@ -88,12 +88,14 @@
 | T-M1-30 | 手机空间不足 | `phoneStorageFull`；卡上文件不动 |
 | T-M1-31 | 分片返回 `0xF0` 文件不存在 | `fileNotFound`；重新列表 |
 | T-M1-32 | 在 App 里删除一条本地录音 | OGG 文件与数据库记录都删除；不向卡发送任何命令；SyncItem 保留为 `stored`，不会被重新下载 |
+| T-M1-33 | 下载失败的文件随后从卡上消失（#79） | 自动重试只针对本轮列表里还在、名字和大小都相同的失败项：文件消失后不再反复列表（不出现空重试循环）；同名文件再出现时能同步；同名不同大小时旧的失败项不再重试；新一轮检查成功拿到列表后才替换旧的重试计时器，检查失败时原计时器保留；计时器醒来时卡已断开或换了卡就不触发 |
 
 实现（#39）：`app/ReviveKit/Tests/SyncEngineTests/`，每个用例结束时断言写帧里没有 `0x93`/`0x94`/`0xB0`/`0xB1`（§3.5 第 2 道检查）。
 
 - T-M1-23 的「被杀」：在提交前的钩子里挂起，永不返回；随后在同一个数据库和目录上新建 SyncEngine，相当于重启。
 - T-M1-27 分两种：`FakeCard.Fault.disconnectAfter(.deleteFile)` 表示删除已生效后断开，`disconnectInsteadOf(.deleteFile)` 表示断开时删除未生效。
 - 另有失败自动重试，以及录音中不同步两个用例。
+- T-M1-33（#79，PR #80）：`absentFailedFileDoesNotCauseEmptyRetryLoop`、`removedFailedFileReturningCanBeSynced`、`replacedSizeDoesNotKeepOldFailureRetrying`、`manualPassCancelsObsoleteRetryTimer`、`failedManualListDoesNotLoseScheduledRetry`；同时加了脱敏的同步诊断（`syncDiagnosticsExposeReasonAndCounts`：请求来源、是否排队、列表数、候选数、可重试数）。真机观察记录在 `evidence/v79-sync-retry/`，计时器边界修复之后的版本尚未真机复验。
 
 用变异检查确认过用例有效：分别让已存入的文件重新下载、去掉启动恢复、在提交前发 `0x91`，T-M1-24、23、26 都会失败。
 
@@ -120,7 +122,7 @@
 
 ### 3.6 M1.5 用例（#70）
 
-范围是 `features.md` 的 D1b、E1b、X6～X10，加界面改版第一步（#74）。页面和文案以 `product-spec.md` 1.2 为准。**以下真机用例都还没有执行**；自动用例在 CI 上跑。
+范围是 `features.md` 的 D1b、E1b、X6～X10，加界面改版第一步（#74）。页面和文案以 `product-spec.md` 1.2 为准。**以下真机用例都还没有执行**；自动用例在 CI 上跑。`evidence/v79-sync-retry/` 的真机记录里顺带点过一次「留着」、打开过一条已有文字稿的录音，那是 #79 的观察，不算这里任何一条用例的结论。
 
 #### 3.6.1 自动用例（单元与模拟卡集成）
 
@@ -140,6 +142,7 @@
 | T-M15-12 | #66 Opus 帧头（TOC）解析 | 各字段解析正确，32 种配置都能解；只接受「一包一帧、20 ms、单声道」；60 ms、立体声、一包多帧都拒绝；随机字节不通过；系统编码器按卡的参数产生的包通过。与 `client/tests/test_opus_toc.py` 同一组用例 |
 | T-M15-13 | X9 不联网（静态） | `scripts/check-m1-rules.sh` 的不联网检查覆盖 `Transcription` 模块；CI 通过 |
 | T-M15-14 | 迁移 `v3`～`v5` | 新建数据库时所有迁移都已应用，外键开启 |
+| T-M15-15 | 界面颜色只来自 `Theme`（#74） | `scripts/check-theme.sh` 在 `app/Revive/` 下（`Common/Theme.swift` 和 `Debug/` 除外）找不到具体颜色值、被 `Theme` 取代的系统背景和填充、黑色阴影和彩色淡底；系统警告色 `.red`、`.orange` 允许；CI 通过 |
 
 实现：
 
@@ -159,6 +162,7 @@
 | T-M15-12 | `Tests/CardProtocolTests/OpusTOCTests.swift`（7 个） |
 | T-M15-13 | `scripts/check-m1-rules.sh`（CI 第一步） |
 | T-M15-14 | `AppDatabaseTests` `inMemoryDatabaseOpensAndMigrates` |
+| T-M15-15 | `scripts/check-theme.sh` |
 
 **没有自动用例覆盖的部分**（代码已合并，靠 §3.6.2 和界面走查）：
 
@@ -231,4 +235,5 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 - GitHub Actions（`.github/workflows/app-ci.yml`）：macOS 运行器先跑 §3.5 第 1 道检查（`scripts/check-m1-rules.sh`），再跑 `swift test --disable-xctest`（单元 + 模拟卡集成），最后用 `xcodebuild build` 编译 App。只在 `app/`、检查脚本或工作流文件有改动时触发。
 - M2 起增加后端：`pytest`，数据库用 PostgreSQL 服务容器。
 - M1.5 起 `scripts/check-m1-rules.sh` 的不联网检查也覆盖 `Transcription` 模块（T-M15-13）。
+- #74 起 CI 在 `swift test` 之前还跑 `scripts/check-theme.sh`（T-M15-15）。
 - 真机与端到端不进 CI；结果以证据目录和 PR 记录为准。
