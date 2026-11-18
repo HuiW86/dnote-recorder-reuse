@@ -1,3 +1,4 @@
+import Assistant
 import Foundation
 import Library
 import Observation
@@ -24,6 +25,9 @@ public final class RecordingDetailModel {
     /// The stored text of this recording, if it has been transcribed (features.md X9).
     public private(set) var transcript: Transcript?
     public private(set) var isTranscribing = false
+    /// The stored summary (features.md G1), if one was made.
+    public private(set) var summary: Summary?
+    public private(set) var isSummarizing = false
     /// Set after a delete; the page closes.
     public private(set) var isDeleted = false
     public var toast: Toast?
@@ -33,15 +37,22 @@ public final class RecordingDetailModel {
     @ObservationIgnored private var playTask: Task<Void, Never>?
     /// Nil when on-device transcription is switched off.
     @ObservationIgnored private let transcriber: (any SpeechTranscribing)?
+    /// The user's AI service; nil when the app has none (features.md X11).
+    @ObservationIgnored private let assistant: AssistantConfigSource?
+    @ObservationIgnored private let summarizer: Summarizer
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "Detail")
 
     public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
-                transcriber: (any SpeechTranscribing)? = nil) {
+                transcriber: (any SpeechTranscribing)? = nil, assistant: AssistantConfigSource? = nil,
+                summarizer: Summarizer = Summarizer()) {
         self.recordingId = recordingId
         self.library = library
         self.player = player
         self.transcriber = transcriber
+        self.assistant = assistant
+        self.summarizer = summarizer
         transcript = try? library.transcript(recordingId: recordingId)
+        summary = try? library.summary(recordingId: recordingId)
         recording = try? library.recording(id: recordingId)
         deviceNames = Dictionary(((try? library.pairedDevices()) ?? []).map { ($0.id, $0.name) },
                                  uniquingKeysWith: { a, _ in a })
@@ -139,6 +150,57 @@ public final class RecordingDetailModel {
         case .audioMissing: "找不到这条录音的音频文件"
         case .failed: "转写失败，请重试"
         }
+    }
+
+    // MARK: - Summary (features.md G1, X11)
+
+    /// "生成纪要" needs a transcript and a configured service.
+    public var canSummarize: Bool { transcript != nil && assistant?.current() != nil }
+
+    /// Why "生成纪要" is not offered, when there is a transcript; nil otherwise.
+    public var summaryHint: String? {
+        guard transcript != nil, summary == nil, assistant?.current() == nil else { return nil }
+        return "在「设置 → AI 服务」里填上你的服务后，可以把文字稿整理成纪要"
+    }
+
+    /// Sends the transcript to the user's service and stores the summary. The text leaves the
+    /// phone here, to the service the user chose (ADR-009); nothing else does.
+    public func summarize() {
+        guard let transcript, let recording, let config = assistant?.current(), !isSummarizing else { return }
+        isSummarizing = true
+        let material = Summarizer.material(from: transcript)
+        Task {
+            defer { isSummarizing = false }
+            do {
+                let draft = try await summarizer.summarize(transcript: material, durationMs: recording.durationMs,
+                                                           config: config)
+                let stored = draft.record(recordingId: recording.id)
+                try library.saveSummary(stored)
+                summary = stored
+            } catch let error as AssistantError {
+                toast = Toast(AssistantSettingsModel.text(for: error))
+            } catch is CancellationError {
+                // Left the page.
+            } catch {
+                toast = Toast("生成纪要失败，请重试")
+            }
+        }
+    }
+
+    /// Ticks or unticks a to-do of the summary.
+    public func setTodo(_ index: Int, done: Bool) {
+        do {
+            if let updated = try library.setTodoDone(recordingId: recordingId, index: index, done: done) {
+                summary = updated
+            }
+        } catch {
+            toast = Toast("保存失败，请重试")
+        }
+    }
+
+    /// "会议", "访谈"… for the stored scene code.
+    public var sceneName: String? {
+        summary.flatMap { RecordingScene(rawValue: $0.scene)?.name }
     }
 
     /// "00:18:06" for a transcript line.

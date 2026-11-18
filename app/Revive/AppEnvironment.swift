@@ -4,6 +4,7 @@ import CardService
 import CoreBluetooth
 import Foundation
 import Library
+import Assistant
 import Observation
 import os
 import Player
@@ -15,6 +16,15 @@ import SyncEngine
 @Observable
 final class AppEnvironment {
     let preferences = Preferences()
+    /// The user's AI service, read fresh each time (features.md X11): nil until an address and
+    /// a model are saved. The key comes from the Keychain.
+    let assistantConfig = AssistantConfigSource {
+        let defaults = UserDefaults.standard
+        let config = ServiceConfig(baseURL: defaults.string(forKey: Preferences.assistantBaseURLKey) ?? "",
+                                   model: defaults.string(forKey: Preferences.assistantModelKey) ?? "",
+                                   apiKey: (try? KeychainKeyStore().read()) ?? "")
+        return config.isComplete ? config : nil
+    }
     let library: RecordingLibrary?
     /// Set when the library could not be opened; the app cannot work without it.
     let libraryError: String?

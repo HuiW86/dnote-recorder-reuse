@@ -35,7 +35,7 @@ let package = Package(
         // networking, enforced by scripts/check-m1-rules.sh like the M1 modules.
         .target(name: "Transcription", dependencies: ["Library", "Player"]),
         .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player",
-                                                 "Transcription"]),
+                                                 "Transcription", "Assistant"]),
         // Summaries through a service the user configures (features.md X11, G1; ADR-009). The one
         // module allowed to use the network: no device module may depend on it (CLAUDE.md rule 3).
         .target(name: "Assistant", dependencies: ["Library"]),
@@ -62,6 +62,7 @@ let package = Package(
         ]),
         .testTarget(name: "AppModelTests", dependencies: [
             "AppModel", "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "CardTestSupport",
+            "Assistant",
         ]),
         .testTarget(name: "ArchitectureTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "AppModel",
