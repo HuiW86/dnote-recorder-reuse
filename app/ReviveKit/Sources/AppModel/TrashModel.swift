@@ -45,6 +45,12 @@ public final class TrashModel {
         return days == 0 ? "今天到期" : "还剩 \(days) 天"
     }
 
+    /// The card no longer holds this recording, so deleting it here loses it for good.
+    public func isLastCopy(_ recording: Recording) -> Bool {
+        guard recording.source == .card else { return true }
+        return !((try? library.cardCopyRemains(recordingId: recording.id)) ?? false)
+    }
+
     public func restore(_ id: UUID) {
         do {
             try library.restoreRecording(id: id)

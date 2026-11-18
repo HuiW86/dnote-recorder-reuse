@@ -27,6 +27,14 @@ struct SettingsView: View {
             }
             .surfaceRows()
             Section {
+                NavigationLink(value: Route.assistant) {
+                    LabeledContent("AI 服务", value: preferences.assistantBaseURL.isEmpty ? "未设置" : "已设置")
+                }
+            } footer: {
+                Text("填上你自己的 AI 服务后，可以把文字稿整理成纪要。")
+            }
+            .surfaceRows()
+            Section {
                 Toggle("本机转写（试验）", isOn: $preferences.onDeviceTranscriptEnabled)
             } footer: {
                 Text("打开后，录音详情里可以把录音转成文字。识别在这部手机上完成，不联网；第一次使用时系统会询问语音识别权限。准确度还没有充分验证。")

@@ -10,6 +10,8 @@ enum Route: Hashable {
     case settings, about, privacy, permissions
     /// 最近删除 (features.md D1b), from settings.
     case trash
+    /// 设置 → AI 服务 (features.md X11).
+    case assistant
     /// P02 → P03 from home: "重新搜索" after `unknownCard`; "重新配对" goes to P03 directly.
     case connectGuide, pairing
 }
@@ -37,6 +39,7 @@ struct HomeView: View {
                 case .device(let id): DeviceView(env: env, deviceId: id)
                 case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
                 case .trash: TrashView(env: env)
+                case .assistant: AssistantSettingsView(preferences: env.preferences)
                 case .about: AboutView()
                 case .privacy: PrivacyView()
                 case .permissions: PermissionsView()

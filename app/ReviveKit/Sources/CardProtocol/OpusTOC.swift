@@ -48,11 +48,28 @@ public struct OpusTOC: Equatable, Sendable {
         return counts
     }
 
-    /// True when there is at least one frame and every frame's header says one mono 20 ms
-    /// frame per packet. The bytes may differ between frames (an encoder can switch mode);
-    /// misaligned data fails, because about 1 byte value in 28 passes.
+    /// One mono 20 ms frame in this packet. Code 0 says so directly; code 3 says so when the
+    /// count in the second byte is 1. The card's live stream carries TOC 0x4b, which is code 3
+    /// (evidence/v1-live/README.md). Port of `opus_frame_is_card_format` in the Python client.
+    public static func isCardFrame(_ frame: Data) -> Bool {
+        guard let first = frame.first else { return false }
+        let toc = OpusTOC(first)
+        guard toc.frameMicroseconds == 20000, !toc.isStereo else { return false }
+        switch toc.frameCountCode {
+        case 0:
+            return true
+        case 3:
+            guard frame.count >= 2 else { return false }
+            return frame[frame.index(after: frame.startIndex)] & 0x3F == 1
+        default:
+            return false
+        }
+    }
+
+    /// True when there is at least one frame and every frame holds one mono 20 ms Opus frame.
+    /// Headers may differ between frames (an encoder can switch mode); misaligned data fails,
+    /// because few byte values pass.
     public static func framesMatchCardFormat(_ frames: [Data]) -> Bool {
-        let seen = Self.counts(in: frames)
-        return !seen.isEmpty && seen.keys.allSatisfy { OpusTOC($0).isCardFormat }
+        !frames.isEmpty && frames.allSatisfy(isCardFrame)
     }
 }

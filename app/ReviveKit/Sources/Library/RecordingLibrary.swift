@@ -162,10 +162,29 @@ public final class RecordingLibrary: Sendable {
         store.removeDecoded(id)
     }
 
+    /// Restoring also calls off a "不要这条" request for it (features.md X10): the user wants the
+    /// recording after all, so its card copy is not deleted for that reason. A card delete queued
+    /// by "同步后删除" is queued again by the next pass.
     public func restoreRecording(id: UUID, now: Date = Date()) throws {
         try database.writer.write { db in
             try db.execute(sql: "UPDATE recording SET trashed_at = NULL, updated_at = ? WHERE id = ?",
                            arguments: [now, id])
+            guard let recording = try Recording.fetchOne(db, key: id), let deviceId = recording.deviceId,
+                  let name = recording.cardFileName else { return }
+            try db.execute(sql: "DELETE FROM discard_request WHERE device_id = ? AND card_file_name = ?",
+                           arguments: [deviceId, name])
+            try db.execute(sql: "UPDATE sync_item SET state = ? WHERE recording_id = ? AND state = ?",
+                           arguments: [SyncState.stored.rawValue, id, SyncState.deletePending.rawValue])
+        }
+    }
+
+    /// Whether the card still holds this recording's file, as far as the library knows. False
+    /// once it was deleted from the card or is queued to be: deleting the phone copy then
+    /// loses the recording for good, and 最近删除 says so.
+    public func cardCopyRemains(recordingId: UUID) throws -> Bool {
+        try database.writer.read { db in
+            try SyncItem.filter(Column("recording_id") == recordingId && Column("state") == SyncState.stored.rawValue)
+                .fetchCount(db) > 0
         }
     }
 
@@ -258,6 +277,30 @@ public final class RecordingLibrary: Sendable {
 
     public func transcript(recordingId: UUID) throws -> Transcript? {
         try database.writer.read { try Transcript.fetchOne($0, key: recordingId) }
+    }
+
+    // MARK: Summaries (features.md G1)
+
+    /// Stores the summary of a recording, replacing an earlier one.
+    public func saveSummary(_ summary: Summary) throws {
+        try database.writer.write { db in try summary.save(db) }
+    }
+
+    public func summary(recordingId: UUID) throws -> Summary? {
+        try database.writer.read { try Summary.fetchOne($0, key: recordingId) }
+    }
+
+    /// Ticks or unticks the todo at `index`. Returns the stored summary, nil when there is no
+    /// summary or no todo at that index.
+    @discardableResult
+    public func setTodoDone(recordingId: UUID, index: Int, done: Bool) throws -> Summary? {
+        try database.writer.write { db in
+            guard var stored = try Summary.fetchOne(db, key: recordingId),
+                  stored.todos.indices.contains(index) else { return nil }
+            stored.todos[index].done = done
+            try stored.update(db)
+            return stored
+        }
     }
 
     // MARK: Marks (features.md X7)
@@ -353,6 +396,13 @@ public final class RecordingLibrary: Sendable {
         guard let recording = try database.writer.write({ db -> Recording? in
             guard let r = try Recording.fetchOne(db, key: id) else { return nil }
             try r.delete(db)
+            // Its marks go too, unless another recording has the same card file name (the
+            // card's clock was reset: T-M1-25).
+            if let deviceId = r.deviceId, let name = r.cardFileName,
+               try Recording.filter(Column("device_id") == deviceId && Column("card_file_name") == name).fetchCount(db) == 0 {
+                try db.execute(sql: "DELETE FROM recording_mark WHERE device_id = ? AND card_file_name = ?",
+                               arguments: [deviceId, name])
+            }
             return r
         }) else { return }
         // Row first: a crash before the file is removed leaves an orphan that recovery deletes.

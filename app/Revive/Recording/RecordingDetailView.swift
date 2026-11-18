@@ -22,7 +22,7 @@ struct RecordingDetailView: View {
                 // On-device transcription is behind a switch until its quality is measured (#67).
                 let transcriber = env.preferences.onDeviceTranscriptEnabled ? OnDeviceTranscriber(library: library) : nil
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
-                                             transcriber: transcriber)
+                                             transcriber: transcriber, assistant: env.assistantConfig)
             }
         }
         .onDisappear { model?.leave() }
@@ -137,6 +137,9 @@ private struct RecordingDetailContent: View {
                 }
                 .listRowBackground(Color.clear)
             }
+            if model.summary != nil || model.canSummarize || model.summaryHint != nil {
+                summarySection
+            }
             if model.canTranscribe || model.transcript != nil {
                 transcriptSection
             }
@@ -161,6 +164,53 @@ private struct RecordingDetailContent: View {
 }
 
 extension RecordingDetailContent {
+    /// 纪要 (features.md G1): made by the user's own AI service from the transcript.
+    @ViewBuilder fileprivate var summarySection: some View {
+        Section {
+            if let summary = model.summary {
+                VStack(alignment: .leading, spacing: 6) {
+                    if !summary.title.isEmpty {
+                        Text(summary.title).font(.headline).foregroundStyle(Theme.ink)
+                    }
+                    Text(summary.summary).foregroundStyle(Theme.ink)
+                    if let scene = model.sceneName {
+                        Text(scene).font(.caption).foregroundStyle(Theme.inkMuted)
+                    }
+                }
+                ForEach(Array(summary.sections.enumerated()), id: \.offset) { _, section in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(section.heading).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
+                        ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
+                            Text("· " + item).foregroundStyle(Theme.ink)
+                        }
+                    }
+                }
+                ForEach(Array(summary.todos.enumerated()), id: \.offset) { index, todo in
+                    Button { model.setTodo(index, done: !todo.done) } label: {
+                        Label(todo.text, systemImage: todo.done ? "checkmark.square.fill" : "square")
+                            .foregroundStyle(Theme.ink)
+                    }
+                    .accessibilityAddTraits(todo.done ? .isSelected : [])
+                }
+            }
+            if model.isSummarizing {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在用你的 AI 服务整理纪要").font(.subheadline).foregroundStyle(Theme.inkMuted)
+                }
+            } else if model.canSummarize {
+                Button(model.summary == nil ? "生成纪要" : "重新生成纪要") { model.summarize() }
+            } else if let hint = model.summaryHint {
+                Text(hint).font(.subheadline).foregroundStyle(Theme.inkMuted)
+            }
+        } header: {
+            Text("纪要")
+        } footer: {
+            Text("生成纪要时，文字稿会发送给你在设置里填的 AI 服务；录音音频不会发送。")
+        }
+        .listRowBackground(Color.clear)
+    }
+
     /// 文字稿 (features.md X9): made on this phone; tapping a line plays from there.
     @ViewBuilder fileprivate var transcriptSection: some View {
         Section {

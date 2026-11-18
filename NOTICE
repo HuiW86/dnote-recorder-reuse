@@ -1,0 +1,35 @@
+闻笺（Revive）第三方内容声明
+
+app/ReviveKit/Sources/Assistant 中的录音场景分类（场景名称、定义、栏目、关键词，见
+Scene.swift）、总结提示词（含长录音分段压缩、回复解析规则和没有模型时的关键词粗分类，见
+Summarizer.swift）和常见服务商地址列表（见 ServiceConfig.swift），改编自：
+
+  andyhuo520/beanpod（commit 0d00fab）
+  MIT License，Copyright (c) 2026 berryxia
+
+改动：去掉了职业和纪要语言设置，提示词固定用简体中文；Swift 代码由本项目重写。
+原项目的许可证全文如下。
+
+----------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2026 berryxia
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

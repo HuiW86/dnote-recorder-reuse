@@ -162,6 +162,63 @@ public struct Transcript: Codable, Equatable, Sendable, FetchableRecord, Persist
     public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
 }
 
+/// One headed block of a summary, such as 「结论与决定」 for a meeting.
+public struct SummarySection: Codable, Equatable, Sendable {
+    public var heading: String
+    public var items: [String]
+
+    public init(heading: String, items: [String]) {
+        self.heading = heading
+        self.items = items
+    }
+}
+
+/// A follow-up the summary found; `done` is set by the user.
+public struct SummaryTodo: Codable, Equatable, Sendable {
+    public var text: String
+    public var done: Bool
+
+    public init(text: String, done: Bool = false) {
+        self.text = text
+        self.done = done
+    }
+}
+
+/// The summary of a recording (features.md G1, G2a). One per recording; removed with it.
+/// `sections`, `todos`, `tags` and `people` are stored as JSON.
+public struct Summary: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public var recordingId: UUID
+    /// Scene code, such as "meeting" (the raw value of Assistant's `Scene`).
+    public var scene: String
+    public var title: String
+    public var summary: String
+    public var sections: [SummarySection]
+    public var todos: [SummaryTodo]
+    public var tags: [String]
+    public var people: [String]
+    /// What produced it: the model name, or "keywords" for the rule-based fallback.
+    public var model: String
+    public var createdAt: Date
+
+    public init(recordingId: UUID, scene: String, title: String, summary: String, sections: [SummarySection],
+                todos: [SummaryTodo], tags: [String], people: [String], model: String, createdAt: Date) {
+        self.recordingId = recordingId
+        self.scene = scene
+        self.title = title
+        self.summary = summary
+        self.sections = sections
+        self.todos = todos
+        self.tags = tags
+        self.people = people
+        self.model = model
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "summary"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+}
+
 /// States of prd.md §4.1.
 public enum SyncState: String, Codable, Sendable, CaseIterable {
     case discovered, downloading, stored, deletePending, deletedOnCard, failed

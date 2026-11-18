@@ -32,6 +32,20 @@ for m in "${m1_modules[@]}"; do
   fi
 done
 
+# The Assistant module talks to AI services over the network. Device and offline modules
+# must not import it (CLAUDE.md rule 3): only the app shell and AppModel's AI screens may.
+offline_modules=(CardProtocol CardLink CardService Library SyncEngine Player Transcription)
+for m in "${offline_modules[@]}"; do
+  dir="$app/ReviveKit/Sources/$m"
+  [[ -d "$dir" ]] || continue
+  uses=$(grep -rnE '^[[:space:]]*(@testable[[:space:]]+)?import[[:space:]]+Assistant\b' "$dir" --include='*.swift' || true)
+  if [[ -n "$uses" ]]; then
+    echo "FAIL: offline module $m imports Assistant (CLAUDE.md rule 3):"
+    echo "$uses"
+    fail=1
+  fi
+done
+
 if [[ $fail -eq 0 ]]; then
   echo "OK: M1 static rules pass"
 fi

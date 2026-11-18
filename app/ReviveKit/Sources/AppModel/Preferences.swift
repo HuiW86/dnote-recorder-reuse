@@ -12,8 +12,14 @@ public final class Preferences {
         static let recordingConsent = "revive.recordingConsent"
         static let syncNotifications = "revive.syncNotifications"
         static let onDeviceTranscript = "revive.onDeviceTranscript"
+        static let assistantBaseURL = Preferences.assistantBaseURLKey
+        static let assistantModel = Preferences.assistantModelKey
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
     }
+
+    /// UserDefaults keys of the AI service, for reading it off the main actor.
+    public nonisolated static let assistantBaseURLKey = "revive.assistant.baseURL"
+    public nonisolated static let assistantModelKey = "revive.assistant.model"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -58,6 +64,28 @@ public final class Preferences {
         }
         set {
             withMutation(keyPath: \.onDeviceTranscriptEnabled) { defaults.set(newValue, forKey: Key.onDeviceTranscript) }
+        }
+    }
+
+    /// The user's AI service (features.md X11, ADR-009): address and model only. The key is
+    /// secret and lives in the Keychain (`KeychainKeyStore`), never here.
+    public var assistantBaseURL: String {
+        get {
+            access(keyPath: \.assistantBaseURL)
+            return defaults.string(forKey: Key.assistantBaseURL) ?? ""
+        }
+        set {
+            withMutation(keyPath: \.assistantBaseURL) { defaults.set(newValue, forKey: Key.assistantBaseURL) }
+        }
+    }
+
+    public var assistantModel: String {
+        get {
+            access(keyPath: \.assistantModel)
+            return defaults.string(forKey: Key.assistantModel) ?? ""
+        }
+        set {
+            withMutation(keyPath: \.assistantModel) { defaults.set(newValue, forKey: Key.assistantModel) }
         }
     }
 

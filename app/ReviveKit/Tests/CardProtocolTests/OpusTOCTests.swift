@@ -50,6 +50,19 @@ struct OpusTOCTests {
         #expect(OpusTOC.framesMatchCardFormat([frame(0x48), frame(0xB8)]))  // mode switch, still 20 ms
     }
 
+    /// The card's live stream carries 0x4b (code 3); a count byte of 1 is still one 20 ms frame.
+    @Test func acceptsCode3WithOneFrame() {
+        var one = frame(0x4B)
+        one[1] = 0x01
+        var two = frame(0x4B)
+        two[1] = 0x02
+        #expect(OpusTOC.framesMatchCardFormat([frame(0x48), one, one]))
+        #expect(!OpusTOC.framesMatchCardFormat([one, two]))
+        #expect(!OpusTOC.framesMatchCardFormat([Data([0x4B])]))
+        let sliced = (Data([0, 0x4B, 0x01]) + Data(count: 38)).dropFirst()  // non-zero startIndex
+        #expect(OpusTOC.isCardFrame(sliced))
+    }
+
     @Test func rejectsOtherFormats() {
         #expect(!OpusTOC.framesMatchCardFormat([]))
         #expect(!OpusTOC.framesMatchCardFormat([frame(0x48), frame(0x58)]))  // a 60 ms frame
