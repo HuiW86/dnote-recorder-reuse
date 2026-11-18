@@ -145,6 +145,9 @@ public final class RecordingDetailModel {
 
     // MARK: - Transcript (features.md X9)
 
+    /// The audio is uploaded to the user's service to transcribe it (ADR-009); the page says so.
+    public var transcriptionUsesNetwork: Bool { transcriber?.usesNetwork ?? false }
+
     /// "转成文字" is offered when transcription is switched on and nothing is running.
     public var canTranscribe: Bool { transcriber != nil && recording != nil && !audioMissing }
 
@@ -155,7 +158,7 @@ public final class RecordingDetailModel {
             defer { jobs.end(recording.id) }
             do {
                 let segments = try await transcriber.transcribe(recording, language: language)
-                let result = Transcript(recordingId: recording.id, engine: OnDeviceTranscriber.engineName,
+                let result = Transcript(recordingId: recording.id, engine: transcriber.engineName,
                                         language: language, segments: segments, createdAt: Date())
                 try library.saveTranscript(result)
                 transcript = result

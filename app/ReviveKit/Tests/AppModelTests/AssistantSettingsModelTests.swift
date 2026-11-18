@@ -28,7 +28,20 @@ struct AssistantSettingsModelTests {
         let again = AssistantSettingsModel(preferences: prefs, keyStore: keys)
         #expect(again.config == ServiceConfig(baseURL: preset.baseURL, model: preset.defaultModel, apiKey: "sk-test"))
 
+        #expect(again.transcriptionModel.isEmpty)  // audio upload stays off until the user fills it
+
+        // A provider that also transcribes suggests its model; saving keeps it.
+        let both = try #require(ServicePreset.chat.first { chat in
+            ServicePreset.transcription.contains { $0.baseURL == chat.baseURL } })
+        again.choose(both)
+        #expect(again.transcriptionModel.isEmpty)
+        let suggested = try #require(again.suggestedTranscriptionModel)
+        again.transcriptionModel = suggested
+        again.save()
+        #expect(prefs.assistantTranscriptionModel == suggested)
+
         again.clear()
+        #expect(prefs.assistantTranscriptionModel.isEmpty)
         #expect(prefs.assistantBaseURL.isEmpty && prefs.assistantModel.isEmpty)
         #expect(try keys.read() == nil)
     }

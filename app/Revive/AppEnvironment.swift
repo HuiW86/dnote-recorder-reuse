@@ -25,6 +25,15 @@ final class AppEnvironment {
                                    apiKey: (try? KeychainKeyStore().read()) ?? "")
         return config.isComplete ? config : nil
     }
+
+    /// The same service for transcription, when the user gave it a transcription model; nil
+    /// otherwise, and then no audio is ever uploaded (ADR-009).
+    var cloudTranscriptionConfig: ServiceConfig? {
+        guard let chat = assistantConfig.current() else { return nil }
+        let model = preferences.assistantTranscriptionModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !model.isEmpty else { return nil }
+        return ServiceConfig(baseURL: chat.baseURL, model: model, apiKey: chat.apiKey)
+    }
     let library: RecordingLibrary?
     /// Set when the library could not be opened; the app cannot work without it.
     let libraryError: String?

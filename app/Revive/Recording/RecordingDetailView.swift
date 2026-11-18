@@ -1,4 +1,5 @@
 import AppModel
+import Assistant
 import Player
 import SwiftUI
 import Transcription
@@ -22,7 +23,15 @@ struct RecordingDetailView: View {
         .onAppear {
             if model == nil, let library = env.library, let player = env.player {
                 // On-device transcription is behind a switch until its quality is measured (#67).
-                let transcriber = env.preferences.onDeviceTranscriptEnabled ? OnDeviceTranscriber(library: library) : nil
+                // On the phone when that is switched on; otherwise the user's own service, if they
+                // gave it a transcription model (the audio is then uploaded, and the page says so).
+                let transcriber: (any SpeechTranscribing)? = if env.preferences.onDeviceTranscriptEnabled {
+                    OnDeviceTranscriber(library: library)
+                } else if let cloud = env.cloudTranscriptionConfig {
+                    CloudTranscriber(library: library, config: cloud)
+                } else {
+                    nil
+                }
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
                                              transcriber: transcriber, assistant: env.assistantConfig)
             }
@@ -240,7 +249,7 @@ extension RecordingDetailContent {
             if model.isTranscribing {
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("正在这部手机上转成文字，长录音需要一些时间")
+                    Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字，长录音需要一些时间")
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkMuted)
                 }
@@ -250,7 +259,9 @@ extension RecordingDetailContent {
         } header: {
             Text("文字稿")
         } footer: {
-            Text("在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+            Text(model.transcriptionUsesNetwork
+                 ? "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
+                 : "在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
         }
         .listRowBackground(Color.clear)
     }
