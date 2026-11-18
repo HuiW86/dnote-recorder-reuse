@@ -7,12 +7,14 @@ import SwiftUI
 struct DeviceView: View {
     let env: AppEnvironment
     let deviceId: UUID
+    /// The 录音卡 tab (#89): says the phone can record without the card while it is not connected.
+    var isTab = false
     @State private var model: DeviceModel?
 
     var body: some View {
         Group {
             if let model {
-                DeviceContent(env: env, model: model)
+                DeviceContent(env: env, model: model, isTab: isTab)
             } else {
                 ProgressView().paperPage()
             }
@@ -30,6 +32,7 @@ struct DeviceView: View {
 private struct DeviceContent: View {
     let env: AppEnvironment
     @Bindable var model: DeviceModel
+    var isTab = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var renaming = false
@@ -44,6 +47,12 @@ private struct DeviceContent: View {
                 Label(FirmwareText.unverified, systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline)
                     .foregroundStyle(.orange)
+                    .surfaceRows()
+            }
+            if isTab, !model.isConnected, env.phoneRecorder != nil {
+                Label("录音卡不在身边也能录：点下方中间的红色按钮，用这部手机的麦克风录。", systemImage: "mic")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.ink)
                     .surfaceRows()
             }
             general

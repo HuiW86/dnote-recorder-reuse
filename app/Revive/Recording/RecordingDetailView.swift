@@ -4,10 +4,28 @@ import Player
 import SwiftUI
 import Transcription
 
-/// P06 recording detail: player, file info, export, delete (product-spec.md §4.2).
+/// The three panes of the detail page (#89).
+enum DetailPane: String, CaseIterable, Identifiable {
+    case summary, transcript, rewrite
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .summary: "纪要"
+        case .transcript: "文字稿"
+        case .rewrite: "改写"
+        }
+    }
+}
+
+/// P06 recording detail: header, the 纪要 / 文字稿 / 改写 panes, the floating player, and the
+/// page's actions in "⋯" (product-spec.md §4.2, #89).
 struct RecordingDetailView: View {
     let env: AppEnvironment
     let recordingId: UUID
+    /// The pane to open on; nil picks one from what the recording has.
+    var initialPane: DetailPane?
     /// Called after the recording was moved to 最近删除, so the list can offer "撤销" (#85).
     var onDeleted: (UUID) -> Void = { _ in }
     @State private var model: RecordingDetailModel?
@@ -15,7 +33,8 @@ struct RecordingDetailView: View {
     var body: some View {
         Group {
             if let model {
-                RecordingDetailContent(model: model, onDeleted: onDeleted)
+                RecordingDetailContent(model: model, initialPane: initialPane ?? LaunchOptions.startPane,
+                                       onDeleted: onDeleted)
             } else {
                 ProgressView().paperPage()
             }
@@ -42,8 +61,13 @@ struct RecordingDetailView: View {
 
 private struct RecordingDetailContent: View {
     @Bindable var model: RecordingDetailModel
+    var initialPane: DetailPane?
     var onDeleted: (UUID) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pane: DetailPane?
+    /// The transcript line being played, polled while 文字稿 is shown.
+    @State private var playingLine: Int?
     @State private var confirmingDelete = false
     @State private var shareURL: URL?
     @State private var renaming = false
@@ -71,39 +95,10 @@ private struct RecordingDetailContent: View {
         .toolbar {
             if model.recording != nil {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    if !model.audioMissing {
-                        Menu {
-                            Button("M4A（微信等大多数 App 可播放）", systemImage: "waveform") {
-                                Task { shareURL = await model.exportM4A() }
-                            }
-                            Button("原始文件（OGG）", systemImage: "doc") {
-                                shareURL = model.exportFile()
-                            }
-                            if model.canExportMarkdown {
-                                Button("纪要和文字稿（Markdown）", systemImage: "doc.text") {
-                                    shareURL = model.exportMarkdown()
-                                }
-                            }
-                        } label: {
-                            if model.isExporting {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "square.and.arrow.up")
-                            }
-                        }
-                        .disabled(model.isExporting)
-                        .accessibilityLabel(model.isExporting ? "正在导出" : "分享")
+                    if model.isExporting {
+                        ProgressView().accessibilityLabel("正在导出")
                     }
-                    Menu {
-                        Button("重命名", systemImage: "pencil") {
-                            newTitle = model.editableTitle
-                            renaming = true
-                        }
-                        Button("删除录音", systemImage: "trash", role: .destructive) { confirmingDelete = true }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                    .accessibilityLabel("更多")
+                    moreMenu
                 }
             }
         }
@@ -137,52 +132,105 @@ private struct RecordingDetailContent: View {
         }
     }
 
-    private var content: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(model.title)
-                        .font(.title2.bold())
-                        .foregroundStyle(Theme.ink)
-                    Text(model.startedAtText)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.inkMuted)
-                }
-                .listRowSeparator(.hidden)
+    /// Everything the page can do, in one menu (#89).
+    private var moreMenu: some View {
+        Menu {
+            Button("重命名", systemImage: "pencil") {
+                newTitle = model.editableTitle
+                renaming = true
             }
-            .listRowBackground(Color.clear)
-            if !model.marks.isEmpty {
-                Section("重点") {
-                    ForEach(model.marks) { mark in
-                        Button { model.play(from: mark) } label: {
-                            Label(model.markText(mark), systemImage: "bookmark.fill")
-                                .monospacedDigit()
-                        }
-                        .accessibilityHint("从这里播放")
+            Button(model.isStarred ? "取消星标" : "标星", systemImage: model.isStarred ? "star.slash" : "star") {
+                model.toggleStar()
+            }
+            if model.canSummarize {
+                Button(model.summary == nil ? "生成纪要" : "重新生成纪要", systemImage: "sparkles") {
+                    pane = .summary
+                    model.summarize()
+                }
+                .disabled(model.isSummarizing)
+            }
+            Menu("分享", systemImage: "square.and.arrow.up") {
+                if !model.audioMissing {
+                    Button("M4A（微信等大多数 App 可播放）", systemImage: "waveform") {
+                        Task { shareURL = await model.exportM4A() }
+                    }
+                    Button("原始文件（OGG）", systemImage: "doc") {
+                        shareURL = model.exportFile()
                     }
                 }
-                .listRowBackground(Color.clear)
-            }
-            if model.summary != nil || model.canSummarize || model.summaryHint != nil {
-                summarySection
-            }
-            if model.canRewrite {
-                rewriteSection
-            }
-            if model.canTranscribe || model.transcript != nil {
-                transcriptSection
-            }
-            Section {
-                LabeledContent("时长", value: model.durationText)
-                if let source = model.sourceText {
-                    LabeledContent("来源", value: source)
+                if model.canExportMarkdown {
+                    Button("纪要和文字稿（Markdown）", systemImage: "doc.text") {
+                        shareURL = model.exportMarkdown()
+                    }
                 }
-                LabeledContent("大小", value: model.sizeText)
             }
-            .listRowBackground(Color.clear)
+            .disabled(model.isExporting)
+            if let transcript = model.transcript, !transcript.segments.isEmpty {
+                Button("拷贝文字稿", systemImage: "doc.on.doc") {
+                    UIPasteboard.general.string = transcript.segments.map(\.text).joined(separator: "\n")
+                    model.toast = Toast("已拷贝文字稿")
+                }
+            }
+            Divider()
+            Button("删除录音", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+        } label: {
+            Image(systemName: "ellipsis.circle")
         }
-        .listStyle(.plain)
-        .paperBackground()
+        .accessibilityLabel("更多")
+    }
+
+    /// The pane shown: the user's choice, else the one asked for, else 纪要 when there is one,
+    /// then 文字稿.
+    private var currentPane: DetailPane {
+        pane ?? initialPane ?? (model.summary == nil && model.transcript != nil ? .transcript : .summary)
+    }
+
+    private var paneBinding: Binding<DetailPane> {
+        Binding(get: { currentPane }, set: { pane = $0 })
+    }
+
+    private var content: some View {
+        ScrollViewReader { proxy in
+            List {
+                Section {
+                    header
+                        .listRowSeparator(.hidden)
+                    Picker("内容", selection: paneBinding) {
+                        ForEach(DetailPane.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowSeparator(.hidden)
+                }
+                .listRowBackground(Color.clear)
+                switch currentPane {
+                case .summary:
+                    summarySection
+                    infoSection
+                case .transcript:
+                    if !model.marks.isEmpty {
+                        marksSection
+                    }
+                    transcriptSection
+                case .rewrite:
+                    rewriteSection
+                }
+            }
+            .listStyle(.plain)
+            .paperBackground()
+            .onChange(of: playingLine) { _, line in
+                // Follow the line being played; with Reduce Motion on, the page does not move (#89).
+                guard let line, !reduceMotion, currentPane == .transcript else { return }
+                withAnimation { proxy.scrollTo(TranscriptLineID(index: line), anchor: .center) }
+            }
+        }
+        .task(id: currentPane) {
+            guard currentPane == .transcript else { return }
+            while !Task.isCancelled {
+                let line = model.currentSegmentIndex
+                if line != playingLine { playingLine = line }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
         // The player floats over the bottom of the page (design-spec.md §3).
         .safeAreaInset(edge: .bottom) {
             PlayerCard(model: model)
@@ -190,11 +238,80 @@ private struct RecordingDetailContent: View {
                 .padding(.bottom, 8)
         }
     }
+
+    /// Title, then when, how long, the scene, and the star.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(model.title)
+                .font(.title2.bold())
+                .foregroundStyle(Theme.ink)
+            HStack(spacing: 6) {
+                Text(headerLine)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.inkMuted)
+                    .monospacedDigit()
+                if model.isStarred {
+                    Image(systemName: "star.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.accent)
+                        .accessibilityLabel("已标星")
+                }
+            }
+        }
+    }
+
+    private var headerLine: String {
+        var parts = [model.startedAtText, model.durationText]
+        if let scene = model.sceneName { parts.append(scene) }
+        return parts.joined(separator: " · ")
+    }
+
+    private var marksSection: some View {
+        Section("重点") {
+            ForEach(model.marks) { mark in
+                Button { model.play(from: mark) } label: {
+                    Label(model.markText(mark), systemImage: "bookmark.fill")
+                        .monospacedDigit()
+                }
+                .accessibilityHint("从这里播放")
+            }
+        }
+        .listRowBackground(Color.clear)
+    }
+
+    private var infoSection: some View {
+        Section {
+            LabeledContent("时长", value: model.durationText)
+            if let source = model.sourceText {
+                LabeledContent("来源", value: source)
+            }
+            LabeledContent("大小", value: model.sizeText)
+        }
+        .listRowBackground(Color.clear)
+    }
+}
+
+/// Scroll target of a transcript line.
+private struct TranscriptLineID: Hashable {
+    let index: Int
 }
 
 extension RecordingDetailContent {
     /// 改写和提问 (features.md X15, G3): the user's own AI service, on this recording's text.
     @ViewBuilder fileprivate var rewriteSection: some View {
+        if !model.canRewrite {
+            Section {
+                Text("转成文字、并在设置里填了 AI 服务后，可以把这条录音改写成别的样子，或者问它问题。")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.inkMuted)
+            }
+            .listRowBackground(Color.clear)
+        } else {
+            rewriteControls
+        }
+    }
+
+    @ViewBuilder private var rewriteControls: some View {
         Section {
             Menu {
                 ForEach(RewriteStyle.allCases) { style in
@@ -246,6 +363,16 @@ extension RecordingDetailContent {
                         }
                     }
                 }
+                if !summary.tags.isEmpty || !summary.people.isEmpty {
+                    FlowLayout {
+                        ForEach(summary.people, id: \.self) { person in
+                            Chip(text: person, symbol: "person")
+                        }
+                        ForEach(summary.tags, id: \.self) { tag in
+                            Chip(text: "# " + tag.trimmingCharacters(in: CharacterSet(charactersIn: "# ")), symbol: nil)
+                        }
+                    }
+                }
                 ForEach(Array(summary.todos.enumerated()), id: \.offset) { index, todo in
                     Button { model.setTodo(index, done: !todo.done) } label: {
                         Label(todo.text, systemImage: todo.done ? "checkmark.square.fill" : "square")
@@ -276,38 +403,50 @@ extension RecordingDetailContent {
     @ViewBuilder fileprivate var transcriptSection: some View {
         Section {
             if let transcript = model.transcript {
-                ForEach(Array(transcript.segments.enumerated()), id: \.offset) { _, segment in
+                ForEach(Array(transcript.segments.enumerated()), id: \.offset) { index, segment in
+                    let playing = index == playingLine
                     Button { model.play(from: segment) } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text(model.timeText(segment))
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(Theme.inkMuted)
+                                .foregroundStyle(playing ? Theme.accent : Theme.inkMuted)
                             Text(segment.text)
                                 .foregroundStyle(Theme.ink)
                                 .multilineTextAlignment(.leading)
                         }
                     }
+                    .id(TranscriptLineID(index: index))
+                    .listRowBackground(playing ? Theme.accentWash : Color.clear)
+                    .accessibilityValue(playing ? "正在播放" : "")
                     .accessibilityHint("从这里播放")
                 }
             }
-            if model.isTranscribing {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字，长录音需要一些时间")
+            Group {
+                if model.isTranscribing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字，长录音需要一些时间")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.inkMuted)
+                    }
+                } else if model.canTranscribe {
+                    Button(model.transcript == nil ? "转成文字" : "重新转写") { model.transcribe() }
+                } else if model.transcript == nil {
+                    Text("在设置里打开本机转写，或者给你的 AI 服务填上转写模型，就能把这条录音转成文字。")
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkMuted)
                 }
-            } else if model.canTranscribe {
-                Button(model.transcript == nil ? "转成文字" : "重新转写") { model.transcribe() }
             }
+            .listRowBackground(Color.clear)
         } header: {
             Text("文字稿")
         } footer: {
-            Text(model.transcriptionUsesNetwork
-                 ? "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
-                 : "在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+            if model.canTranscribe {
+                Text(model.transcriptionUsesNetwork
+                     ? "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
+                     : "在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+            }
         }
-        .listRowBackground(Color.clear)
     }
 }
 
@@ -443,5 +582,23 @@ private struct AssistantOutputSheet: View {
                 }
             }
         }
+    }
+}
+
+/// A person or a tag under a summary; one line, cut short when wider than the page.
+private struct Chip: View {
+    let text: String
+    let symbol: String?
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if let symbol { Image(systemName: symbol).imageScale(.small) }
+            Text(text).lineLimit(1)
+        }
+        .font(.footnote)
+        .foregroundStyle(Theme.ink)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Theme.accentWash, in: RoundedRectangle(cornerRadius: Theme.Radius.chip))
     }
 }

@@ -1,3 +1,4 @@
+import AppModel
 import SwiftUI
 
 /// First use until a card is paired, then the home screen (product-spec.md §2.1).
@@ -16,21 +17,23 @@ struct RootView: View {
                 }
                 .paperPage()
             } else if env.hasPairedDevice {
-                HomeView(env: env)
+                MainView(env: env)
             } else {
                 OnboardingFlow(env: env)
             }
         }
         .tint(Theme.accent)
+        .preferredColorScheme(env.preferences.appearance.colorScheme)
         .debugEntry(env)
     }
 }
 
 extension View {
     /// DEBUG builds keep the #38/#40 card debug screen reachable, on the app's own Bluetooth stack.
-    func debugEntry(_ env: AppEnvironment) -> some View {
+    @ViewBuilder func debugEntry(_ env: AppEnvironment) -> some View {
         #if DEBUG
-        modifier(DebugEntry(env: env))
+        // Not on screenshots of the demo library (scripts/shots.sh).
+        if LaunchOptions.demoLibrary { self } else { modifier(DebugEntry(env: env)) }
         #else
         self
         #endif
@@ -68,3 +71,14 @@ private struct DebugEntry: ViewModifier {
     }
 }
 #endif
+
+extension Preferences.Appearance {
+    /// Nil follows the system (#89).
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
