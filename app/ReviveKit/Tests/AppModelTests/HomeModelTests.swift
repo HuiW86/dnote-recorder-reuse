@@ -451,6 +451,26 @@ struct HomeModelTests {
         #expect(h.sent(.deleteFile) == deletes)
     }
 
+    /// design-spec.md §3 filter chips: 有重点 and 还没转文字 narrow the list.
+    @Test func filtersByMarksAndTranscripts() async throws {
+        let card = FakeCard(files: [.init(name: "20261101090000.opus", content: Data(repeating: 0x08, count: 400)),
+                                    .init(name: "20261102090000.opus", content: Data(repeating: 0x09, count: 400))],
+                            paired: true)
+        let (h, model) = try await home(card)
+        await waitUntil("listed") { model.recordings.count == 2 }
+        let marked = try #require(model.recordings.first { $0.cardFileName == "20261101090000.opus" })
+        let transcribed = try #require(model.recordings.first { $0.cardFileName == "20261102090000.opus" })
+        try h.library.addMark(deviceId: try #require(marked.deviceId), cardFileName: "20261101090000.opus", offsetMs: 0)
+        try h.library.saveTranscript(Transcript(recordingId: transcribed.id, engine: "t", language: "zh-CN",
+                                                segments: [TranscriptSegment(startMs: 0, text: "x")], createdAt: Date()))
+        #expect(model.filteredRecordings.count == 2)
+        model.filter = .marked
+        #expect(model.filteredRecordings.map(\.id) == [marked.id])
+        model.filter = .untranscribed
+        #expect(model.filteredRecordings.map(\.id) == [marked.id])
+        #expect(model.markCount(for: marked) == 1 && model.markCount(for: transcribed) == 0)
+    }
+
     /// A second paired card. `peripheral` nil means one CoreBluetooth no longer knows.
     private func addSecondCard(_ h: Harness, peripheral: UUID?) throws -> UUID {
         let device = try h.library.upsertDevice(sn: "SECONDCARD000002") { d in

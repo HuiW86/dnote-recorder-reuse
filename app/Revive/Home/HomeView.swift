@@ -205,8 +205,13 @@ private struct HomeContent: View {
                         .listRowBackground(Color.clear)
                 }
             } else {
+                if model.filteredRecordings.isEmpty {
+                    ContentUnavailableView("没有符合条件的录音", systemImage: "line.3.horizontal.decrease.circle")
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
                 // One card per day (design-spec.md §3).
-                ForEach(DayGroup.group(model.recordings)) { day in
+                ForEach(DayGroup.group(model.filteredRecordings)) { day in
                     Section {
                         ForEach(day.recordings, id: \.id) { recording in
                             NavigationLink(value: Route.recording(recording.id)) {
@@ -231,17 +236,44 @@ private struct HomeContent: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Text("全部录音 (\(model.recordings.count))")
-                .font(.largeTitle.bold())
-                .foregroundStyle(Theme.ink)
-            if let card = model.syncCard, isDone(card), doneCollapsed {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Theme.ok)
-                    .accessibilityLabel("全部录音已存入手机")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text("全部录音 (\(model.recordings.count))")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(Theme.ink)
+                if let card = model.syncCard, isDone(card), doneCollapsed {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Theme.ok)
+                        .accessibilityLabel("全部录音已存入手机")
+                }
+            }
+            .accessibilityAddTraits(.isHeader)
+            if !model.recordings.isEmpty {
+                filterChips
             }
         }
-        .accessibilityAddTraits(.isHeader)
+    }
+
+    /// 全部 / 有重点 / 还没转文字 (design-spec.md §3 筛选项).
+    private var filterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(HomeModel.Filter.allCases) { filter in
+                    let selected = model.filter == filter
+                    Button { model.filter = filter } label: {
+                        Text(filter.title)
+                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? Theme.onDark : Theme.ink)
+                            .padding(.horizontal, 16)
+                            .frame(minHeight: 36)
+                            .background(selected ? Theme.accent : Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+        }
     }
 
     /// No empty state during the first sync: the sync card already explains (product-spec.md P05).

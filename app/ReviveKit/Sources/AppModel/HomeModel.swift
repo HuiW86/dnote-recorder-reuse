@@ -467,6 +467,37 @@ public final class HomeModel {
         }
     }
 
+    /// The filter chips above the list (design-spec.md §3).
+    public enum Filter: String, CaseIterable, Identifiable, Sendable {
+        case all, marked, untranscribed
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .all: "全部"
+            case .marked: "有重点"
+            case .untranscribed: "还没转文字"
+            }
+        }
+    }
+
+    public var filter: Filter = .all
+
+    /// `recordings` narrowed by `filter`, newest first.
+    public var filteredRecordings: [Recording] {
+        switch filter {
+        case .all:
+            return recordings
+        case .marked:
+            let ids = (try? session.library.recordingIdsWithMarks()) ?? []
+            return recordings.filter { ids.contains($0.id) }
+        case .untranscribed:
+            let ids = (try? session.library.recordingIdsWithTranscript()) ?? []
+            return recordings.filter { !ids.contains($0.id) }
+        }
+    }
+
     /// Results of the search field (features.md D2); nil when it is empty.
     public private(set) var searchResults: [Recording]?
 

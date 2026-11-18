@@ -268,6 +268,25 @@ public final class RecordingLibrary: Sendable {
                          arguments: [deviceId, cardFileName]) ?? 0 > 0
     }
 
+    // MARK: Filters (design-spec.md §3 筛选项)
+
+    /// Recordings that have at least one mark.
+    public func recordingIdsWithMarks() throws -> Set<UUID> {
+        try database.writer.read { db in
+            Set(try UUID.fetchAll(db, sql: """
+                SELECT DISTINCT recording.id FROM recording
+                JOIN recording_mark ON recording_mark.device_id = recording.device_id
+                 AND recording_mark.card_file_name = recording.card_file_name
+                 AND recording_mark.offset_ms <= recording.duration_ms
+                """))
+        }
+    }
+
+    /// Recordings that have a transcript.
+    public func recordingIdsWithTranscript() throws -> Set<UUID> {
+        try database.writer.read { db in Set(try UUID.fetchAll(db, sql: "SELECT recording_id FROM transcript")) }
+    }
+
     // MARK: Search (features.md D2)
 
     /// Recordings not in 最近删除 whose title, transcript or summary contains every word of
