@@ -78,7 +78,8 @@ private struct HomeContent: View {
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
-    var body: some View {
+    /// Split from `body` so the type checker can handle the modifier chain.
+    private var decoratedList: some View {
         list
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -125,8 +126,7 @@ private struct HomeContent: View {
                     }
                 }
             }
-            .alert("重命名文件夹", isPresented: Binding(get: { folderBeingRenamed != nil },
-                                                     set: { if !$0 { folderBeingRenamed = nil } })) {
+            .alert("重命名文件夹", isPresented: renameFolderBinding) {
                 TextField("文件夹名称", text: $folderName)
                 Button("保存") { if let folder = folderBeingRenamed { model.renameFolder(folder, to: folderName) } }
                 Button("取消", role: .cancel) {}
@@ -148,6 +148,14 @@ private struct HomeContent: View {
                     startPhoneRecording()
                 }
             }
+    }
+
+    private var renameFolderBinding: Binding<Bool> {
+        Binding(get: { folderBeingRenamed != nil }, set: { if !$0 { folderBeingRenamed = nil } })
+    }
+
+    var body: some View {
+        decoratedList
             .sheet(isPresented: $model.showsConsent) {
                 ConsentSheet { model.consentConfirmed() }
             }
