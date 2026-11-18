@@ -236,6 +236,7 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `title` | TEXT | 默认按开始时间生成 |
 | `created_at` / `updated_at` | DATETIME | — |
 | `folder_id` / `trashed_at` | — | M4 预留 |
+| `starred_at` | DATETIME NULL | 标星的时间，空表示未标星（X21，迁移 `v7`，#89）；移入最近删除和恢复都不改它 |
 | `remote_id` / `remote_version` | — | M2/M4 预留 |
 
 ### 5.3 `sync_item`
