@@ -218,7 +218,9 @@ struct PlayerTests {
     }
 
     /// E2: WAV is converted to M4A with its length, OGG Opus is kept, anything else is refused.
-    @Test func importerNormalisesFormats() throws {
+    /// Runs the conversion off the main actor: this suite is main-actor isolated, and blocking it
+    /// for the AAC encode stalls the card service tests' 2 s request timeouts in parallel suites.
+    @Test func importerNormalisesFormats() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("import-src-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -236,23 +238,23 @@ struct PlayerTests {
             for i in 0..<32000 { buffer.floatChannelData![0][i] = sinf(Float(i) * 0.17) * 0.3 }
             try file.write(from: buffer)
         }
-        let fromWav = try AudioImporter.prepareNow(wav)
+        let fromWav = try await AudioImporter.prepare(wav)
         #expect(fromWav.file.pathExtension == "m4a")
         #expect(abs(fromWav.durationMs - 2000) <= 20)
         #expect(try AVAudioFile(forReading: fromWav.file).length > 0)
 
         let ogg = dir.appendingPathComponent("card.ogg")
         try OggOpus.wrap(try SyntheticOpus.sine(seconds: 1)).write(to: ogg)
-        let fromOgg = try AudioImporter.prepareNow(ogg)
+        let fromOgg = try await AudioImporter.prepare(ogg)
         #expect(fromOgg.file.pathExtension == "ogg")
         #expect(fromOgg.durationMs >= 980 && fromOgg.durationMs <= 1020)
 
         let junk = dir.appendingPathComponent("junk.mp3")
         try Data("not audio".utf8).write(to: junk)
-        #expect(throws: AudioImporter.ImportError.unsupported) { try AudioImporter.prepareNow(junk) }
+        await #expect(throws: AudioImporter.ImportError.unsupported) { try await AudioImporter.prepare(junk) }
         let badOgg = dir.appendingPathComponent("bad.ogg")
         try Data("OggS".utf8).write(to: badOgg)
-        #expect(throws: AudioImporter.ImportError.unsupported) { try AudioImporter.prepareNow(badOgg) }
+        await #expect(throws: AudioImporter.ImportError.unsupported) { try await AudioImporter.prepare(badOgg) }
     }
 
     @Test func exportM4AReportsMissingAudio() async throws {
