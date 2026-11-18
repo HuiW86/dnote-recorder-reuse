@@ -203,6 +203,107 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    @Test func absentFailedFileDoesNotCauseEmptyRetryLoop() async throws {
+        var options = testOptions
+        options.retryDelays = [.milliseconds(150), .milliseconds(150), .milliseconds(150)]
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options,
+                                  faults: [.chunkStatus(index: 1, status: 0x40)])
+        #expect(try h.items.first?.state == .failed)
+        h.card.files.removeAll()
+        // Let the already scheduled retry discover the missing file.
+        await waitUntil("missing file no longer counted") { h.engine.failures.retryable == 0 }
+        await h.engine.idle()
+        let lists = h.card.sentRequests.filter { $0.command == .listFiles }.count
+        try await Task.sleep(for: .milliseconds(650))
+        await h.engine.idle()
+        #expect(h.card.sentRequests.filter { $0.command == .listFiles }.count == lists)
+        #expect(try h.items.first?.attempts == 1)
+        #expect(h.deletes.isEmpty)
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func removedFailedFileReturningCanBeSynced() async throws {
+        var options = testOptions
+        options.retryDelays = [.milliseconds(200), .milliseconds(200), .milliseconds(200)]
+        let file = FakeCard.StoredFile(name: "a.opus", content: encrypted)
+        let h = try await Harness(files: [file], options: options, faults: [.chunkStatus(index: 1, status: 0x40)])
+        h.card.files.removeAll()
+        await h.engine.syncNow()
+        #expect(h.engine.failures.retryable == 0)
+        h.card.faults = []
+        h.card.files = [file]
+        await h.engine.syncNow()
+        #expect(try h.recordings.count == 1)
+        #expect(try h.items.first?.state == .stored)
+        #expect(h.deletes.isEmpty)
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func replacedSizeDoesNotKeepOldFailureRetrying() async throws {
+        var options = testOptions
+        options.retryDelays = [.milliseconds(150), .milliseconds(150), .milliseconds(150)]
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options,
+                                  faults: [.chunkStatus(index: 1, status: 0x40)])
+        h.card.faults = []
+        h.card.files = [.init(name: "a.opus", content: plainOpus(frames: 10, seed: 0))]
+        await h.engine.syncNow()
+        let lists = h.card.sentRequests.filter { $0.command == .listFiles }.count
+        try await Task.sleep(for: .milliseconds(650))
+        await h.engine.idle()
+        #expect(h.card.sentRequests.filter { $0.command == .listFiles }.count == lists)
+        #expect(try h.recordings.count == 1)
+        #expect(h.deletes.isEmpty)
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func manualPassCancelsObsoleteRetryTimer() async throws {
+        var options = testOptions
+        options.retryDelays = [.milliseconds(250), .milliseconds(250), .milliseconds(250)]
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options,
+                                  faults: [.chunkStatus(index: 1, status: 0x40)])
+        h.card.faults = []
+        await h.engine.syncNow()
+        let lists = h.card.sentRequests.filter { $0.command == .listFiles }.count
+        try await Task.sleep(for: .milliseconds(650))
+        await h.engine.idle()
+        #expect(h.card.sentRequests.filter { $0.command == .listFiles }.count == lists)
+        #expect(try h.recordings.count == 1)
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func failedManualListDoesNotLoseScheduledRetry() async throws {
+        var options = testOptions
+        options.retryDelays = [.milliseconds(500), .milliseconds(500), .milliseconds(500)]
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options,
+                                  faults: [.chunkStatus(index: 1, status: 0x40)])
+        #expect(try h.items.first?.state == .failed)
+        let before = h.card.sentRequests.filter { $0.command == .listFiles }.count
+        h.card.faults = [.noResponse(.listFiles)]
+        let manual = Task { await h.engine.syncNow() }
+        await waitUntil("manual list was sent") {
+            h.card.sentRequests.filter { $0.command == .listFiles }.count > before
+        }
+        // The timed-out request has already been dropped; the scheduled retry can now succeed.
+        h.card.faults = []
+        await manual.value
+        try await waitUntil("scheduled retry stored recording") { try h.items.first?.state == .stored }
+        #expect(try h.recordings.count == 1)
+        #expect(h.deletes.isEmpty)
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func syncDiagnosticsExposeReasonAndCounts() async throws {
+        let h = try await Harness()
+        var requests: [(SyncEngine.Trigger, Bool)] = []
+        var summaries: [(Int, Int, Int)] = []
+        h.engine.onSyncRequested = { requests.append(($0, $1)) }
+        h.engine.onPassCompleted = { summaries.append(($0, $1, $2)) }
+        await h.engine.syncNow()
+        #expect(requests.count == 1 && requests.first?.0 == .manual && requests.first?.1 == false)
+        #expect(summaries.count == 1 && summaries.first?.0 == 0 && summaries.first?.1 == 0 && summaries.first?.2 == 0)
+        h.checkNoForbiddenWrites()
+    }
+
     /// T-M1-21
     @Test func resumesAfterDrop() async throws {
         let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)],

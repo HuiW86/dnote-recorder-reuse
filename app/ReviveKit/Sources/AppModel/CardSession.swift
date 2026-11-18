@@ -107,6 +107,12 @@ public final class CardSession {
             guard let self else { return }
             self.pairedDevices = (try? self.library.pairedDevices()) ?? self.pairedDevices
         }
+        syncEngine.onSyncRequested = { [weak self] trigger, queued in
+            self?.diagnostics?.add("sync", "requested \(trigger.rawValue), queued \(queued)")
+        }
+        syncEngine.onPassCompleted = { [weak self] listed, queued, retryable in
+            self?.diagnostics?.add("sync", "completed, listed \(listed), candidates \(queued), retryable \(retryable)")
+        }
         let events = service.events
         Task { [weak self] in
             for await event in events { self?.handle(event) }
@@ -373,7 +379,7 @@ public final class CardSession {
     private func catchUp(_ device: Device) async {
         await readRecordingStatus()
         guard autoSyncEnabled, connectedDevice?.id == device.id else { return }
-        syncEngine.requestSync()
+        syncEngine.requestSync(.connection)
     }
 
     private func forgetCard() {
@@ -430,7 +436,7 @@ public final class CardSession {
     private func syncAfterRecoveredStop() {
         diagnostics?.add("card", "stop found without its push, syncing")
         guard autoSyncEnabled, connectedDevice != nil else { return }
-        syncEngine.requestSync()
+        syncEngine.requestSync(.recordingStopped)
     }
 
     private func setRecording(_ state: RecordingState, ms: Int?) {
