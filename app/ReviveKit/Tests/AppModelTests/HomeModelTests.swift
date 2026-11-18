@@ -559,6 +559,31 @@ struct HomeModelTests {
         #expect(h.session.connectedDevice?.id == first)
     }
 
+    @Test func coldLaunchWaitsForBluetoothAndConnectsThePairedCard() async throws {
+        let card = FakeCard(paired: true)
+        card.setPhoneBluetooth(.initializing)
+        let h = try Harness(card: card, bonds: InMemoryBondStore([card.serial: try #require(card.bondId)]))
+        let savedCard = try h.library.upsertDevice(sn: card.serial) { device in
+            device.name = "录音卡"
+            device.firmware = card.firmware
+            device.peripheralId = card.id.uuidString
+            device.pairedAt = Date()
+        }
+        h.session.refreshDevices()
+        let model = HomeModel(session: h.session, preferences: h.preferences)
+        model.start()
+
+        #expect(model.status == .waiting)
+        #expect(model.toast == nil)
+        #expect(card.peripheralId == nil)
+
+        card.setPhoneBluetooth(.idle)
+        await waitUntil("pending connect") { card.state == .connecting }
+        card.advertise()
+        await waitUntil("paired card connected") { h.session.connectedDevice?.id == savedCard.id }
+        #expect(model.toast == nil)
+    }
+
     /// Bluetooth off drops the pending connect; turning it back on must register it again.
     @Test func bluetoothBackOnReconnects() async throws {
         let (h, model) = try await home(FakeCard(paired: true))

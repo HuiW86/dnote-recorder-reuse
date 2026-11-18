@@ -5,9 +5,11 @@ import Foundation
 // card in CardTestSupport implements the same protocol for integration tests.
 
 public enum LinkState: Equatable, Sendable {
+    /// iOS has not reported that Bluetooth is ready, or is resetting it.
+    case initializing
     case poweredOff
     case unauthorized
-    /// Bluetooth LE unavailable on this device, or still resetting.
+    /// Bluetooth LE is not supported on this device.
     case unsupported
     case idle
     case connecting

@@ -161,8 +161,10 @@ public final class CardSession {
     /// Registers a pending connect to `device`, unless the link is busy with a card or already
     /// has one pending (registered by the link itself after a drop).
     public func connectWhenSeen(_ device: Device) throws {
-        diagnostics?.add("link", "connect when seen, link \(linkState)")
         userDisconnected = false
+        // Home retries the selected card on .idle, after CoreBluetooth is ready.
+        guard service.linkState != .initializing else { return }
+        diagnostics?.add("link", "connect when seen, link \(linkState)")
         switch linkState {
         case .connecting, .connected, .disconnected(.lost): return
         default: break

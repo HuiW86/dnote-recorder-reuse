@@ -124,6 +124,7 @@ public final class FakeCard: CardLink {
     }
 
     public func connectWhenSeen(_ id: UUID) throws {
+        if state == .initializing { throw LinkError.bluetoothUnsupported }
         guard id == self.id else { throw LinkError.unknownPeripheral }
         peripheralId = id
         pendingConnect = true
@@ -191,8 +192,8 @@ public final class FakeCard: CardLink {
         state = .connected
     }
 
-    /// Bluetooth on the phone changes: `.poweredOff`, `.unauthorized`, `.unsupported`, or `.idle`
-    /// when it is back. Like CoreBluetooth, losing Bluetooth drops any link.
+    /// Simulates Bluetooth initializing, becoming unavailable, or returning to `.idle` when ready.
+    /// Like CoreBluetooth, losing Bluetooth drops any link.
     public func setPhoneBluetooth(_ newState: LinkState) {
         if newState != .idle { pendingConnect = false }
         state = newState
