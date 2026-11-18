@@ -294,6 +294,23 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 - `recording.trashed_at`（`v1` 已预留）：非空表示在「最近删除」里，行和音频都保留；满 7 天后在 App 启动时彻底删除（D1b）。首页列表只列 `trashed_at` 为空的。
 - `recording.title`：同步时写入 `yyyy-MM-dd HH:mm`；用户重命名后写入用户的标题（X6）。是否改过名按标题的形状判断，不另加字段。
 
+### 5.8 `summary`（M2，迁移 `v6`）
+
+录音的纪要（`features.md` G1），由用户自配的 AI 服务生成（X11，ADR-009）。主键 `recording_id`，随录音删除。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `recording_id` | UUID PK FK | — |
+| `scene` | TEXT | 场景代号，如 `meeting`（`Assistant.RecordingScene`） |
+| `title` / `summary` | TEXT | 标题、两到四句摘要 |
+| `sections` | TEXT（JSON） | `[{heading, items}]`，栏目随场景 |
+| `todos` | TEXT（JSON） | `[{text, done}]`，可在详情页勾选 |
+| `tags` / `people` | TEXT（JSON） | 最多 6 个标签、12 个人名 |
+| `model` | TEXT | 生成它的模型名；关键词粗整理为 `keywords` |
+| `created_at` | DATETIME | — |
+
+生成时只把文字稿发给用户填的服务，录音音频不发送。联网代码只在 `Assistant` 模块里，`scripts/check-m1-rules.sh` 检查设备和离线模块不引用它。
+
 ## 6. App 错误码（M1）
 
 | 错误码 | 含义 | 可重试 | 用户看到的处理 |
