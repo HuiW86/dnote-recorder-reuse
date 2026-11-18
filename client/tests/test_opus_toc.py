@@ -41,6 +41,15 @@ def test_card_format_accepts_uniform_20ms_mono():
     assert P.opus_frames_match_card_format([frame(0x48), frame(0xB8)])  # mode switch, still 20 ms
 
 
+def test_card_format_accepts_code3_with_one_frame():
+    # The card's live stream carries 0x4b (code 3); a count byte of 1 is one 20 ms frame.
+    one = bytes([0x4B, 0x01]) + bytes(38)
+    two = bytes([0x4B, 0x02]) + bytes(38)
+    assert P.opus_frames_match_card_format([frame(0x48), one, one])
+    assert not P.opus_frames_match_card_format([one, two])
+    assert not P.opus_frames_match_card_format([bytes([0x4B])])
+
+
 @pytest.mark.parametrize("frames", [
     [],                                   # nothing to judge
     [frame(0x48), frame(0x58)],           # one 60 ms frame among 20 ms ones

@@ -375,15 +375,23 @@ def opus_toc_stats(frames) -> dict:
     return stats
 
 
-def opus_frames_match_card_format(frames) -> bool:
-    """True when every frame's TOC byte says one mono 20 ms frame per packet: what
-    split_opus_frames and the OGG muxer assume (#66). The bytes may differ between frames
-    (an encoder can switch mode); misaligned data fails because about 1 byte in 28 passes."""
-    stats = opus_toc_stats(frames)
-    if not stats:
+def opus_frame_is_card_format(frame: bytes) -> bool:
+    """One mono 20 ms frame in this packet. Code 0 says so directly; code 3 says so when the
+    count in the second byte is 1 (the card's live stream carries TOC 0x4b, which is code 3:
+    evidence/v1-live/README.md)."""
+    if not frame:
         return False
-    for byte in stats:
-        toc = opus_toc(byte)
-        if toc["frame_us"] != 20000 or toc["code"] != 0 or toc["stereo"]:
-            return False
-    return True
+    toc = opus_toc(frame[0])
+    if toc["frame_us"] != 20000 or toc["stereo"]:
+        return False
+    if toc["code"] == 0:
+        return True
+    return toc["code"] == 3 and len(frame) >= 2 and (frame[1] & 0x3F) == 1
+
+
+def opus_frames_match_card_format(frames) -> bool:
+    """True when every frame holds one mono 20 ms Opus frame: what split_opus_frames and the
+    OGG muxer assume (#66). Headers may differ between frames (an encoder can switch mode);
+    misaligned data fails because few byte values pass."""
+    frames = list(frames)
+    return bool(frames) and all(opus_frame_is_card_format(f) for f in frames)

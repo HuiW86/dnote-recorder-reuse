@@ -180,6 +180,53 @@ struct RecordingLibraryTests {
         #expect(try lib.marks(for: imported).isEmpty)
     }
 
+    /// X10 and D1b: restoring a discarded recording calls the discard off, and the library
+    /// knows when the card copy is gone (最近删除 then warns it is the last copy).
+    @Test func restoreCancelsDiscardAndCardCopyIsTracked() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        _ = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
+        #expect(try lib.cardCopyRemains(recordingId: id))
+
+        try lib.requestDiscard(deviceId: device.id, cardFileName: "a.opus")
+        #expect(try !lib.cardCopyRemains(recordingId: id))  // queued for the card delete
+        try lib.restoreRecording(id: id)
+        #expect(try !lib.discardRequested(deviceId: device.id, cardFileName: "a.opus"))
+        #expect(try lib.syncItems(deviceId: device.id).first?.state == .stored)
+        #expect(try lib.cardCopyRemains(recordingId: id))
+
+        var gone = try #require(try lib.syncItems(deviceId: device.id).first)
+        gone.state = .deletedOnCard
+        try lib.update(gone)
+        #expect(try !lib.cardCopyRemains(recordingId: id))
+    }
+
+    /// X7: deleting a recording for good removes its marks, unless another recording has the
+    /// same card file name.
+    @Test func marksGoWithTheirRecording() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        func store(size: Int) throws -> UUID {
+            let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: size)
+            let id = UUID()
+            let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+            _ = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
+            return id
+        }
+        let first = try store(size: 10)
+        let second = try store(size: 11)  // same name after a card clock reset
+        try lib.addMark(deviceId: device.id, cardFileName: "a.opus", offsetMs: 0)
+        try lib.deleteRecording(id: first)
+        #expect(try lib.marks(deviceId: device.id, cardFileName: "a.opus").count == 1)
+        try lib.deleteRecording(id: second)
+        #expect(try lib.marks(deviceId: device.id, cardFileName: "a.opus").isEmpty)
+    }
+
     /// X6: rename trims, caps the length and falls back to the default title.
     @Test func renameRecording() throws {
         let (lib, root) = try makeLibrary()
