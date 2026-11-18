@@ -186,7 +186,8 @@ private struct HomeContent: View {
                     Section {
                         ForEach(day.recordings, id: \.id) { recording in
                             NavigationLink(value: Route.recording(recording.id)) {
-                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording),
+                                             markCount: model.markCount(for: recording))
                             }
                             .swipeActions {
                                 // No destructive role: it animates the row away before the user confirms.
@@ -273,6 +274,7 @@ private struct DayGroup: Identifiable {
 private struct RecordingRow: View {
     let recording: Recording
     let deviceName: String?
+    var markCount = 0
 
     var body: some View {
         HStack(spacing: 12) {
@@ -291,6 +293,12 @@ private struct RecordingRow: View {
                     .foregroundStyle(Theme.inkMuted)
                     .monospacedDigit()
             }
+            Spacer(minLength: 0)
+            if markCount > 0 {
+                Label("\(markCount)", systemImage: "bookmark")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Theme.inkMuted)
+            }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
@@ -301,6 +309,7 @@ private struct RecordingRow: View {
     private var accessibilityText: String {
         var parts = [RecordingText.title(recording), RecordingText.duration(ms: recording.durationMs)]
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
+        if markCount > 0 { parts.append("\(markCount) 处重点") }
         return parts.joined(separator: "，")
     }
 }

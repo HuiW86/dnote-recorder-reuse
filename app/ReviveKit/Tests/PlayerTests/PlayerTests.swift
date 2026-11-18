@@ -165,6 +165,19 @@ struct PlayerTests {
     }
 
     /// E1b: the M4A copy opens with the system reader and is as long as the recording.
+    /// Speed is kept across recordings and applied to the one playing.
+    @Test func rateIsKeptAndApplied() async throws {
+        let f = try Fixture()
+        let player = RecordingPlayer(library: f.library)
+        player.setRate(1.5)
+        try await player.play(f.recording)
+        player.volume = 0
+        #expect(player.rate == 1.5)
+        player.setRate(1)
+        #expect(player.rate == 1)
+        player.stop()
+    }
+
     @Test func exportsM4A() async throws {
         let f = try Fixture()
         // Its own directory: other tests call `cleanUp`, which empties the shared one while this

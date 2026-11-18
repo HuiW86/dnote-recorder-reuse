@@ -467,6 +467,11 @@ public final class HomeModel {
         }
     }
 
+    /// Marks of a recording, for the count on its list row (design-spec.md §3 录音行).
+    public func markCount(for recording: Recording) -> Int {
+        ((try? session.library.marks(for: recording)) ?? []).count
+    }
+
     /// Card name for list rows; only shown when more than one card is paired.
     public func deviceName(for recording: Recording) -> String? {
         let paired = session.pairedDevices

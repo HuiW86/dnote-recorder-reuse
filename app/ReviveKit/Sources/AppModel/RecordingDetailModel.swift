@@ -120,6 +120,29 @@ public final class RecordingDetailModel {
         player.seek(to: time)
     }
 
+    // MARK: - Speed and marks on the player bar (design-spec.md §3)
+
+    public static let speeds: [Float] = [1, 1.25, 1.5, 2, 0.75]
+
+    /// "1.25×" on the speed button.
+    public var speedText: String {
+        let rate = player.rate
+        return (rate == rate.rounded() ? String(Int(rate)) : String(format: "%g", rate)) + "×"
+    }
+
+    /// Next speed in `speeds`.
+    public func cycleSpeed() {
+        let index = Self.speeds.firstIndex(of: player.rate) ?? 0
+        player.setRate(Self.speeds[(index + 1) % Self.speeds.count])
+    }
+
+    /// Where the marks sit on the progress bar, 0…1.
+    public var markPositions: [Double] {
+        let total = Double(recording?.durationMs ?? 0)
+        guard total > 0 else { return [] }
+        return marks.map { min(1, Double($0.offsetMs) / total) }
+    }
+
     // MARK: - Transcript (features.md X9)
 
     /// "转成文字" is offered when transcription is switched on and nothing is running.

@@ -275,6 +275,7 @@ private struct PlayerCard: View {
                         }
                     }
                     .accessibilityLabel("播放进度")
+                    .overlay(alignment: .leading) { markTicks }
                     HStack {
                         Text(Self.clock(position, hours: duration >= 3600))
                         Spacer()
@@ -314,6 +315,14 @@ private struct PlayerCard: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("前进 15 秒")
+                Button { model.cycleSpeed() } label: {
+                    Text(model.speedText)
+                        .font(.footnote.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Theme.ink)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .background(Theme.paper, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                }
+                .accessibilityLabel("播放速度 \(model.speedText)")
             }
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
@@ -328,6 +337,20 @@ private struct PlayerCard: View {
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
         .shadow(color: Theme.shadow, radius: 10, y: 4)
+    }
+
+    /// The marks as short ticks over the progress bar; not interactive (the 重点 list is).
+    private var markTicks: some View {
+        GeometryReader { proxy in
+            ForEach(Array(model.markPositions.enumerated()), id: \.offset) { _, position in
+                Rectangle()
+                    .fill(Theme.ink)
+                    .frame(width: 2, height: 10)
+                    .position(x: proxy.size.width * position, y: proxy.size.height / 2)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private static func clock(_ seconds: Double, hours: Bool) -> String {
