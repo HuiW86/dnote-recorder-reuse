@@ -467,6 +467,19 @@ public final class HomeModel {
         }
     }
 
+    /// Results of the search field (features.md D2); nil when it is empty.
+    public private(set) var searchResults: [Recording]?
+
+    /// Searches titles, transcripts and summaries on this phone.
+    public func search(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            searchResults = nil
+            return
+        }
+        searchResults = (try? session.library.searchRecordings(trimmed)) ?? []
+    }
+
     /// Marks of a recording, for the count on its list row (design-spec.md §3 录音行).
     public func markCount(for recording: Recording) -> Int {
         ((try? session.library.marks(for: recording)) ?? []).count

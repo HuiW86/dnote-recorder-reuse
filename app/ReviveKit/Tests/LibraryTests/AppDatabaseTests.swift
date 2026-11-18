@@ -258,6 +258,42 @@ struct RecordingLibraryTests {
         #expect(try lib.marks(deviceId: device.id, cardFileName: "a.opus").isEmpty)
     }
 
+    /// D2: search finds words in the title, the transcript and the summary; every word must
+    /// match; trashed recordings and LIKE wildcards in the query are not matched.
+    @Test func searchCoversTitleTranscriptAndSummary() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        func store(_ name: String, title: String) throws -> UUID {
+            let item = try lib.syncItem(deviceId: device.id, name: name, size: 10)
+            let id = UUID()
+            let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+            var r = recording(id, device: device.id, path: path)
+            r.cardFileName = name
+            r.title = title
+            _ = try lib.commitStored(r, item: item, deleteAfterSync: false)
+            return id
+        }
+        let a = try store("a.opus", title: "周会")
+        let b = try store("b.opus", title: "2026-11-07 14:02")
+        let c = try store("c.opus", title: "100% 完成")
+        try lib.saveTranscript(Transcript(recordingId: b, engine: "t", language: "zh-CN",
+                                          segments: [TranscriptSegment(startMs: 0, text: "汇款率排查")], createdAt: Date()))
+        try lib.saveSummary(Summary(recordingId: a, scene: "meeting", title: "定发布日", summary: "周三发布",
+                                    sections: [], todos: [SummaryTodo(text: "通知 Alice")], tags: [], people: [],
+                                    model: "m", createdAt: Date()))
+
+        #expect(try lib.searchRecordings("周会").map(\.id) == [a])
+        #expect(try lib.searchRecordings("汇款").map(\.id) == [b])
+        #expect(try lib.searchRecordings("alice").map(\.id) == [a])  // case-insensitive
+        #expect(try lib.searchRecordings("周会 发布").map(\.id) == [a])
+        #expect(try lib.searchRecordings("周会 汇款").isEmpty)  // every word must match
+        #expect(try lib.searchRecordings("%").map(\.id) == [c])  // a literal percent sign
+        #expect(try lib.searchRecordings("   ").isEmpty)
+        try lib.trashRecording(id: a)
+        #expect(try lib.searchRecordings("周会").isEmpty)
+    }
+
     /// X6: rename trims, caps the length and falls back to the default title.
     @Test func renameRecording() throws {
         let (lib, root) = try makeLibrary()
