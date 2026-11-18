@@ -341,6 +341,28 @@ public final class RecordingDetailModel {
         return nil
     }
 
+    /// Summary and transcript can be shared as Markdown (features.md J1).
+    public var canExportMarkdown: Bool { summary != nil || transcript != nil }
+
+    /// A temporary `<title>.md` for the share sheet; nil with a toast on failure.
+    public func exportMarkdown() -> URL? {
+        guard let recording else { return nil }
+        let text = MarkdownExport.markdown(title: title, recording: recording, sceneName: sceneName,
+                                           summary: summary, transcript: transcript)
+        do {
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("export", isDirectory: true)
+                .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = dir.appendingPathComponent(RecordingExporter.fileName(for: recording.title, fileExtension: "md"))
+            try Data(text.utf8).write(to: url, options: .atomic)
+            return url
+        } catch {
+            toast = Toast("导出失败，请重试")
+            return nil
+        }
+    }
+
     /// The title to start a rename from: the user's own, or empty for the default one.
     public var editableTitle: String {
         guard let recording, recording.hasCustomTitle else { return "" }

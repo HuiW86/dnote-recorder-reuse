@@ -78,6 +78,11 @@ private struct RecordingDetailContent: View {
                             Button("原始文件（OGG）", systemImage: "doc") {
                                 shareURL = model.exportFile()
                             }
+                            if model.canExportMarkdown {
+                                Button("纪要和文字稿（Markdown）", systemImage: "doc.text") {
+                                    shareURL = model.exportMarkdown()
+                                }
+                            }
                         } label: {
                             if model.isExporting {
                                 ProgressView()
