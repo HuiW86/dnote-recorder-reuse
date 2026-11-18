@@ -2,6 +2,7 @@ import AppModel
 import CardService
 import Library
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Navigation targets from home (product-spec.md §2.3). Pages pass ids only.
 enum Route: Hashable {
@@ -70,6 +71,8 @@ private struct HomeContent: View {
     /// Recording with the phone's microphone (features.md X18).
     @State private var showsPhoneStage = false
     @State private var phoneConsent = false
+    /// Files picker for importing audio (features.md E2).
+    @State private var importing = false
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -81,6 +84,17 @@ private struct HomeContent: View {
                     DeviceChip(device: model.currentDevice, status: model.status, battery: model.battery,
                                openDevice: { model.currentDevice.map { path.append(.device($0.id)) } },
                                openSwitcher: { showsSwitcher = true })
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { importing = true } label: {
+                        if model.isImporting {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                    }
+                    .disabled(model.isImporting)
+                    .accessibilityLabel("导入音频文件")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: Route.settings) {
@@ -103,6 +117,15 @@ private struct HomeContent: View {
                         showsPhoneStage = false
                         if let toast = recorder.toast { model.toast = toast }
                     }
+                }
+            }
+            .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
+                guard case .success(let urls) = result else { return }
+                Task {
+                    // Files outside the app's container are readable only inside their security scope.
+                    let opened = urls.filter { $0.startAccessingSecurityScopedResource() }
+                    defer { opened.forEach { $0.stopAccessingSecurityScopedResource() } }
+                    await model.importAudio(urls)
                 }
             }
             .sheet(isPresented: $phoneConsent) {

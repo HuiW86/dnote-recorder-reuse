@@ -217,6 +217,44 @@ struct PlayerTests {
         player.stop()
     }
 
+    /// E2: WAV is converted to M4A with its length, OGG Opus is kept, anything else is refused.
+    @Test func importerNormalisesFormats() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("import-src-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let wav = dir.appendingPathComponent("会议.wav")
+        let format = try #require(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1,
+                                                interleaved: false))
+        do {
+            let file = try AVAudioFile(forWriting: wav, settings: [
+                AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 16000, AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false,
+            ], commonFormat: .pcmFormatFloat32, interleaved: false)
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 32000))
+            buffer.frameLength = 32000
+            for i in 0..<32000 { buffer.floatChannelData![0][i] = sinf(Float(i) * 0.17) * 0.3 }
+            try file.write(from: buffer)
+        }
+        let fromWav = try AudioImporter.prepareNow(wav)
+        #expect(fromWav.file.pathExtension == "m4a")
+        #expect(abs(fromWav.durationMs - 2000) <= 20)
+        #expect(try AVAudioFile(forReading: fromWav.file).length > 0)
+
+        let ogg = dir.appendingPathComponent("card.ogg")
+        try OggOpus.wrap(try SyntheticOpus.sine(seconds: 1)).write(to: ogg)
+        let fromOgg = try AudioImporter.prepareNow(ogg)
+        #expect(fromOgg.file.pathExtension == "ogg")
+        #expect(fromOgg.durationMs >= 980 && fromOgg.durationMs <= 1020)
+
+        let junk = dir.appendingPathComponent("junk.mp3")
+        try Data("not audio".utf8).write(to: junk)
+        #expect(throws: AudioImporter.ImportError.unsupported) { try AudioImporter.prepareNow(junk) }
+        let badOgg = dir.appendingPathComponent("bad.ogg")
+        try Data("OggS".utf8).write(to: badOgg)
+        #expect(throws: AudioImporter.ImportError.unsupported) { try AudioImporter.prepareNow(badOgg) }
+    }
+
     @Test func exportM4AReportsMissingAudio() async throws {
         let f = try Fixture()
         try FileManager.default.removeItem(at: f.library.store.url(forAudioPath: f.recording.audioPath))

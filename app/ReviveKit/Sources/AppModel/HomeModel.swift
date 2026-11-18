@@ -498,6 +498,37 @@ public final class HomeModel {
         }
     }
 
+    /// An import from Files is running (features.md E2).
+    public private(set) var isImporting = false
+
+    /// Imports audio files picked in Files: each becomes a recording named after its file. The
+    /// caller has already opened their security scope. Nothing is sent anywhere.
+    public func importAudio(_ urls: [URL]) async {
+        guard !urls.isEmpty, !isImporting else { return }
+        isImporting = true
+        defer { isImporting = false }
+        var imported = 0
+        var failed = 0
+        for url in urls {
+            do {
+                let prepared = try await AudioImporter.prepare(url)
+                let created = (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
+                try session.library.addLocalRecording(file: prepared.file, source: .import, startedAt: created,
+                                                      durationMs: prepared.durationMs,
+                                                      title: url.deletingPathExtension().lastPathComponent)
+                try? FileManager.default.removeItem(at: prepared.file.deletingLastPathComponent())
+                imported += 1
+            } catch {
+                failed += 1
+            }
+        }
+        switch (imported, failed) {
+        case (_, 0): toast = Toast(imported == 1 ? "已导入" : "已导入 \(imported) 个文件")
+        case (0, _): toast = Toast("导入失败：不是能识别的音频文件")
+        default: toast = Toast("已导入 \(imported) 个，\(failed) 个无法识别")
+        }
+    }
+
     /// Results of the search field (features.md D2); nil when it is empty.
     public private(set) var searchResults: [Recording]?
 

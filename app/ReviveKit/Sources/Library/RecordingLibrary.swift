@@ -275,13 +275,23 @@ public final class RecordingLibrary: Sendable {
     /// row is added. Nothing here involves a card or the sync engine.
     @discardableResult
     public func addPhoneRecording(file: URL, startedAt: Date, durationMs: Int, now: Date = Date()) throws -> Recording {
+        try addLocalRecording(file: file, source: .phone, startedAt: startedAt, durationMs: durationMs, title: nil, now: now)
+    }
+
+    /// Stores an audio file that did not come from a card: a phone recording (X18) or an
+    /// imported file (E2). `title` nil gives the default date title. The file is moved.
+    @discardableResult
+    public func addLocalRecording(file: URL, source: Recording.Source, startedAt: Date, durationMs: Int,
+                                  title: String?, now: Date = Date()) throws -> Recording {
         let id = UUID()
         let data = try Data(contentsOf: file)
         let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         let path = try store.importAudio(from: file, id: id)
-        let recording = Recording(id: id, deviceId: nil, source: .phone, cardFileName: nil, cardFileSize: nil,
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let recording = Recording(id: id, deviceId: nil, source: source, cardFileName: nil, cardFileSize: nil,
                                   startedAt: startedAt, durationMs: durationMs, audioPath: path, audioSha256: sha,
-                                  title: Recording.defaultTitle(for: startedAt), createdAt: now, updatedAt: now)
+                                  title: trimmed.isEmpty ? Recording.defaultTitle(for: startedAt) : String(trimmed.prefix(80)),
+                                  createdAt: now, updatedAt: now)
         do {
             try database.writer.write { db in try recording.insert(db) }
         } catch {
