@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import GRDB
 
@@ -22,8 +23,8 @@ public final class RecordingLibrary: Sendable {
         }
         store.clearTemporary()
         let known = Set(try database.writer.read { try Recording.fetchAll($0) }.map(\.id))
-        for id in store.storedAudioIds() where !known.contains(id) {
-            store.removeAudio("audio/\(id.uuidString).ogg")
+        for file in store.storedAudioFiles() where !known.contains(file.id) {
+            store.removeAudio(file.path)
         }
         store.removeDecoded(except: known)
     }
@@ -266,6 +267,89 @@ public final class RecordingLibrary: Sendable {
     private static func discardRequested(_ db: Database, deviceId: UUID, cardFileName: String) throws -> Bool {
         try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM discard_request WHERE device_id = ? AND card_file_name = ?",
                          arguments: [deviceId, cardFileName]) ?? 0 > 0
+    }
+
+    // MARK: Phone recordings (features.md X18)
+
+    /// Stores a recording made with the phone's microphone: the file moves into `audio/` and a
+    /// row is added. Nothing here involves a card or the sync engine.
+    @discardableResult
+    public func addPhoneRecording(file: URL, startedAt: Date, durationMs: Int, now: Date = Date()) throws -> Recording {
+        try addLocalRecording(file: file, source: .phone, startedAt: startedAt, durationMs: durationMs, title: nil, now: now)
+    }
+
+    /// Stores an audio file that did not come from a card: a phone recording (X18) or an
+    /// imported file (E2). `title` nil gives the default date title. The file is moved.
+    @discardableResult
+    public func addLocalRecording(file: URL, source: Recording.Source, startedAt: Date, durationMs: Int,
+                                  title: String?, now: Date = Date()) throws -> Recording {
+        let id = UUID()
+        let data = try Data(contentsOf: file)
+        let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let path = try store.importAudio(from: file, id: id)
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let recording = Recording(id: id, deviceId: nil, source: source, cardFileName: nil, cardFileSize: nil,
+                                  startedAt: startedAt, durationMs: durationMs, audioPath: path, audioSha256: sha,
+                                  title: trimmed.isEmpty ? Recording.defaultTitle(for: startedAt) : String(trimmed.prefix(80)),
+                                  createdAt: now, updatedAt: now)
+        do {
+            try database.writer.write { db in try recording.insert(db) }
+        } catch {
+            store.removeAudio(path)
+            throw error
+        }
+        return recording
+    }
+
+    // MARK: Filters (design-spec.md §3 筛选项)
+
+    /// Recordings that have at least one mark.
+    public func recordingIdsWithMarks() throws -> Set<UUID> {
+        try database.writer.read { db in
+            Set(try UUID.fetchAll(db, sql: """
+                SELECT DISTINCT recording.id FROM recording
+                JOIN recording_mark ON recording_mark.device_id = recording.device_id
+                 AND recording_mark.card_file_name = recording.card_file_name
+                 AND recording_mark.offset_ms <= recording.duration_ms
+                """))
+        }
+    }
+
+    /// Recordings that have a transcript.
+    public func recordingIdsWithTranscript() throws -> Set<UUID> {
+        try database.writer.read { db in Set(try UUID.fetchAll(db, sql: "SELECT recording_id FROM transcript")) }
+    }
+
+    // MARK: Search (features.md D2)
+
+    /// Recordings not in 最近删除 whose title, transcript or summary contains every word of
+    /// `query` (split at spaces), newest first. Case-insensitive for Latin letters. Local only.
+    public func searchRecordings(_ query: String) throws -> [Recording] {
+        let words = query.split(whereSeparator: \.isWhitespace).map(String.init).filter { !$0.isEmpty }
+        guard !words.isEmpty else { return [] }
+        return try database.writer.read { db in
+            var sql = """
+                SELECT recording.* FROM recording
+                LEFT JOIN transcript ON transcript.recording_id = recording.id
+                LEFT JOIN summary ON summary.recording_id = recording.id
+                WHERE recording.trashed_at IS NULL
+                """
+            var arguments: [String] = []
+            for word in words {
+                // Escape LIKE wildcards so a "%" or "_" in the query is matched as typed.
+                let pattern = "%" + word.replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_") + "%"
+                sql += """
+                     AND (recording.title LIKE ? ESCAPE '\\' OR transcript.segments LIKE ? ESCAPE '\\'
+                          OR summary.title LIKE ? ESCAPE '\\' OR summary.summary LIKE ? ESCAPE '\\'
+                          OR summary.sections LIKE ? ESCAPE '\\' OR summary.todos LIKE ? ESCAPE '\\'
+                          OR summary.tags LIKE ? ESCAPE '\\' OR summary.people LIKE ? ESCAPE '\\')
+                    """
+                arguments += Array(repeating: pattern, count: 8)
+            }
+            sql += " ORDER BY recording.started_at DESC"
+            return try Recording.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
+        }
     }
 
     // MARK: Transcripts (features.md X9)

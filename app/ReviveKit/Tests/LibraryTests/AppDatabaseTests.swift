@@ -77,6 +77,37 @@ struct RecordingLibraryTests {
                   createdAt: Date(), updatedAt: Date())
     }
 
+    /// prd.md §5 (#85): a library from the first TestFlight build (v1) upgrades through every
+    /// later migration with its rows intact, and gains every new table.
+    @Test func v1LibraryUpgradesToTheLatest() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v1")
+        let deviceId = UUID()
+        let recordingId = UUID()
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO device (id, sn, name, firmware) VALUES (?, 'S', 'card', '1.50')",
+                           arguments: [deviceId])
+            try db.execute(sql: """
+                INSERT INTO recording (id, device_id, source, card_file_name, card_file_size, started_at,
+                                       duration_ms, audio_path, audio_sha256, title, created_at, updated_at)
+                VALUES (?, ?, 'card', 'a.opus', 10, ?, 20, 'audio/x.ogg', 'h', '2026-11-07 14:02', ?, ?)
+                """, arguments: [recordingId, deviceId, Date(), Date(), Date()])
+            try db.execute(sql: """
+                INSERT INTO sync_item (device_id, card_file_name, card_file_size, state, attempts, recording_id)
+                VALUES (?, 'a.opus', 10, 'stored', 0, ?)
+                """, arguments: [deviceId, recordingId])
+        }
+        let db = try AppDatabase(queue)
+        let applied = try db.writer.read { try AppDatabase.migrator.appliedIdentifiers($0) }
+        #expect(applied == Set(AppDatabase.migrator.migrations))
+        for table in ["recording_mark", "discard_request", "transcript", "summary"] {
+            #expect(try db.writer.read { try $0.tableExists(table) }, "table \(table)")
+        }
+        let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
+        #expect(recording.title == "2026-11-07 14:02" && recording.trashedAt == nil && !recording.hasCustomTitle)
+        #expect(try db.writer.read { try SyncItem.fetchOne($0) }?.state == .stored)
+    }
+
     @Test func v1CreatesTables() throws {
         let db = try AppDatabase.inMemory()
         for table in ["device", "recording", "sync_item"] {
@@ -225,6 +256,64 @@ struct RecordingLibraryTests {
         #expect(try lib.marks(deviceId: device.id, cardFileName: "a.opus").count == 1)
         try lib.deleteRecording(id: second)
         #expect(try lib.marks(deviceId: device.id, cardFileName: "a.opus").isEmpty)
+    }
+
+    /// D2: search finds words in the title, the transcript and the summary; every word must
+    /// match; trashed recordings and LIKE wildcards in the query are not matched.
+    @Test func searchCoversTitleTranscriptAndSummary() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        func store(_ name: String, title: String) throws -> UUID {
+            let item = try lib.syncItem(deviceId: device.id, name: name, size: 10)
+            let id = UUID()
+            let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+            var r = recording(id, device: device.id, path: path)
+            r.cardFileName = name
+            r.title = title
+            _ = try lib.commitStored(r, item: item, deleteAfterSync: false)
+            return id
+        }
+        let a = try store("a.opus", title: "周会")
+        let b = try store("b.opus", title: "2026-11-07 14:02")
+        let c = try store("c.opus", title: "100% 完成")
+        try lib.saveTranscript(Transcript(recordingId: b, engine: "t", language: "zh-CN",
+                                          segments: [TranscriptSegment(startMs: 0, text: "汇款率排查")], createdAt: Date()))
+        try lib.saveSummary(Summary(recordingId: a, scene: "meeting", title: "定发布日", summary: "周三发布",
+                                    sections: [], todos: [SummaryTodo(text: "通知 Alice")], tags: [], people: [],
+                                    model: "m", createdAt: Date()))
+
+        #expect(try lib.searchRecordings("周会").map(\.id) == [a])
+        #expect(try lib.searchRecordings("汇款").map(\.id) == [b])
+        #expect(try lib.searchRecordings("alice").map(\.id) == [a])  // case-insensitive
+        #expect(try lib.searchRecordings("周会 发布").map(\.id) == [a])
+        #expect(try lib.searchRecordings("周会 汇款").isEmpty)  // every word must match
+        #expect(try lib.searchRecordings("%").map(\.id) == [c])  // a literal percent sign
+        #expect(try lib.searchRecordings("   ").isEmpty)
+        try lib.trashRecording(id: a)
+        #expect(try lib.searchRecordings("周会").isEmpty)
+    }
+
+    /// X18: a phone recording keeps its M4A, gets a default title, and an orphaned M4A (crash
+    /// between the move and the insert) is removed at launch like an orphaned OGG.
+    @Test func phoneRecordingsAreStoredAsM4A() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("phone-\(UUID().uuidString).m4a")
+        try Data("m4a".utf8).write(to: file)
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let stored = try lib.addPhoneRecording(file: file, startedAt: start, durationMs: 3_000)
+        #expect(stored.source == .phone && stored.deviceId == nil && stored.cardFileName == nil)
+        #expect(stored.audioPath.hasSuffix(".m4a") && !stored.hasCustomTitle)
+        #expect(!FileManager.default.fileExists(atPath: file.path))  // moved, not copied
+        let audio = lib.store.url(forAudioPath: stored.audioPath)
+        #expect(FileManager.default.fileExists(atPath: audio.path))
+
+        let orphan = lib.store.url(forAudioPath: "audio/\(UUID().uuidString).m4a")
+        try Data("x".utf8).write(to: orphan)
+        try lib.recoverAfterLaunch()
+        #expect(!FileManager.default.fileExists(atPath: orphan.path))
+        #expect(FileManager.default.fileExists(atPath: audio.path))
     }
 
     /// X6: rename trims, caps the length and falls back to the default title.

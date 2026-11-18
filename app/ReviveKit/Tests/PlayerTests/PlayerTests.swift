@@ -165,6 +165,19 @@ struct PlayerTests {
     }
 
     /// E1b: the M4A copy opens with the system reader and is as long as the recording.
+    /// Speed is kept across recordings and applied to the one playing.
+    @Test func rateIsKeptAndApplied() async throws {
+        let f = try Fixture()
+        let player = RecordingPlayer(library: f.library)
+        player.setRate(1.5)
+        try await player.play(f.recording)
+        player.volume = 0
+        #expect(player.rate == 1.5)
+        player.setRate(1)
+        #expect(player.rate == 1)
+        player.stop()
+    }
+
     @Test func exportsM4A() async throws {
         let f = try Fixture()
         // Its own directory: other tests call `cleanUp`, which empties the shared one while this
@@ -179,6 +192,69 @@ struct PlayerTests {
         // Only the m4a is left in the export directory.
         let siblings = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
         #expect(siblings == [url.lastPathComponent])
+    }
+
+    /// X18: a phone recording is shared and transcribed from its own M4A, without decoding.
+    @Test func phoneRecordingExportsAsIs() async throws {
+        let f = try Fixture()
+        let m4a = try await RecordingExporter.exportM4A(for: f.recording, library: f.library,
+                                                        in: FileManager.default.temporaryDirectory
+                                                            .appendingPathComponent("phone-src-\(UUID().uuidString)"))
+        let phone = try f.library.addPhoneRecording(file: m4a, startedAt: Date(), durationMs: 2_000)
+        let copy = try RecordingExporter.exportFile(for: phone, library: f.library)
+        #expect(copy.pathExtension == "m4a")
+        let again = try await RecordingExporter.exportM4A(for: phone, library: f.library,
+                                                          in: FileManager.default.temporaryDirectory
+                                                              .appendingPathComponent("phone-out-\(UUID().uuidString)"))
+        #expect(try Data(contentsOf: again) == (try Data(contentsOf: f.library.store.url(forAudioPath: phone.audioPath))))
+        let pcm = try await RecordingExporter.decodedPCM(for: phone, library: f.library)
+        #expect(pcm == f.library.store.url(forAudioPath: phone.audioPath))
+        let player = RecordingPlayer(library: f.library)
+        player.opensOggDirectly = false  // an M4A never goes through the OGG decoder
+        try await player.play(phone)
+        player.volume = 0
+        #expect(player.state == .playing)
+        player.stop()
+    }
+
+    /// E2: WAV is converted to M4A with its length, OGG Opus is kept, anything else is refused.
+    /// Runs the conversion off the main actor: this suite is main-actor isolated, and blocking it
+    /// for the AAC encode stalls the card service tests' 2 s request timeouts in parallel suites.
+    @Test func importerNormalisesFormats() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("import-src-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let wav = dir.appendingPathComponent("会议.wav")
+        let format = try #require(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1,
+                                                interleaved: false))
+        do {
+            let file = try AVAudioFile(forWriting: wav, settings: [
+                AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 16000, AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false,
+            ], commonFormat: .pcmFormatFloat32, interleaved: false)
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 32000))
+            buffer.frameLength = 32000
+            for i in 0..<32000 { buffer.floatChannelData![0][i] = sinf(Float(i) * 0.17) * 0.3 }
+            try file.write(from: buffer)
+        }
+        let fromWav = try await AudioImporter.prepare(wav)
+        #expect(fromWav.file.pathExtension == "m4a")
+        #expect(abs(fromWav.durationMs - 2000) <= 20)
+        #expect(try AVAudioFile(forReading: fromWav.file).length > 0)
+
+        let ogg = dir.appendingPathComponent("card.ogg")
+        try OggOpus.wrap(try SyntheticOpus.sine(seconds: 1)).write(to: ogg)
+        let fromOgg = try await AudioImporter.prepare(ogg)
+        #expect(fromOgg.file.pathExtension == "ogg")
+        #expect(fromOgg.durationMs >= 980 && fromOgg.durationMs <= 1020)
+
+        let junk = dir.appendingPathComponent("junk.mp3")
+        try Data("not audio".utf8).write(to: junk)
+        await #expect(throws: AudioImporter.ImportError.unsupported) { try await AudioImporter.prepare(junk) }
+        let badOgg = dir.appendingPathComponent("bad.ogg")
+        try Data("OggS".utf8).write(to: badOgg)
+        await #expect(throws: AudioImporter.ImportError.unsupported) { try await AudioImporter.prepare(badOgg) }
     }
 
     @Test func exportM4AReportsMissingAudio() async throws {

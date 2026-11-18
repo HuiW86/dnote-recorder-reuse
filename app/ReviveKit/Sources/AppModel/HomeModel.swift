@@ -437,6 +437,14 @@ public final class HomeModel {
         }
     }
 
+    /// A recording was moved to 最近删除 from its own page: the list offers "撤销" like a swipe
+    /// delete does (#85).
+    public func offerUndo(forTrashed id: UUID) {
+        lastTrashed = id
+        lastDiscarded = nil
+        toast = Toast("已移到最近删除", action: "撤销")
+    }
+
     /// "撤销" on the toast: puts the recording just deleted, or just discarded, back.
     public func undoDelete() {
         if let finished = lastDiscarded {
@@ -457,6 +465,86 @@ public final class HomeModel {
         } catch {
             toast = Toast("恢复失败，请重试")
         }
+    }
+
+    /// The filter chips above the list (design-spec.md §3).
+    public enum Filter: String, CaseIterable, Identifiable, Sendable {
+        case all, marked, untranscribed
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .all: "全部"
+            case .marked: "有重点"
+            case .untranscribed: "还没转文字"
+            }
+        }
+    }
+
+    public var filter: Filter = .all
+
+    /// `recordings` narrowed by `filter`, newest first.
+    public var filteredRecordings: [Recording] {
+        switch filter {
+        case .all:
+            return recordings
+        case .marked:
+            let ids = (try? session.library.recordingIdsWithMarks()) ?? []
+            return recordings.filter { ids.contains($0.id) }
+        case .untranscribed:
+            let ids = (try? session.library.recordingIdsWithTranscript()) ?? []
+            return recordings.filter { !ids.contains($0.id) }
+        }
+    }
+
+    /// An import from Files is running (features.md E2).
+    public private(set) var isImporting = false
+
+    /// Imports audio files picked in Files: each becomes a recording named after its file. The
+    /// caller has already opened their security scope. Nothing is sent anywhere.
+    public func importAudio(_ urls: [URL]) async {
+        guard !urls.isEmpty, !isImporting else { return }
+        isImporting = true
+        defer { isImporting = false }
+        var imported = 0
+        var failed = 0
+        for url in urls {
+            do {
+                let prepared = try await AudioImporter.prepare(url)
+                let created = (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
+                try session.library.addLocalRecording(file: prepared.file, source: .import, startedAt: created,
+                                                      durationMs: prepared.durationMs,
+                                                      title: url.deletingPathExtension().lastPathComponent)
+                try? FileManager.default.removeItem(at: prepared.file.deletingLastPathComponent())
+                imported += 1
+            } catch {
+                failed += 1
+            }
+        }
+        switch (imported, failed) {
+        case (_, 0): toast = Toast(imported == 1 ? "已导入" : "已导入 \(imported) 个文件")
+        case (0, _): toast = Toast("导入失败：不是能识别的音频文件")
+        default: toast = Toast("已导入 \(imported) 个，\(failed) 个无法识别")
+        }
+    }
+
+    /// Results of the search field (features.md D2); nil when it is empty.
+    public private(set) var searchResults: [Recording]?
+
+    /// Searches titles, transcripts and summaries on this phone.
+    public func search(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            searchResults = nil
+            return
+        }
+        searchResults = (try? session.library.searchRecordings(trimmed)) ?? []
+    }
+
+    /// Marks of a recording, for the count on its list row (design-spec.md §3 录音行).
+    public func markCount(for recording: Recording) -> Int {
+        ((try? session.library.marks(for: recording)) ?? []).count
     }
 
     /// Card name for list rows; only shown when more than one card is paired.

@@ -25,6 +25,15 @@ final class AppEnvironment {
                                    apiKey: (try? KeychainKeyStore().read()) ?? "")
         return config.isComplete ? config : nil
     }
+
+    /// The same service for transcription, when the user gave it a transcription model; nil
+    /// otherwise, and then no audio is ever uploaded (ADR-009).
+    var cloudTranscriptionConfig: ServiceConfig? {
+        guard let chat = assistantConfig.current() else { return nil }
+        let model = preferences.assistantTranscriptionModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !model.isEmpty else { return nil }
+        return ServiceConfig(baseURL: chat.baseURL, model: model, apiKey: chat.apiKey)
+    }
     let library: RecordingLibrary?
     /// Set when the library could not be opened; the app cannot work without it.
     let libraryError: String?
@@ -35,6 +44,8 @@ final class AppEnvironment {
     private(set) var hasPairedDevice: Bool
     /// One player for the whole app, so leaving a page does not cut playback off.
     let player: RecordingPlayer?
+    /// The phone's microphone, for when no card is at hand (features.md X18).
+    let phoneRecorder: PhoneRecorder?
     /// Exported from P09; written by the card session (product-spec.md §8).
     let diagnostics = DiagnosticLog(
         fileURL: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -67,6 +78,7 @@ final class AppEnvironment {
             diagnostics.add("app", "purged \(purged) recording(s) from trash")
         }
         player = library.map { RecordingPlayer(library: $0) }
+        phoneRecorder = library.map { PhoneRecorder(library: $0) }
         RecordingExporter.cleanUp()
     }
 

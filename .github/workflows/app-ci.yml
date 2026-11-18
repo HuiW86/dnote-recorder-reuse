@@ -7,6 +7,12 @@ on:
   pull_request:
     paths: ["app/**", "scripts/check-m1-rules.sh", "scripts/check-theme.sh", ".github/workflows/app-ci.yml"]
 
+# A newer push to the same PR or branch cancels the run it supersedes: macOS minutes are
+# scarce, and only the latest commit's result counts.
+concurrency:
+  group: app-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: macos-26

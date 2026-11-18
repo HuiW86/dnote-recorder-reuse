@@ -254,6 +254,8 @@ struct SyncStatusCard: View {
 /// Bottom recording controls (product-spec.md P05 RecordControlBar).
 struct RecordControlBar: View {
     let model: HomeModel
+    /// "用手机录" when the card cannot record right now (features.md X18); nil hides it.
+    var recordWithPhone: (() -> Void)?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -292,6 +294,18 @@ struct RecordControlBar: View {
         let enabled = model.status == .idle && model.pendingCommand == nil
         let busy = model.pendingCommand == .start || model.status == .connecting
         return HStack(alignment: .center, spacing: 12) {
+            if !enabled, !busy, let recordWithPhone {
+                Button(action: recordWithPhone) {
+                    Label("用手机录", systemImage: "mic.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(Theme.surface, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Theme.line))
+                }
+                .buttonStyle(.plain)
+            }
             if let hint {
                 Text(hint)
                     .font(.caption)

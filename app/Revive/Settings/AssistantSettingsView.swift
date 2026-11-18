@@ -36,6 +36,20 @@ struct AssistantSettingsView: View {
             .surfaceRows()
 
             Section {
+                TextField("转写模型（可选）", text: $model.transcriptionModel)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                if model.transcriptionModel.isEmpty, let suggested = model.suggestedTranscriptionModel {
+                    Button("填入 \(suggested)") { model.transcriptionModel = suggested }
+                }
+            } header: {
+                Text("用这个服务转文字")
+            } footer: {
+                Text("填了转写模型，录音详情里就能用这个服务把录音转成文字。这时录音音频会上传给它。留空则不会上传任何音频。")
+            }
+            .surfaceRows()
+
+            Section {
                 Button("保存") { model.save() }
                     .disabled(!model.isConfigured)
                 Button {

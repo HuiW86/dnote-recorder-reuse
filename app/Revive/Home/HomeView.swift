@@ -2,6 +2,7 @@ import AppModel
 import CardService
 import Library
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Navigation targets from home (product-spec.md §2.3). Pages pass ids only.
 enum Route: Hashable {
@@ -35,7 +36,8 @@ struct HomeView: View {
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
-                case .recording(let id): RecordingDetailView(env: env, recordingId: id)
+                case .recording(let id):
+                    RecordingDetailView(env: env, recordingId: id) { model?.offerUndo(forTrashed: $0) }
                 case .device(let id): DeviceView(env: env, deviceId: id)
                 case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
                 case .trash: TrashView(env: env)
@@ -62,9 +64,15 @@ private struct HomeContent: View {
     let env: AppEnvironment
     @Binding var path: [Route]
     @State private var pendingDelete: Recording?
+    @State private var query = ""
     @State private var showsSwitcher = false
     /// The full-screen recording page (design-spec.md §3).
     @State private var showsStage = false
+    /// Recording with the phone's microphone (features.md X18).
+    @State private var showsPhoneStage = false
+    @State private var phoneConsent = false
+    /// Files picker for importing audio (features.md E2).
+    @State private var importing = false
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -78,14 +86,55 @@ private struct HomeContent: View {
                                openSwitcher: { showsSwitcher = true })
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { importing = true } label: {
+                        if model.isImporting {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                    }
+                    .disabled(model.isImporting)
+                    .accessibilityLabel("导入音频文件")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: Route.settings) {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel("设置")
                 }
             }
+            .searchable(text: $query, prompt: "搜索标题、文字稿、纪要")
+            .onChange(of: query) { _, text in model.search(text) }
+            // The list changed (a sync, a delete): refresh what the search shows.
+            .onChange(of: model.recordings) { _, _ in if !query.isEmpty { model.search(query) } }
             .refreshable { await model.refresh() }
-            .safeAreaInset(edge: .bottom) { RecordControlBar(model: model) }
+            .safeAreaInset(edge: .bottom) {
+                RecordControlBar(model: model, recordWithPhone: env.phoneRecorder == nil ? nil : { startPhoneRecording() })
+            }
+            .fullScreenCover(isPresented: $showsPhoneStage) {
+                if let recorder = env.phoneRecorder {
+                    PhoneRecordingStage(recorder: recorder) {
+                        showsPhoneStage = false
+                        if let toast = recorder.toast { model.toast = toast }
+                    }
+                }
+            }
+            .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
+                guard case .success(let urls) = result else { return }
+                Task {
+                    // Files outside the app's container are readable only inside their security scope.
+                    let opened = urls.filter { $0.startAccessingSecurityScopedResource() }
+                    defer { opened.forEach { $0.stopAccessingSecurityScopedResource() } }
+                    await model.importAudio(urls)
+                }
+            }
+            .sheet(isPresented: $phoneConsent) {
+                ConsentSheet {
+                    env.preferences.recordingConsentGiven = true
+                    phoneConsent = false
+                    startPhoneRecording()
+                }
+            }
             .sheet(isPresented: $model.showsConsent) {
                 ConsentSheet { model.consentConfirmed() }
             }
@@ -172,6 +221,25 @@ private struct HomeContent: View {
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+            } else if let results = model.searchResults {
+                // Search (features.md D2): one flat card, newest first.
+                if results.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                } else {
+                    Section {
+                        ForEach(results, id: \.id) { recording in
+                            NavigationLink(value: Route.recording(recording.id)) {
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording),
+                                             markCount: model.markCount(for: recording))
+                            }
+                        }
+                    } header: {
+                        Text("找到 \(results.count) 条").textCase(nil)
+                    }
+                    .surfaceRows()
+                }
             } else if model.recordings.isEmpty {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
@@ -180,12 +248,18 @@ private struct HomeContent: View {
                         .listRowBackground(Color.clear)
                 }
             } else {
+                if model.filteredRecordings.isEmpty {
+                    ContentUnavailableView("没有符合条件的录音", systemImage: "line.3.horizontal.decrease.circle")
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
                 // One card per day (design-spec.md §3).
-                ForEach(DayGroup.group(model.recordings)) { day in
+                ForEach(DayGroup.group(model.filteredRecordings)) { day in
                     Section {
                         ForEach(day.recordings, id: \.id) { recording in
                             NavigationLink(value: Route.recording(recording.id)) {
-                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording))
+                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording),
+                                             markCount: model.markCount(for: recording))
                             }
                             .swipeActions {
                                 // No destructive role: it animates the row away before the user confirms.
@@ -205,17 +279,60 @@ private struct HomeContent: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Text("全部录音 (\(model.recordings.count))")
-                .font(.largeTitle.bold())
-                .foregroundStyle(Theme.ink)
-            if let card = model.syncCard, isDone(card), doneCollapsed {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Theme.ok)
-                    .accessibilityLabel("全部录音已存入手机")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text("全部录音 (\(model.recordings.count))")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(Theme.ink)
+                if let card = model.syncCard, isDone(card), doneCollapsed {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Theme.ok)
+                        .accessibilityLabel("全部录音已存入手机")
+                }
+            }
+            .accessibilityAddTraits(.isHeader)
+            if !model.recordings.isEmpty {
+                filterChips
             }
         }
-        .accessibilityAddTraits(.isHeader)
+    }
+
+    /// 全部 / 有重点 / 还没转文字 (design-spec.md §3 筛选项).
+    private var filterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(HomeModel.Filter.allCases) { filter in
+                    let selected = model.filter == filter
+                    Button { model.filter = filter } label: {
+                        Text(filter.title)
+                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? Theme.onDark : Theme.ink)
+                            .padding(.horizontal, 16)
+                            .frame(minHeight: 36)
+                            .background(selected ? Theme.accent : Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+        }
+    }
+
+    /// Asks for consent once (P04), then starts the phone recorder and opens its page.
+    private func startPhoneRecording() {
+        guard let recorder = env.phoneRecorder else { return }
+        guard env.preferences.recordingConsentGiven else {
+            phoneConsent = true
+            return
+        }
+        Task {
+            if await recorder.start() {
+                showsPhoneStage = true
+            } else if let toast = recorder.toast {
+                model.toast = toast
+            }
+        }
     }
 
     /// No empty state during the first sync: the sync card already explains (product-spec.md P05).
@@ -272,6 +389,7 @@ private struct DayGroup: Identifiable {
 private struct RecordingRow: View {
     let recording: Recording
     let deviceName: String?
+    var markCount = 0
 
     var body: some View {
         HStack(spacing: 12) {
@@ -290,6 +408,12 @@ private struct RecordingRow: View {
                     .foregroundStyle(Theme.inkMuted)
                     .monospacedDigit()
             }
+            Spacer(minLength: 0)
+            if markCount > 0 {
+                Label("\(markCount)", systemImage: "bookmark")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Theme.inkMuted)
+            }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
@@ -300,6 +424,7 @@ private struct RecordingRow: View {
     private var accessibilityText: String {
         var parts = [RecordingText.title(recording), RecordingText.duration(ms: recording.durationMs)]
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
+        if markCount > 0 { parts.append("\(markCount) 处重点") }
         return parts.joined(separator: "，")
     }
 }

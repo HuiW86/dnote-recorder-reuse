@@ -14,12 +14,14 @@ public final class Preferences {
         static let onDeviceTranscript = "revive.onDeviceTranscript"
         static let assistantBaseURL = Preferences.assistantBaseURLKey
         static let assistantModel = Preferences.assistantModelKey
+        static let assistantTranscriptionModel = Preferences.assistantTranscriptionModelKey
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
     }
 
     /// UserDefaults keys of the AI service, for reading it off the main actor.
     public nonisolated static let assistantBaseURLKey = "revive.assistant.baseURL"
     public nonisolated static let assistantModelKey = "revive.assistant.model"
+    public nonisolated static let assistantTranscriptionModelKey = "revive.assistant.transcriptionModel"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -86,6 +88,20 @@ public final class Preferences {
         }
         set {
             withMutation(keyPath: \.assistantModel) { defaults.set(newValue, forKey: Key.assistantModel) }
+        }
+    }
+
+    /// Transcription model on the same service, such as "whisper-1"; empty means the service is
+    /// not used for transcription (the audio then never leaves the phone).
+    public var assistantTranscriptionModel: String {
+        get {
+            access(keyPath: \.assistantTranscriptionModel)
+            return defaults.string(forKey: Key.assistantTranscriptionModel) ?? ""
+        }
+        set {
+            withMutation(keyPath: \.assistantTranscriptionModel) {
+                defaults.set(newValue, forKey: Key.assistantTranscriptionModel)
+            }
         }
     }
 

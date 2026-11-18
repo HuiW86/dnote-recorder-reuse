@@ -41,6 +41,8 @@ public struct Device: Codable, Equatable, Sendable, FetchableRecord, Persistable
 public struct Recording: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
     public enum Source: String, Codable, Sendable {
         case card, `import`, realtime
+        /// Recorded with the phone's microphone (features.md X18); stored as AAC `.m4a`.
+        case phone
     }
 
     /// Also the audio file name: `audio/<id>.ogg`.

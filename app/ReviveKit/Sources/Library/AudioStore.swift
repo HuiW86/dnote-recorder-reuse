@@ -76,6 +76,17 @@ public struct AudioStore: Sendable {
         return "audio/\(name)"
     }
 
+    /// Moves a finished file (the phone recorder's `.m4a`, features.md X18) into `audio/` under the
+    /// recording's id, keeping its extension. Returns the path relative to `root`.
+    public func importAudio(from source: URL, id: UUID) throws -> String {
+        let ext = source.pathExtension.isEmpty ? "m4a" : source.pathExtension.lowercased()
+        let name = "\(id.uuidString).\(ext)"
+        let final = audioDir.appendingPathComponent(name)
+        try? FileManager.default.removeItem(at: final)
+        try FileManager.default.moveItem(at: source, to: final)
+        return "audio/\(name)"
+    }
+
     public func removeAudio(_ path: String) { try? FileManager.default.removeItem(at: url(forAudioPath: path)) }
 
     // MARK: Decoded copies (Player)
@@ -95,8 +106,18 @@ public struct AudioStore: Sendable {
 
     /// Ids of the OGG files in `audio/`.
     public func storedAudioIds() -> [UUID] {
+        storedAudioFiles().filter { $0.path.hasSuffix(".ogg") }.map(\.id)
+    }
+
+    /// Every audio file in `audio/` named after a recording id: card OGG files and phone M4A
+    /// files. `path` is relative to `root`.
+    public func storedAudioFiles() -> [(id: UUID, path: String)] {
         let urls = (try? FileManager.default.contentsOfDirectory(at: audioDir, includingPropertiesForKeys: nil)) ?? []
-        return urls.compactMap { $0.pathExtension == "ogg" ? UUID(uuidString: $0.deletingPathExtension().lastPathComponent) : nil }
+        return urls.compactMap { url in
+            guard ["ogg", "m4a"].contains(url.pathExtension),
+                  let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent) else { return nil }
+            return (id, "audio/\(url.lastPathComponent)")
+        }
     }
 
     // MARK: Diagnostics and space
