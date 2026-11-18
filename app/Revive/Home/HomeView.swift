@@ -67,6 +67,9 @@ private struct HomeContent: View {
     @State private var showsSwitcher = false
     /// The full-screen recording page (design-spec.md §3).
     @State private var showsStage = false
+    /// Recording with the phone's microphone (features.md X18).
+    @State private var showsPhoneStage = false
+    @State private var phoneConsent = false
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -91,7 +94,24 @@ private struct HomeContent: View {
             // The list changed (a sync, a delete): refresh what the search shows.
             .onChange(of: model.recordings) { _, _ in if !query.isEmpty { model.search(query) } }
             .refreshable { await model.refresh() }
-            .safeAreaInset(edge: .bottom) { RecordControlBar(model: model) }
+            .safeAreaInset(edge: .bottom) {
+                RecordControlBar(model: model, recordWithPhone: env.phoneRecorder == nil ? nil : { startPhoneRecording() })
+            }
+            .fullScreenCover(isPresented: $showsPhoneStage) {
+                if let recorder = env.phoneRecorder {
+                    PhoneRecordingStage(recorder: recorder) {
+                        showsPhoneStage = false
+                        if let toast = recorder.toast { model.toast = toast }
+                    }
+                }
+            }
+            .sheet(isPresented: $phoneConsent) {
+                ConsentSheet {
+                    env.preferences.recordingConsentGiven = true
+                    phoneConsent = false
+                    startPhoneRecording()
+                }
+            }
             .sheet(isPresented: $model.showsConsent) {
                 ConsentSheet { model.consentConfirmed() }
             }
@@ -272,6 +292,22 @@ private struct HomeContent: View {
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
+            }
+        }
+    }
+
+    /// Asks for consent once (P04), then starts the phone recorder and opens its page.
+    private func startPhoneRecording() {
+        guard let recorder = env.phoneRecorder else { return }
+        guard env.preferences.recordingConsentGiven else {
+            phoneConsent = true
+            return
+        }
+        Task {
+            if await recorder.start() {
+                showsPhoneStage = true
+            } else if let toast = recorder.toast {
+                model.toast = toast
             }
         }
     }

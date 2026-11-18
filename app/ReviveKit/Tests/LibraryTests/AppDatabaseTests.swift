@@ -294,6 +294,28 @@ struct RecordingLibraryTests {
         #expect(try lib.searchRecordings("周会").isEmpty)
     }
 
+    /// X18: a phone recording keeps its M4A, gets a default title, and an orphaned M4A (crash
+    /// between the move and the insert) is removed at launch like an orphaned OGG.
+    @Test func phoneRecordingsAreStoredAsM4A() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("phone-\(UUID().uuidString).m4a")
+        try Data("m4a".utf8).write(to: file)
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let stored = try lib.addPhoneRecording(file: file, startedAt: start, durationMs: 3_000)
+        #expect(stored.source == .phone && stored.deviceId == nil && stored.cardFileName == nil)
+        #expect(stored.audioPath.hasSuffix(".m4a") && !stored.hasCustomTitle)
+        #expect(!FileManager.default.fileExists(atPath: file.path))  // moved, not copied
+        let audio = lib.store.url(forAudioPath: stored.audioPath)
+        #expect(FileManager.default.fileExists(atPath: audio.path))
+
+        let orphan = lib.store.url(forAudioPath: "audio/\(UUID().uuidString).m4a")
+        try Data("x".utf8).write(to: orphan)
+        try lib.recoverAfterLaunch()
+        #expect(!FileManager.default.fileExists(atPath: orphan.path))
+        #expect(FileManager.default.fileExists(atPath: audio.path))
+    }
+
     /// X6: rename trims, caps the length and falls back to the default title.
     @Test func renameRecording() throws {
         let (lib, root) = try makeLibrary()

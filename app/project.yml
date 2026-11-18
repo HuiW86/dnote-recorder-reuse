@@ -39,6 +39,8 @@ targets:
         # No third-party brand names in user-facing text (CLAUDE.md rule 5).
         NSBluetoothAlwaysUsageDescription: 连接录音卡，控制录音并把录音同步到手机
         # Asked only after the user turns on on-device transcription (features.md X9).
+        # Asked the first time the user records with the phone instead of a card (features.md X18).
+        NSMicrophoneUsageDescription: 录音卡不在身边时，用手机的麦克风录音；录音只保存在这部手机上
         NSSpeechRecognitionUsageDescription: 在这部手机上把录音转成文字，录音不会离开手机
         UIBackgroundModes: [bluetooth-central, audio]
         LSSupportsOpeningDocumentsInPlace: false

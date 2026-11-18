@@ -96,7 +96,9 @@ public final class RecordingPlayer: NSObject {
         let url = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: url.path) else { throw PlayerError.audioMissing }
         let p: AVAudioPlayer
-        if opensOggDirectly, let direct = try? AVAudioPlayer(contentsOf: url), direct.duration > 0 {
+        // Only OGG may need decoding; a phone recording's M4A always opens directly.
+        if opensOggDirectly || url.pathExtension.lowercased() != "ogg",
+           let direct = try? AVAudioPlayer(contentsOf: url), direct.duration > 0 {
             p = direct
         } else {
             let decoded = library.store.decodedURL(for: recording.id)
@@ -184,7 +186,9 @@ public enum RecordingExporter {
             .appendingPathComponent("export", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let target = dir.appendingPathComponent(fileName(for: recording.title))
+        // OGG for card recordings, M4A for phone ones (features.md X18): keep what is stored.
+        let ext = source.pathExtension.isEmpty ? "ogg" : source.pathExtension
+        let target = dir.appendingPathComponent(fileName(for: recording.title, fileExtension: ext))
         try FileManager.default.copyItem(at: source, to: target)
         return target
     }
@@ -196,6 +200,8 @@ public enum RecordingExporter {
     public static func decodedPCM(for recording: Recording, library: RecordingLibrary) async throws -> URL {
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
+        // A phone recording is already AAC, which the system reads as it is.
+        if source.pathExtension.lowercased() != "ogg" { return source }
         let decoded = library.store.decodedURL(for: recording.id)
         if !FileManager.default.fileExists(atPath: decoded.path) {
             do { try OggOpusDecoder.decode(source, to: decoded) } catch { throw PlayerError.cannotOpen }
@@ -211,6 +217,12 @@ public enum RecordingExporter {
         let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // A phone recording is already M4A: copy it as it is.
+        if source.pathExtension.lowercased() == "m4a" {
+            let target = dir.appendingPathComponent(fileName(for: recording.title, fileExtension: "m4a"))
+            try FileManager.default.copyItem(at: source, to: target)
+            return target
+        }
         let pcm = dir.appendingPathComponent("decoded.caf")
         defer { try? FileManager.default.removeItem(at: pcm) }
         try OggOpusDecoder.decode(source, to: pcm)

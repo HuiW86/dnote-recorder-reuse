@@ -194,6 +194,29 @@ struct PlayerTests {
         #expect(siblings == [url.lastPathComponent])
     }
 
+    /// X18: a phone recording is shared and transcribed from its own M4A, without decoding.
+    @Test func phoneRecordingExportsAsIs() async throws {
+        let f = try Fixture()
+        let m4a = try await RecordingExporter.exportM4A(for: f.recording, library: f.library,
+                                                        in: FileManager.default.temporaryDirectory
+                                                            .appendingPathComponent("phone-src-\(UUID().uuidString)"))
+        let phone = try f.library.addPhoneRecording(file: m4a, startedAt: Date(), durationMs: 2_000)
+        let copy = try RecordingExporter.exportFile(for: phone, library: f.library)
+        #expect(copy.pathExtension == "m4a")
+        let again = try await RecordingExporter.exportM4A(for: phone, library: f.library,
+                                                          in: FileManager.default.temporaryDirectory
+                                                              .appendingPathComponent("phone-out-\(UUID().uuidString)"))
+        #expect(try Data(contentsOf: again) == (try Data(contentsOf: f.library.store.url(forAudioPath: phone.audioPath))))
+        let pcm = try await RecordingExporter.decodedPCM(for: phone, library: f.library)
+        #expect(pcm == f.library.store.url(forAudioPath: phone.audioPath))
+        let player = RecordingPlayer(library: f.library)
+        player.opensOggDirectly = false  // an M4A never goes through the OGG decoder
+        try await player.play(phone)
+        player.volume = 0
+        #expect(player.state == .playing)
+        player.stop()
+    }
+
     @Test func exportM4AReportsMissingAudio() async throws {
         let f = try Fixture()
         try FileManager.default.removeItem(at: f.library.store.url(forAudioPath: f.recording.audioPath))

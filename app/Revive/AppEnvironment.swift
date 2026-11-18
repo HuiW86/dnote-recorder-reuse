@@ -44,6 +44,8 @@ final class AppEnvironment {
     private(set) var hasPairedDevice: Bool
     /// One player for the whole app, so leaving a page does not cut playback off.
     let player: RecordingPlayer?
+    /// The phone's microphone, for when no card is at hand (features.md X18).
+    let phoneRecorder: PhoneRecorder?
     /// Exported from P09; written by the card session (product-spec.md §8).
     let diagnostics = DiagnosticLog(
         fileURL: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -76,6 +78,7 @@ final class AppEnvironment {
             diagnostics.add("app", "purged \(purged) recording(s) from trash")
         }
         player = library.map { RecordingPlayer(library: $0) }
+        phoneRecorder = library.map { PhoneRecorder(library: $0) }
         RecordingExporter.cleanUp()
     }
 

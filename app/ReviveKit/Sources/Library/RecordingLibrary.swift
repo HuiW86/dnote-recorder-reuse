@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import GRDB
 
@@ -22,8 +23,8 @@ public final class RecordingLibrary: Sendable {
         }
         store.clearTemporary()
         let known = Set(try database.writer.read { try Recording.fetchAll($0) }.map(\.id))
-        for id in store.storedAudioIds() where !known.contains(id) {
-            store.removeAudio("audio/\(id.uuidString).ogg")
+        for file in store.storedAudioFiles() where !known.contains(file.id) {
+            store.removeAudio(file.path)
         }
         store.removeDecoded(except: known)
     }
@@ -266,6 +267,28 @@ public final class RecordingLibrary: Sendable {
     private static func discardRequested(_ db: Database, deviceId: UUID, cardFileName: String) throws -> Bool {
         try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM discard_request WHERE device_id = ? AND card_file_name = ?",
                          arguments: [deviceId, cardFileName]) ?? 0 > 0
+    }
+
+    // MARK: Phone recordings (features.md X18)
+
+    /// Stores a recording made with the phone's microphone: the file moves into `audio/` and a
+    /// row is added. Nothing here involves a card or the sync engine.
+    @discardableResult
+    public func addPhoneRecording(file: URL, startedAt: Date, durationMs: Int, now: Date = Date()) throws -> Recording {
+        let id = UUID()
+        let data = try Data(contentsOf: file)
+        let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let path = try store.importAudio(from: file, id: id)
+        let recording = Recording(id: id, deviceId: nil, source: .phone, cardFileName: nil, cardFileSize: nil,
+                                  startedAt: startedAt, durationMs: durationMs, audioPath: path, audioSha256: sha,
+                                  title: Recording.defaultTitle(for: startedAt), createdAt: now, updatedAt: now)
+        do {
+            try database.writer.write { db in try recording.insert(db) }
+        } catch {
+            store.removeAudio(path)
+            throw error
+        }
+        return recording
     }
 
     // MARK: Filters (design-spec.md §3 筛选项)
