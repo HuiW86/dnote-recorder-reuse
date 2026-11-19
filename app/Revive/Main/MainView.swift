@@ -73,24 +73,25 @@ private struct MainContent: View {
     @State private var offersPhone = false
 
     var body: some View {
-        // Not a TabView: its tabs live in UIKit containers that do not take the bottom bar's
-        // inset, so the bar covered the pages (the detail page's player, #89 evidence). All four
-        // stacks stay alive here, so each tab keeps its place; only the selected one is shown.
-        ZStack {
-            ForEach(MainTab.allCases, id: \.self) { item in
-                let selected = item == tab
-                NavigationStack(path: path(item)) {
-                    root(item)
-                        .navigationDestination(for: Route.self) { route in
-                            RouteDestination(route: route, env: env, model: model, path: path(item))
-                        }
+        // The bar sits below the pages, not over them. A safe-area inset on the outside does not
+        // reach pages inside a TabView or a NavigationStack (both are UIKit containers), so the
+        // bar covered the detail page's player on iPhone 16 (#89 evidence). Here the pages end
+        // above the bar. All four stacks stay alive, so each tab keeps its place.
+        VStack(spacing: 0) {
+            ZStack {
+                ForEach(MainTab.allCases, id: \.self) { item in
+                    let selected = item == tab
+                    NavigationStack(path: path(item)) {
+                        root(item)
+                            .navigationDestination(for: Route.self) { route in
+                                RouteDestination(route: route, env: env, model: model, path: path(item))
+                            }
+                    }
+                    .opacity(selected ? 1 : 0)
+                    .allowsHitTesting(selected)
+                    .accessibilityHidden(!selected)
                 }
-                .opacity(selected ? 1 : 0)
-                .allowsHitTesting(selected)
-                .accessibilityHidden(!selected)
             }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
             BottomBar(tab: $tab, model: model) { recordKeyTapped() }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
