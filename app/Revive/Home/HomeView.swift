@@ -31,6 +31,8 @@ struct RecordingsView: View {
     @State private var pendingDelete: Recording?
     /// Files picker for importing audio (features.md E2).
     @State private var importing = false
+    @State private var folderBeingRenamed: Folder?
+    @State private var folderName = ""
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -71,6 +73,15 @@ struct RecordingsView: View {
             } message: { _ in
                 Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
             }
+            .alert("重命名文件夹", isPresented: Binding(get: { folderBeingRenamed != nil },
+                                                     set: { if !$0 { folderBeingRenamed = nil } })) {
+                TextField("文件夹名称", text: $folderName)
+                Button("保存") { if let folder = folderBeingRenamed { model.renameFolder(folder, to: folderName) } }
+                Button("取消", role: .cancel) {}
+            }
+            .onAppear { model.refreshFolders() }
+            // A recording may have been moved into a new folder on its page.
+            .onChange(of: model.recordings) { _, _ in model.refreshFolders() }
             .task(id: model.syncCard) {
                 doneCollapsed = false
                 guard case .done = model.syncCard else { return }
@@ -182,8 +193,11 @@ struct RecordingsView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(HomeModel.Filter.allCases) { filter in
-                    let selected = model.filter == filter
-                    Button { model.filter = filter } label: {
+                    let selected = model.filter == filter && (filter != .all || model.folderFilter == nil)
+                    Button {
+                        model.filter = filter
+                        if filter == .all { model.folderFilter = nil }
+                    } label: {
                         Text(filter.title)
                             .font(.subheadline.weight(selected ? .semibold : .regular))
                             .foregroundStyle(selected ? Theme.onDark : Theme.ink)
@@ -194,6 +208,28 @@ struct RecordingsView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+                // Folders (features.md D1c): tap to show only that folder; hold to rename or delete.
+                ForEach(model.folders) { folder in
+                    let selected = model.folderFilter == folder.id
+                    Button { model.folderFilter = selected ? nil : folder.id } label: {
+                        Label(folder.name, systemImage: "folder")
+                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? Theme.onDark : Theme.ink)
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 36)
+                            .background(selected ? Theme.accent : Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .contextMenu {
+                        Button("重命名", systemImage: "pencil") {
+                            folderBeingRenamed = folder
+                            folderName = folder.name
+                        }
+                        Button("删除文件夹", systemImage: "trash", role: .destructive) { model.deleteFolder(folder) }
+                    }
                 }
             }
         }

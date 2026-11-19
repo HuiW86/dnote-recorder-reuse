@@ -209,6 +209,15 @@
 
 T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录音。T-M15-56 的录音音频不入库，只记 sha256（硬规则 4）。
 
+#### 3.6.3 M4 先做的部分
+
+| 编号 | 用例 | 通过线 |
+|---|---|---|
+| T-M4-01 | D1c 文件夹（库） | 空名字不建；名字去首尾空白；按名字排序；移入、移出、改名（空名字不改）；删除文件夹后录音还在、不在任何文件夹里；`v7` 的库升级到 `v8` 后有 `folder` 表，原有录音不在文件夹里、星标保留 |
+| T-M4-02 | D1c 文件夹（页面状态） | 列表的文件夹筛选叠加在筛选项之上；删除文件夹后 Toast「已删除文件夹，里面的录音还在」、筛选取消、录音都回到列表；详情页「移到文件夹」可新建并移入、换文件夹、移出，Toast 分别是「已移到「名字」」「已移出文件夹」 |
+
+实现：T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
+
 ## 4. 真机测试方法与证据
 
 每次真机测试在 `evidence/<编号>/` 下留一份 README，写明：

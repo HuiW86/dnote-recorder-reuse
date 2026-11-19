@@ -500,6 +500,35 @@ struct HomeModelTests {
         #expect(model.days.map { $0.recordings.count }.reduce(0, +) == 2)
     }
 
+    /// D1c: a folder chip narrows the list on top of the filter; deleting the folder clears it
+    /// and keeps the recordings.
+    @Test func folderChipNarrowsTheList() async throws {
+        let card = FakeCard(files: [.init(name: "20261101090000.opus", content: Data(repeating: 0x08, count: 400)),
+                                    .init(name: "20261102090000.opus", content: Data(repeating: 0x09, count: 400))],
+                            paired: true)
+        let (h, model) = try await home(card)
+        await waitUntil("listed") { model.recordings.count == 2 }
+        let inside = try #require(model.recordings.first { $0.cardFileName == "20261101090000.opus" })
+        let folder = try #require(try h.library.createFolder(named: "客户"))
+        try h.library.moveRecording(id: inside.id, toFolder: folder.id)
+        model.refreshFolders()
+        #expect(model.folders.map(\.name) == ["客户"])
+        await waitUntil("moved") { model.recordings.contains { $0.folderId == folder.id } }
+
+        model.folderFilter = folder.id
+        #expect(model.filteredRecordings.map(\.id) == [inside.id])
+        model.filter = .starred
+        #expect(model.filteredRecordings.isEmpty)
+        model.toggleStar(inside.id)
+        await waitUntil("starred in folder") { model.filteredRecordings.map(\.id) == [inside.id] }
+
+        model.filter = .all
+        model.deleteFolder(folder)
+        #expect(model.toast?.text == "已删除文件夹，里面的录音还在")
+        #expect(model.folderFilter == nil && model.folders.isEmpty)
+        await waitUntil("both listed") { model.filteredRecordings.count == 2 }
+    }
+
     // MARK: - Marks and keep or discard (features.md X7, X10; #85)
 
     /// X7: a mark needs a running recording; a double tap adds one; the list row of the stored
