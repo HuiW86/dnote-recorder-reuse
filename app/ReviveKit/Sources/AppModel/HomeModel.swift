@@ -52,6 +52,23 @@ public struct DeviceRow: Equatable, Identifiable, Sendable {
     public let status: DeviceStatus
     /// When a sync last reached the card (`Device.lastSeenAt`).
     public let lastSeenAt: Date?
+    /// When a sync last finished on the card (`Device.lastSyncedAt`).
+    public let lastSyncedAt: Date?
+
+    /// "已连接 · 上次同步 11月7日 14:02" on P08: the last finished sync, else the last time a
+    /// sync reached the card, else the state alone.
+    public var subtitle: String {
+        let state = switch status {
+        case .connecting: "正在连接"
+        case .idle: "已连接"
+        case .recording: "录音中"
+        case .paused: "已暂停"
+        default: "未连接"
+        }
+        if let synced = lastSyncedAt { return "\(state) · 上次同步 \(RecordingText.dateTime(synced))" }
+        if let seen = lastSeenAt { return "\(state) · 上次连接 \(RecordingText.dateTime(seen))" }
+        return state
+    }
 }
 
 /// Switching away from a card that is busy asks first (product-spec.md §3.3, §5.3).
@@ -183,7 +200,7 @@ public final class HomeModel {
         let current = currentDevice?.id
         return session.pairedDevices.map {
             DeviceRow(id: $0.id, name: $0.name, isCurrent: $0.id == current, status: session.status(of: $0.id),
-                      lastSeenAt: $0.lastSeenAt)
+                      lastSeenAt: $0.lastSeenAt, lastSyncedAt: $0.lastSyncedAt)
         }
     }
 

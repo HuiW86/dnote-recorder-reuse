@@ -609,6 +609,13 @@ public final class RecordingDetailModel {
         return nil
     }
 
+    /// "OGG" for a card recording, "M4A" for a phone one: what 「原始文件」 shares as it is
+    /// stored (an imported OGG Opus stays OGG, anything else became M4A).
+    public var originalFormat: String {
+        let ext = recording.map { URL(fileURLWithPath: $0.audioPath).pathExtension.uppercased() } ?? ""
+        return ext.isEmpty ? "OGG" : ext
+    }
+
     /// A temporary `<title>.wav` for the share sheet (features.md E1c); nil with a toast on failure.
     public func exportWAV() async -> URL? {
         guard let recording, !isExporting else { return nil }
@@ -633,13 +640,33 @@ public final class RecordingDetailModel {
         guard let recording else { return nil }
         let text = MarkdownExport.markdown(title: title, recording: recording, sceneName: sceneName,
                                            summary: summary, transcript: transcript)
+        return writeExport(Data(text.utf8), fileExtension: "md")
+    }
+
+    #if canImport(CoreText)
+    /// The same content as the Markdown export, as a PDF (features.md J1).
+    public func exportPDF() -> URL? {
+        guard let recording else { return nil }
+        let data = PDFExport.pdf(title: title, recording: recording, sceneName: sceneName,
+                                 summary: summary, transcript: transcript)
+        guard !data.isEmpty else {
+            toast = Toast("导出失败，请重试")
+            return nil
+        }
+        return writeExport(data, fileExtension: "pdf")
+    }
+    #endif
+
+    /// `<title>.<ext>` in its own directory under the export folder `RecordingExporter.cleanUp`
+    /// empties; nil with a toast on failure.
+    private func writeExport(_ data: Data, fileExtension: String) -> URL? {
         do {
             let dir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("export", isDirectory: true)
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent(RecordingExporter.fileName(for: title, fileExtension: "md"))
-            try Data(text.utf8).write(to: url, options: .atomic)
+            let url = dir.appendingPathComponent(RecordingExporter.fileName(for: title, fileExtension: fileExtension))
+            try data.write(to: url, options: .atomic)
             return url
         } catch {
             toast = Toast("导出失败，请重试")

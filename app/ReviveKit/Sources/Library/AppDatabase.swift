@@ -178,6 +178,14 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // When a sync pass last finished on each card (product-spec.md P08, §2.4 上次同步完成时间).
+        // Null until the first pass after the upgrade finishes.
+        migrator.registerMigration("v13") { db in
+            try db.alter(table: "device") { t in
+                t.add(column: "last_synced_at", .datetime)
+            }
+        }
+
         return migrator
     }
 

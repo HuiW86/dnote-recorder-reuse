@@ -59,6 +59,18 @@ public final class RecordingLibrary: Sendable {
         }
     }
 
+    /// Records that a sync pass finished on the card. Returns the stored row, nil for an
+    /// unknown id.
+    @discardableResult
+    public func markSynced(deviceId: UUID, at date: Date) throws -> Device? {
+        try database.writer.write { db in
+            guard var device = try Device.fetchOne(db, key: deviceId) else { return nil }
+            device.lastSyncedAt = date
+            try device.update(db)
+            return device
+        }
+    }
+
     // MARK: Sync items
 
     public func syncItems(deviceId: UUID) throws -> [SyncItem] {

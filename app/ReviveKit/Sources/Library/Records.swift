@@ -16,10 +16,13 @@ public struct Device: Codable, Equatable, Sendable, FetchableRecord, Persistable
     public var freeMb: Int?
     public var totalMb: Int?
     public var remoteId: String?
+    /// End of the last sync pass that ran to completion on this card (migration v13); nil until
+    /// one does. `lastSeenAt` is when a pass reached the card, finished or not.
+    public var lastSyncedAt: Date?
 
     public init(id: UUID = UUID(), peripheralId: String? = nil, sn: String, name: String, firmware: String,
                 pairedAt: Date? = nil, lastSeenAt: Date? = nil, battery: Int? = nil, freeMb: Int? = nil,
-                totalMb: Int? = nil, remoteId: String? = nil) {
+                totalMb: Int? = nil, remoteId: String? = nil, lastSyncedAt: Date? = nil) {
         self.id = id
         self.peripheralId = peripheralId
         self.sn = sn
@@ -31,6 +34,7 @@ public struct Device: Codable, Equatable, Sendable, FetchableRecord, Persistable
         self.freeMb = freeMb
         self.totalMb = totalMb
         self.remoteId = remoteId
+        self.lastSyncedAt = lastSyncedAt
     }
 
     public static let databaseTableName = "device"

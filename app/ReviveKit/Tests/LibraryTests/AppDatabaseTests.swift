@@ -501,6 +501,31 @@ struct RecordingLibraryTests {
         #expect(try lib.restoreOriginalTranscript(recordingId: UUID()) == nil)
     }
 
+    /// P08 上次同步: a finished pass stamps the card; an unknown id changes nothing.
+    @Test func markSyncedStampsTheCard() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "SN-TEST") { $0.name = "卡" }
+        #expect(device.lastSyncedAt == nil)
+        let when = Date(timeIntervalSince1970: 1_800_000_000)
+        let stamped = try #require(try lib.markSynced(deviceId: device.id, at: when))
+        #expect(stamped.lastSyncedAt == when && stamped.name == "卡")
+        #expect(try lib.markSynced(deviceId: UUID(), at: when) == nil)
+    }
+
+    @Test func v12LibraryUpgradesToV13() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v12")
+        let id = UUID()
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO device (id, sn, name, firmware) VALUES (?, 'SN-OLD', '卡', 'v1.50')",
+                           arguments: [id])
+        }
+        let db = try AppDatabase(queue)
+        let device = try #require(try db.writer.read { try Device.fetchOne($0, key: id) })
+        #expect(device.lastSyncedAt == nil && device.name == "卡")
+    }
+
     @Test func v11LibraryUpgradesToV12() throws {
         let queue = try DatabaseQueue()
         try AppDatabase.migrator.migrate(queue, upTo: "v11")

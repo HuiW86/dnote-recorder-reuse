@@ -243,7 +243,11 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M4-07 | E1c 导出 WAV | 文件名是显示的标题加 `.wav`；文件头是 `RIFF…WAVE`，16 位线性 PCM，时长与录音相差不到 0.2 秒；导出目录里只剩这个文件；手机录音（M4A）同样能导出 WAV |
 
-实现：T-M4-06 是 `PolishAndLoopTests` `loopRangeAndSteps`、`loopsALine`（「暂停不停止循环」只在代码里，没有测试）。T-M4-07 是 `PlayerTests` `exportsWAV`。T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
+| T-M4-08 | J1 导出 PDF | 页面是 A4；能从 PDF 里读出标题、日期时间、场景、人物、摘要、栏目、待办、大纲、金句、文字稿和它的时间；文档标题是纪要标题；300 句的文字稿分成多页，第一句和最后一句都在；详情页导出的文件名是显示的标题加 `.pdf`，内容以 `%PDF-` 开头 |
+
+| T-M4-09 | P08 上次同步 | 同步完整跑完后这张卡的 `last_synced_at` 有值且不早于 `last_seen_at`，P08 副标题是「已连接 · 上次同步 …」；未知的卡不写；`v12` 升到 `v13` 后原有的卡 `last_synced_at` 为空 |
+
+实现：T-M4-09 是 `HomeModelTests` `lastSeenFollowsEachPass`、`AppDatabaseTests` `markSyncedStampsTheCard`、`v12LibraryUpgradesToV13`。T-M4-08 是 `PDFExportTests`（2 个，只在 macOS 上跑）、`RecordingDetailModelTests` `exportsUnderTitle`。T-M4-06 是 `PolishAndLoopTests` `loopRangeAndSteps`、`loopsALine`（「暂停不停止循环」只在代码里，没有测试）。T-M4-07 是 `PlayerTests` `exportsWAV`。T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
 
 ## 4. 真机测试方法与证据
 

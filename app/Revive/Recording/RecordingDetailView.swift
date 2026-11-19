@@ -218,13 +218,16 @@ private struct RecordingDetailContent: View {
                     Button("WAV（无损，用于剪辑，文件较大）", systemImage: "waveform.badge.plus") {
                         Task { shareURL = await model.exportWAV() }
                     }
-                    Button("原始文件（OGG）", systemImage: "doc") {
+                    Button("原始文件（\(model.originalFormat)）", systemImage: "doc") {
                         shareURL = model.exportFile()
                     }
                 }
                 if model.canExportMarkdown {
                     Button("纪要和文字稿（Markdown）", systemImage: "doc.text") {
                         shareURL = model.exportMarkdown()
+                    }
+                    Button("纪要和文字稿（PDF）", systemImage: "doc.richtext") {
+                        shareURL = model.exportPDF()
                     }
                 }
             }

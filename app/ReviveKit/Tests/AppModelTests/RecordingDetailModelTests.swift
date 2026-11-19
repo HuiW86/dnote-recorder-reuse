@@ -175,6 +175,13 @@ struct RecordingDetailModelTests {
         #expect(url.lastPathComponent == "11月7日 14.02.ogg")
         model.rename(to: "周会")
         #expect(try #require(model.exportFile()).lastPathComponent == "周会.ogg")
+        #expect(model.originalFormat == "OGG")
+        #if canImport(CoreText)
+        // J1: the PDF is named like the other exports and is a PDF.
+        let pdf = try #require(model.exportPDF())
+        #expect(pdf.lastPathComponent == "周会.pdf")
+        #expect(try Data(contentsOf: pdf).prefix(5) == Data("%PDF-".utf8))
+        #endif
         RecordingExporter.cleanUp()
     }
 

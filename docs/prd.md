@@ -214,7 +214,8 @@ CardService 的事件流只有一个消费者，SyncEngine 不直接订阅：由
 | `name` | TEXT | 显示名，默认取蓝牙名 |
 | `firmware` | TEXT | 最近一次读到的版本 |
 | `paired_at` | DATETIME | — |
-| `last_seen_at` | DATETIME | — |
+| `last_seen_at` | DATETIME | 每次同步开始、连到卡时写入 |
+| `last_synced_at` | DATETIME NULL | 一次同步完整跑完时写入（迁移 `v13`）；P08 显示「上次同步」，没有时退回 `last_seen_at` |
 | `battery` / `free_mb` / `total_mb` | INTEGER | 最近一次 `0x80` 的值 |
 | `remote_id` | TEXT NULL | M2 设备登记后的后端 id |
 

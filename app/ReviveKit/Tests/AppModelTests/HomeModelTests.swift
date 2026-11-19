@@ -705,6 +705,10 @@ struct HomeModelTests {
         await h.session.syncEngine.idle()
         let after = try #require(model.deviceRows.first?.lastSeenAt)
         #expect(after > before)
+        // §2.4 上次同步完成时间: stamped when the pass finishes, and what the row shows.
+        let synced = try #require(model.deviceRows.first?.lastSyncedAt)
+        #expect(synced >= after)
+        #expect(model.deviceRows.first?.subtitle == "已连接 · 上次同步 \(RecordingText.dateTime(synced))")
     }
 
     @Test func switchingToAnUnknownCardAsksToRescan() async throws {

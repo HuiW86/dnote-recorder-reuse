@@ -104,15 +104,5 @@ private struct DeviceSwitcherRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var subtitle: String {
-        let state = switch row.status {
-        case .connecting: "正在连接"
-        case .idle: "已连接"
-        case .recording: "录音中"
-        case .paused: "已暂停"
-        default: "未连接"
-        }
-        guard let seen = row.lastSeenAt else { return state }
-        return "\(state) · 上次连接 \(RecordingText.dateTime(seen))"
-    }
+    private var subtitle: String { row.subtitle }
 }
