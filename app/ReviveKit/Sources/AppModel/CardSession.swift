@@ -88,6 +88,9 @@ public final class CardSession {
     @ObservationIgnored private var deviceInfoCount = 0
     /// When the sync pass being logged started.
     @ObservationIgnored private var passStartedAt: Date?
+    /// The card file that was recording when the link dropped. If the card comes back stopped,
+    /// that recording is offered like one stopped in front of the user (#85, X10).
+    @ObservationIgnored private var interrupted: (deviceId: UUID, cardFileName: String)?
 
     public init(link: any CardLink, bondStore: any BondStore, library: RecordingLibrary,
                 timing: CardService.Timing = CardService.Timing(),
@@ -385,6 +388,9 @@ public final class CardSession {
     }
 
     private func forgetCard() {
+        if isActive, let name = recordingName, let device = connectedDevice {
+            interrupted = (device.id, name)
+        }
         stateRevision += 1
         connectedDevice = nil
         cardInfo = nil
@@ -443,6 +449,21 @@ public final class CardSession {
 
     private func setRecording(_ state: RecordingState, ms: Int?) {
         stateRevision += 1
+        if let pending = interrupted, let device = connectedDevice, device.id == pending.deviceId {
+            switch state {
+            case .idle:
+                // Stopped while away: when exactly, and at what length, is not known.
+                diagnostics?.add("card", "recording ended while disconnected")
+                lastFinished = FinishedRecording(deviceId: device.id, cardFileName: pending.cardFileName,
+                                                 recordedMs: nil, endedAt: now())
+                interrupted = nil
+            case .recording, .paused:
+                // Still going; its stop is reported as usual.
+                interrupted = nil
+            case .unknown:
+                break
+            }
+        }
         if state == .idle {
             if isActive, let name = recordingName, let device = connectedDevice {
                 lastFinished = FinishedRecording(deviceId: device.id, cardFileName: name,

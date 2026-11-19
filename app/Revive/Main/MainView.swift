@@ -167,6 +167,13 @@ private struct MainContent: View {
                 showsStage = false
             }
         }
+        // A tapped sync notification about one recording opens it in 录音 (#85).
+        .onChange(of: env.notifications.recordingToOpen, initial: true) { _, id in
+            guard let id else { return }
+            env.notifications.recordingToOpen = nil
+            tab = .recordings
+            paths[.recordings] = [.recording(id)]
+        }
         .task {
             // DEBUG launch arguments for screenshots (scripts/shots.sh); nil in release builds.
             if let id = LaunchOptions.openRecording(in: model.recordings) {

@@ -44,15 +44,14 @@ struct RecordingDetailView: View {
                 // On-device transcription is behind a switch until its quality is measured (#67).
                 // On the phone when that is switched on; otherwise the user's own service, if they
                 // gave it a transcription model (the audio is then uploaded, and the page says so).
-                let transcriber: (any SpeechTranscribing)? = if env.preferences.onDeviceTranscriptEnabled {
-                    OnDeviceTranscriber(library: library)
-                } else if let cloud = env.cloudTranscriptionConfig {
-                    CloudTranscriber(library: library, config: cloud)
-                } else {
-                    nil
+                // Read on every use, so changing the switch applies to this page too (#85).
+                let source: @MainActor () -> (any SpeechTranscribing)? = { [env] in
+                    if env.preferences.onDeviceTranscriptEnabled { return OnDeviceTranscriber(library: library) }
+                    if let cloud = env.cloudTranscriptionConfig { return CloudTranscriber(library: library, config: cloud) }
+                    return nil
                 }
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
-                                             transcriber: transcriber, assistant: env.assistantConfig)
+                                             transcriberSource: source, assistant: env.assistantConfig)
             }
         }
         .onDisappear { model?.leave() }

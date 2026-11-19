@@ -147,6 +147,9 @@
 | T-M15-17 | 迁移 `v7` | `v6` 的库升级后 `recording` 多出 `starred_at`，原有录音都未标星，纪要和待办保留；从 `v1` 一路升到最新时所有迁移都已应用 |
 | T-M15-18 | #89 跨录音的待办与纪要 | 只列未勾的待办，录音新的在前、同一条按纪要顺序；最近删除里的不列；「最近整理好的」按纪要生成时间倒序、`limit` 生效、没有纪要的录音不列；没转文字的条数不含最近删除，存入文字稿后减一；「有待办」筛选在待办勾完后不再列这条 |
 | T-M15-19 | #89 总览页状态 | 待办超过 5 条时只列前 5 条，并显示「还有 N 件，在各条录音的纪要里」；勾掉一条后 Toast「已完成」，列表和「还有」随之更新，纪要里对应待办已勾；「还有 N 条没转成文字」在存入文字稿后消失 |
+| T-M15-21 | #85 标重点、留着 / 不要（页面状态） | 没在录音时标重点 Toast「现在还不能标重点」；录音中 2 s 内点两次只记一个，入库后列表行计 1；「不要」先存入、再进最近删除并删卡上文件，Toast「这条不会保留」带「撤销」，撤销后回到列表；10 s 不理当作留着，最近删除为空、卡上文件还在 |
+| T-M15-22 | #85 断开期间结束的录音 | 录音中断开，卡上停止（推送丢失）后重连：补问「留着 / 不要」，时长未知；重连时仍在录：重连当时不问，停止后问一次且带时长 |
+| T-M15-23 | #85 通知文案、转写开关、导出文件名 | 只计这一轮新存的卡上录音（不含最近删除、导入）；只有一条时带它的 id，多条时不带；转写开关在打开的 P06 上立即生效；导出文件名按页面显示的标题（「11月7日 14.02.ogg」，改名后用新名字） |
 | T-M15-20 | #89 列表按天分组的合计、正在播放的句子、外观 | 组标题「今天」「昨天」「3月2日」「2025年11月7日」；合计「2 条 · 1 小时 6 分钟」；正在播放的句子是起点不晚于当前位置的最后一句，第一句之前和没有句子时为空；详情页开始播放某句后，当前句就是这一句；外观默认跟随系统，选择后重新读取仍是所选 |
 
 实现：
@@ -172,13 +175,14 @@
 | T-M15-17 | `AppDatabaseTests` `v6LibraryUpgradesToV7`、`v1LibraryUpgradesToTheLatest` |
 | T-M15-18 | `AppDatabaseTests` `openTodosAndRecentSummaries`；`HomeModelTests` `filtersByMarksAndTranscripts`（有待办段） |
 | T-M15-19 | `Tests/AppModelTests/OverviewTests.swift` `OverviewModelTests` |
+| T-M15-21 | `HomeModelTests` `marksFollowTheRunningRecording`、`discardStoresThenTrashesAndDeletesFromCard`、`unansweredOfferKeepsTheRecording` |
+| T-M15-22 | `HomeModelTests` `recordingThatEndedWhileAwayIsOfferedOnReconnect`、`recordingStillGoingAfterReconnectIsOfferedWhenItStops` |
+| T-M15-23 | `SyncNoticeTests`；`RecordingDetailModelTests` `transcriptionSwitchAppliesToAnOpenPage`、`exportsUnderTitle` |
 | T-M15-20 | `OverviewTests` `RecordingDayTests`、`TranscriptPositionTests`、`AppearanceTests`；`RecordingDetailModelTests` `transcribesStoresAndReportsFailures`（当前句段） |
 
 **没有自动用例覆盖的部分**（代码已合并，靠 §3.6.2 和界面走查）：
 
-- 首页的「留着 / 不要」：录音停止后出现、10 s 后当作留着、`HomeModel.discardJustRecorded` 和撤销（库和同步引擎这一层由 T-M15-06、07 覆盖，页面状态这一层没有）
-- `HomeModel.markNow`：录音中按卡的已录时间记标记、暂停和未报时间时的 Toast、P13 上的计数
-- 本地通知 `SyncNotifier`（在 App 目标里，不在 ReviveKit，测不到）
+- 本地通知的投递和点按跳转（`SyncNotifier`、`NotificationRouter` 在 App 目标里；文案和带哪条录音由 T-M15-23 覆盖）
 - `TrashModel` 的剩余天数文字（「还剩 N 天」「今天到期」）、清空
 - 真实的系统语音识别 `OnDeviceTranscriber`（T-M15-10 用的是假识别器）
 - 从 `v2` 的旧库升级到 `v5` 的迁移（现有升级用例只到 `v2`）；真机上随 T-M1-56 一起验

@@ -4,6 +4,7 @@ import SwiftUI
 /// First use until a card is paired, then the home screen (product-spec.md §2.1).
 struct RootView: View {
     let env: AppEnvironment
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -24,6 +25,11 @@ struct RootView: View {
         }
         .tint(Theme.accent)
         .preferredColorScheme(env.preferences.appearance.colorScheme)
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            // Notifications turned off in the system settings turn the switch off here (#85).
+            guard phase == .active else { return }
+            Task { await SyncNotifier.followSystemSetting(env.preferences) }
+        }
         .debugEntry(env)
     }
 }

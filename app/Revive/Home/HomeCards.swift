@@ -76,23 +76,20 @@ struct DeviceChip: View {
         case .connecting:
             ProgressView().controlSize(.mini)
         case .idle, .recording, .paused:
-            if let battery {
-                Image(systemName: batterySymbol(battery))
-                    // Low battery keeps the system warning red (design-spec.md §2.1).
-                    .foregroundStyle(battery <= 20 ? Color.red : Theme.inkMuted)
+            // design-spec.md §3 设备条: "已连接 · 电量" in words (#85).
+            HStack(spacing: 0) {
+                Text("已连接").foregroundStyle(Theme.inkMuted)
+                if let battery {
+                    Text(" · ").foregroundStyle(Theme.inkMuted)
+                    Text("\(battery)%")
+                        .monospacedDigit()
+                        // Low battery keeps the system warning red (design-spec.md §2.1).
+                        .foregroundStyle(battery <= 20 ? Color.red : Theme.inkMuted)
+                }
             }
+            .font(.footnote)
         default:
             Text("未连接").foregroundStyle(Theme.inkMuted)
-        }
-    }
-
-    private func batterySymbol(_ level: Int) -> String {
-        switch level {
-        case ..<13: "battery.0percent"
-        case ..<38: "battery.25percent"
-        case ..<63: "battery.50percent"
-        case ..<88: "battery.75percent"
-        default: "battery.100percent"
         }
     }
 
@@ -198,7 +195,7 @@ struct SyncStatusCard: View {
             HStack(spacing: 10) {
                 icon
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(card.title).font(.subheadline.weight(.medium))
+                    Text(card.title).font(expanded ? Font.subheadline.weight(.medium) : Font.footnote)
                     if case .done(let at) = card {
                         Text(RecordingText.dateTime(at))
                             .font(.caption).foregroundStyle(Theme.inkMuted)
@@ -228,10 +225,24 @@ struct SyncStatusCard: View {
                 Text(detail).font(.caption).foregroundStyle(Theme.inkMuted)
             }
         }
-        .padding(12)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
+        // design-spec.md §3 同步状态: a card only while a pass runs; otherwise a line (#85).
+        .padding(.horizontal, expanded ? 12 : 4)
+        .padding(.vertical, expanded ? 12 : 0)
+        .background {
+            if expanded {
+                RoundedRectangle(cornerRadius: Theme.Radius.card)
+                    .fill(Theme.surface)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
+            }
+        }
         .accessibilityElement(children: .contain)
+    }
+
+    private var expanded: Bool {
+        switch card {
+        case .checking, .syncing: true
+        default: false
+        }
     }
 
     @ViewBuilder private var icon: some View {

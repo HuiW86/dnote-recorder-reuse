@@ -168,10 +168,36 @@ struct RecordingDetailModelTests {
     @Test func exportsUnderTitle() async throws {
         let f = try await DetailFixture()
         let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        // #85: named as the page shows the recording, not by the stored "2026-11-07 14:02".
         let url = try #require(model.exportFile())
-        #expect(url.lastPathComponent == "2026-11-07 14.02.ogg")
+        #expect(url.lastPathComponent == "11月7日 14.02.ogg")
+        model.rename(to: "周会")
+        #expect(try #require(model.exportFile()).lastPathComponent == "周会.ogg")
         RecordingExporter.cleanUp()
     }
+
+    /// #85: turning transcription on or off in settings applies to a page that is already open.
+    @Test func transcriptionSwitchAppliesToAnOpenPage() async throws {
+        let f = try await DetailFixture()
+        let setting = SwitchSetting()
+        let fake = FakeTranscriber(result: .success([TranscriptSegment(startMs: 0, text: "好")]))
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         transcriberSource: { setting.on ? fake as any SpeechTranscribing : nil })
+        #expect(!model.canTranscribe)
+        setting.on = true
+        #expect(model.canTranscribe)
+        model.transcribe()
+        await waitUntil("transcribed") { model.transcript != nil && !model.isTranscribing }
+        setting.on = false
+        #expect(!model.canTranscribe)
+        #expect(model.transcript?.segments.first?.text == "好")
+    }
+}
+
+/// The settings switch as the page reads it.
+@MainActor
+private final class SwitchSetting {
+    var on = false
 }
 
 private struct FakeTranscriber: SpeechTranscribing {

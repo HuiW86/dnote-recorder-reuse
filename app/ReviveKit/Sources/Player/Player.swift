@@ -178,7 +178,9 @@ extension RecordingPlayer: AVAudioPlayerDelegate {
 
 /// Copies a recording's OGG to a temporary file named after its title, for the share sheet.
 public enum RecordingExporter {
-    public static func exportFile(for recording: Recording, library: RecordingLibrary) throws -> URL {
+    /// `title` names the file; nil uses the stored title.
+    public static func exportFile(for recording: Recording, library: RecordingLibrary,
+                                  title: String? = nil) throws -> URL {
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         // One directory per export so two recordings with the same title do not collide.
@@ -188,7 +190,7 @@ public enum RecordingExporter {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // OGG for card recordings, M4A for phone ones (features.md X18): keep what is stored.
         let ext = source.pathExtension.isEmpty ? "ogg" : source.pathExtension
-        let target = dir.appendingPathComponent(fileName(for: recording.title, fileExtension: ext))
+        let target = dir.appendingPathComponent(fileName(for: title ?? recording.title, fileExtension: ext))
         try FileManager.default.copyItem(at: source, to: target)
         return target
     }
@@ -211,7 +213,7 @@ public enum RecordingExporter {
 
     /// `base` is where the export directory is made; the default is the one `cleanUp` empties.
     public static func exportM4A(for recording: Recording, library: RecordingLibrary,
-                                 in base: URL? = nil) async throws -> URL {
+                                 title: String? = nil, in base: URL? = nil) async throws -> URL {
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))
@@ -219,14 +221,14 @@ public enum RecordingExporter {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // A phone recording is already M4A: copy it as it is.
         if source.pathExtension.lowercased() == "m4a" {
-            let target = dir.appendingPathComponent(fileName(for: recording.title, fileExtension: "m4a"))
+            let target = dir.appendingPathComponent(fileName(for: title ?? recording.title, fileExtension: "m4a"))
             try FileManager.default.copyItem(at: source, to: target)
             return target
         }
         let pcm = dir.appendingPathComponent("decoded.caf")
         defer { try? FileManager.default.removeItem(at: pcm) }
         try OggOpusDecoder.decode(source, to: pcm)
-        let target = dir.appendingPathComponent(fileName(for: recording.title, fileExtension: "m4a"))
+        let target = dir.appendingPathComponent(fileName(for: title ?? recording.title, fileExtension: "m4a"))
         // Scoped so both files are closed, and the m4a finished, before the URL is returned.
         do {
             let input = try AVAudioFile(forReading: pcm)
