@@ -399,6 +399,29 @@ struct RecordingLibraryTests {
         #expect(try lib.applyAITitle(id: id, "别的")?.title == "旧名字")
     }
 
+    /// G1: summaries from before v10 get an empty outline and no quotes, and keep the rest.
+    @Test func v9LibraryUpgradesToV10() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v9")
+        let recordingId = UUID()
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO recording (id, source, started_at, duration_ms, audio_path, audio_sha256, title,
+                                       created_at, updated_at)
+                VALUES (?, 'import', ?, 1000, 'audio/x.ogg', 'x', 't', ?, ?)
+                """, arguments: [recordingId, Date(), Date(), Date()])
+            try db.execute(sql: """
+                INSERT INTO summary (recording_id, scene, title, summary, sections, todos, tags, people, model,
+                                     created_at)
+                VALUES (?, 'meeting', 'T', 'S', '[]', '[{"text":"a","done":false}]', '[]', '[]', 'm', ?)
+                """, arguments: [recordingId, Date()])
+        }
+        let db = try AppDatabase(queue)
+        let summary = try #require(try db.writer.read { try Summary.fetchOne($0, key: recordingId) })
+        #expect(summary.outline.isEmpty && summary.quotes.isEmpty)
+        #expect(summary.todos.map(\.text) == ["a"] && summary.summary == "S")
+    }
+
     @Test func v8LibraryUpgradesToV9() throws {
         let queue = try DatabaseQueue()
         try AppDatabase.migrator.migrate(queue, upTo: "v8")
@@ -549,9 +572,14 @@ struct RecordingLibraryTests {
             recordingId: id, scene: "meeting", title: "周会排期", summary: "下周三上线。",
             sections: [SummarySection(heading: "结论与决定", items: ["下周三上线", "老王负责测试"])],
             todos: [SummaryTodo(text: "老王周二前测完"), SummaryTodo(text: "小李发通知", done: true)],
-            tags: ["排期", "上线"], people: ["老王", "小李"], model: "deepseek-chat", createdAt: created)
+            tags: ["排期", "上线"], people: ["老王", "小李"],
+            outline: [OutlineItem(title: "排期", points: ["周三上线", "周二测完"]), OutlineItem(title: "分工", points: [])],
+            quotes: ["那就下周三。"], model: "deepseek-chat", createdAt: created)
         try lib.saveSummary(first)
         #expect(try lib.summary(recordingId: id) == first)
+        // G1: outline and quotes are searched like the rest of the summary.
+        #expect(try lib.searchRecordings("分工").map(\.id) == [id])
+        #expect(try lib.searchRecordings("那就下周三").map(\.id) == [id])
 
         let ticked = try #require(try lib.setTodoDone(recordingId: id, index: 0, done: true))
         #expect(ticked.todos.map(\.done) == [true, true])

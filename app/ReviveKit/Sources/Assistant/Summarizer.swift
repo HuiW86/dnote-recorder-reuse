@@ -1,4 +1,5 @@
-// Transcript -> scene, title, summary, sections, todos, tags, people (features.md G1, G2a).
+// Transcript -> scene, title, summary, sections, todos, tags, people, outline, quotes
+// (features.md G1, G2a).
 //
 // The prompts, the long-transcript chunking and the reply rules are adapted from
 // andyhuo520/beanpod, commit 0d00fab, Shared/Analyzer.swift (`analyze`, `parse`, `fallback`,
@@ -18,11 +19,16 @@ public struct SummaryDraft: Equatable, Sendable {
     public var todos: [String]
     public var tags: [String]
     public var people: [String]
+    /// Topics in the order discussed (G1 大纲).
+    public var outline: [OutlineItem]
+    /// Sentences quoted as said (G1 金句).
+    public var quotes: [String]
     /// The model name, or `Summarizer.fallbackModel` for the keyword fallback.
     public var model: String
 
     public init(scene: RecordingScene, title: String, summary: String, sections: [SummarySection],
-                todos: [String], tags: [String], people: [String], model: String) {
+                todos: [String], tags: [String], people: [String], outline: [OutlineItem] = [],
+                quotes: [String] = [], model: String) {
         self.scene = scene
         self.title = title
         self.summary = summary
@@ -30,6 +36,8 @@ public struct SummaryDraft: Equatable, Sendable {
         self.todos = todos
         self.tags = tags
         self.people = people
+        self.outline = outline
+        self.quotes = quotes
         self.model = model
     }
 
@@ -37,7 +45,7 @@ public struct SummaryDraft: Equatable, Sendable {
     public func record(recordingId: UUID, createdAt: Date = Date()) -> Summary {
         Summary(recordingId: recordingId, scene: scene.rawValue, title: title, summary: self.summary,
                 sections: sections, todos: todos.map { SummaryTodo(text: $0) }, tags: tags, people: people,
-                model: model, createdAt: createdAt)
+                outline: outline, quotes: quotes, model: model, createdAt: createdAt)
     }
 
     /// True when it came from the keyword fallback; the UI says the result is rough.
@@ -140,11 +148,14 @@ public struct Summarizer: Sendable {
           "sections": [{"heading": "所选场景的栏目名", "items": ["这一栏下的要点，每条一句完整的话"]}],
           "todos": ["后续要做的事，写清谁、做什么、什么时候；没有就给空数组"],
           "tags": ["2 到 5 个主题标签，名词，不带 #"],
-          "people": ["出现的人名或称呼；没有就给空数组"]
+          "people": ["出现的人名或称呼；没有就给空数组"],
+          "outline": [{"title": "按录音里谈到的先后，一个话题一条", "points": ["这个话题下的要点，每条一句"]}],
+          "quotes": ["录音里值得记住的原话，一字不改地摘出来；没有就给空数组"]
         }
 
         要求：
         - sections 必须使用所选场景的栏目名，某一栏没有内容就不要输出这一栏。
+        - outline 按时间顺序，3 到 7 个话题；quotes 最多 5 句，必须是文字稿里的原话。
         - 只写录音里真有的内容。数字、金额、日期、人名照原样写，听不清的不要猜。
         - 全部用简体中文。
         """
@@ -164,7 +175,9 @@ public struct Summarizer: Sendable {
 
     /// Reads the model's JSON tolerantly: the text from the first `{` to the last `}`, trimmed
     /// fields, empty entries dropped, title at most 30 characters, at most 6 tags and 12 people,
-    /// an unknown scene read as `other`. A reply without a summary is `badReply`.
+    /// at most 8 outline topics of 6 points and 5 quotes (quote marks dropped), an unknown scene
+    /// read as `other`. A reply without a summary is `badReply`; one without outline or quotes
+    /// (an older prompt, a terse model) still parses.
     public static func parse(_ reply: String, fixedScene: RecordingScene?, model: String) throws -> SummaryDraft {
         let text = ChatClient.stripThinking(reply)
         guard let start = text.firstIndex(of: "{"), let end = text.lastIndex(of: "}"), start < end,
@@ -190,9 +203,19 @@ public struct Summarizer: Sendable {
         let tags = strings(object["tags"])
             .map { $0.replacingOccurrences(of: "#", with: "").trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+        let outline = (object["outline"] as? [Any] ?? []).compactMap { entry -> OutlineItem? in
+            guard let item = entry as? [String: Any] else { return nil }
+            let title = trimmed(item["title"])
+            guard !title.isEmpty else { return nil }
+            return OutlineItem(title: String(title.prefix(40)), points: Array(strings(item["points"]).prefix(6)))
+        }
+        let quotes = strings(object["quotes"])
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "“”\"「」『』")) }
+            .filter { !$0.isEmpty }
         return SummaryDraft(scene: scene, title: String(trimmed(object["title"]).prefix(30)), summary: summaryText,
                             sections: sections, todos: strings(object["todos"]), tags: Array(tags.prefix(6)),
-                            people: Array(strings(object["people"]).prefix(12)), model: model)
+                            people: Array(strings(object["people"]).prefix(12)),
+                            outline: Array(outline.prefix(8)), quotes: Array(quotes.prefix(5)), model: model)
     }
 
     private static func trimmed(_ value: Any?) -> String {

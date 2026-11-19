@@ -208,8 +208,20 @@ public struct SummaryTodo: Codable, Equatable, Sendable {
     }
 }
 
+/// One topic of a summary's outline (features.md G1 大纲, also drawn as 思维导图), in the order
+/// the recording took it up.
+public struct OutlineItem: Codable, Equatable, Sendable {
+    public var title: String
+    public var points: [String]
+
+    public init(title: String, points: [String]) {
+        self.title = title
+        self.points = points
+    }
+}
+
 /// The summary of a recording (features.md G1, G2a). One per recording; removed with it.
-/// `sections`, `todos`, `tags` and `people` are stored as JSON.
+/// `sections`, `todos`, `tags`, `people`, `outline` and `quotes` are stored as JSON.
 public struct Summary: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
     public var recordingId: UUID
     /// Scene code, such as "meeting" (the raw value of Assistant's `Scene`).
@@ -220,12 +232,17 @@ public struct Summary: Codable, Equatable, Sendable, FetchableRecord, Persistabl
     public var todos: [SummaryTodo]
     public var tags: [String]
     public var people: [String]
+    /// Topics in the order discussed (G1 大纲); empty for summaries from before v10.
+    public var outline: [OutlineItem]
+    /// Sentences worth keeping, quoted as said (G1 金句); empty for summaries from before v10.
+    public var quotes: [String]
     /// What produced it: the model name, or "keywords" for the rule-based fallback.
     public var model: String
     public var createdAt: Date
 
     public init(recordingId: UUID, scene: String, title: String, summary: String, sections: [SummarySection],
-                todos: [SummaryTodo], tags: [String], people: [String], model: String, createdAt: Date) {
+                todos: [SummaryTodo], tags: [String], people: [String], outline: [OutlineItem] = [],
+                quotes: [String] = [], model: String, createdAt: Date) {
         self.recordingId = recordingId
         self.scene = scene
         self.title = title
@@ -234,6 +251,8 @@ public struct Summary: Codable, Equatable, Sendable, FetchableRecord, Persistabl
         self.todos = todos
         self.tags = tags
         self.people = people
+        self.outline = outline
+        self.quotes = quotes
         self.model = model
         self.createdAt = createdAt
     }

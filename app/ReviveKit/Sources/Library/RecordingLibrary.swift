@@ -485,9 +485,10 @@ public final class RecordingLibrary: Sendable {
                      AND (recording.title LIKE ? ESCAPE '\\' OR transcript.segments LIKE ? ESCAPE '\\'
                           OR summary.title LIKE ? ESCAPE '\\' OR summary.summary LIKE ? ESCAPE '\\'
                           OR summary.sections LIKE ? ESCAPE '\\' OR summary.todos LIKE ? ESCAPE '\\'
-                          OR summary.tags LIKE ? ESCAPE '\\' OR summary.people LIKE ? ESCAPE '\\')
+                          OR summary.tags LIKE ? ESCAPE '\\' OR summary.people LIKE ? ESCAPE '\\'
+                          OR summary.outline LIKE ? ESCAPE '\\' OR summary.quotes LIKE ? ESCAPE '\\')
                     """
-                arguments += Array(repeating: pattern, count: 8)
+                arguments += Array(repeating: pattern, count: 10)
             }
             sql += " ORDER BY recording.started_at DESC"
             return try Recording.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))

@@ -29,6 +29,26 @@ struct SummaryParsingTests {
         #expect(draft.scene == .meeting && draft.summary == "下周三上线。")
     }
 
+    /// G1 大纲、金句: topics with their points in order, quotes without their quote marks, both
+    /// capped; a reply without them still parses (an older prompt or a terse model).
+    @Test func readsOutlineAndQuotes() throws {
+        let points = (1...9).map { "\"点\($0)\"" }.joined(separator: ",")
+        let topics = (1...10).map { #"{"title":"话题\#($0)","points":[\#(points)]}"# }.joined(separator: ",")
+        let quotes = (1...7).map { "\"「原话\($0)」\"" }.joined(separator: ",")
+        let reply = #"{"scene":"meeting","title":"t","summary":"s","outline":[{"title":"","points":["x"]},"#
+            + topics + #"],"quotes":[" ",\#(quotes)]}"#
+        let draft = try Summarizer.parse(reply, fixedScene: nil, model: "m")
+        #expect(draft.outline.count == 8 && draft.outline.first?.title == "话题1")
+        #expect(draft.outline.first?.points == (1...6).map { "点\($0)" })
+        #expect(draft.quotes == (1...5).map { "原话\($0)" })
+        let row = draft.record(recordingId: UUID())
+        #expect(row.outline == draft.outline && row.quotes == draft.quotes)
+
+        let plain = try Summarizer.parse(#"{"scene":"memo","title":"t","summary":"s"}"#, fixedScene: nil, model: "m")
+        #expect(plain.outline.isEmpty && plain.quotes.isEmpty)
+        #expect(Summarizer.systemPrompt(fixedScene: nil).contains("\"outline\""))
+    }
+
     /// G1 "换一个角度重起": the title of a JSON reply, or a bare line; quotes trimmed; capped.
     @Test func readsANewTitle() throws {
         #expect(try Summarizer.parseTitle(#"{"title": " 周四发外部测试 "}"#) == "周四发外部测试")

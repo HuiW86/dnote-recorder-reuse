@@ -152,6 +152,15 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // Outline and quotes of a summary (features.md G1 大纲、金句). JSON like the other list
+        // columns; summaries from before get empty lists.
+        migrator.registerMigration("v10") { db in
+            try db.alter(table: "summary") { t in
+                t.add(column: "outline", .text).notNull().defaults(to: "[]")
+                t.add(column: "quotes", .text).notNull().defaults(to: "[]")
+            }
+        }
+
         return migrator
     }
 
