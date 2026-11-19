@@ -25,7 +25,8 @@ public enum RecordingText {
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 
-    /// "14:02 · 23 分钟", plus "· 卡名" when several cards are paired.
+    /// "14:02 · 23 分钟", plus "· 卡名" when several cards are paired, or "· 手机录音" / "· 导入"
+    /// for a recording that did not come from a card (features.md D1c 来源标识).
     public static func subtitle(_ r: Recording, deviceName: String?, calendar: Calendar = .current) -> String {
         var parts: [String] = []
         if hasKnownTime(r) {
@@ -33,7 +34,18 @@ public enum RecordingText {
         }
         parts.append(duration(ms: r.durationMs))
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
+        if r.source != .card { parts.append(sourceName(r.source)) }
         return parts.joined(separator: " · ")
+    }
+
+    /// Where a recording came from (features.md D1c), for the source filter and the detail page.
+    public static func sourceName(_ source: Recording.Source) -> String {
+        switch source {
+        case .card: "录音卡"
+        case .phone: "手机录音"
+        case .import: "导入"
+        case .realtime: "实时录音"
+        }
     }
 
     /// "1 小时 5 分钟", "23 分钟", "45 秒".

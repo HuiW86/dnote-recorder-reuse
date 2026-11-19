@@ -231,7 +231,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M4-04 | X15、#75 回复的 Markdown | 「** 重点 **」整理成「**重点**」；标题行变粗体；不成对的 `**` 去掉；空粗体去掉；渲染后看不到星号，粗体范围正确 |
 
-实现：T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
+| T-M4-05 | D1c 按来源筛选 | 只有一种来源时没有来源筛选项；有卡录音和手机录音时依次给出「录音卡」「手机录音」；选来源后只列这一来源，叠加星标等筛选；非卡录音的副标题末尾是「· 手机录音」或「· 导入」 |
+
+实现：T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
 
 ## 4. 真机测试方法与证据
 

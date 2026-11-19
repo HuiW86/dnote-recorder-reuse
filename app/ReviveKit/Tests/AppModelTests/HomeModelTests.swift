@@ -103,6 +103,16 @@ struct RecordingTextTests {
         #expect(RecordingText.time(evening, calendar: calendar) == "23:46")
     }
 
+    /// D1c: a recording that did not come from a card says where it came from.
+    @Test func subtitleNamesTheSourceOfNonCardRecordings() {
+        var r = recording(file: "20261107140211.opus", startedAt: Date(), ms: 45_000)
+        r.source = .phone
+        #expect(RecordingText.subtitle(r, deviceName: nil, calendar: calendar).hasSuffix("45 秒 · 手机录音"))
+        r.source = .import
+        #expect(RecordingText.subtitle(r, deviceName: nil, calendar: calendar).hasSuffix("· 导入"))
+        #expect(RecordingText.sourceName(.card) == "录音卡")
+    }
+
     @Test func unparsableFileNameSaysTimeUnknown() {
         let r = recording(file: "garbage.opus", startedAt: Date(), ms: 45_000)
         #expect(RecordingText.title(r) == "时间未知")
@@ -498,6 +508,29 @@ struct HomeModelTests {
         #expect(model.filteredRecordings.isEmpty)
         model.filter = .all
         #expect(model.days.map { $0.recordings.count }.reduce(0, +) == 2)
+    }
+
+    /// D1c 按来源筛选: chips only when there is more than one source; a source chip narrows the
+    /// list on top of the filter.
+    @Test func sourceChipNarrowsTheList() async throws {
+        let card = FakeCard(files: [.init(name: "20261101090000.opus", content: Data(repeating: 0x08, count: 400))],
+                            paired: true)
+        let (h, model) = try await home(card)
+        await waitUntil("listed") { model.recordings.count == 1 }
+        #expect(model.sources.isEmpty)
+        let file = h.root.appendingPathComponent("phone.m4a")
+        try FileManager.default.createDirectory(at: h.root, withIntermediateDirectories: true)
+        try Data("m4a".utf8).write(to: file)
+        let phone = try h.library.addPhoneRecording(file: file, startedAt: Date(), durationMs: 1_000)
+        await waitUntil("both listed") { model.recordings.count == 2 }
+        #expect(model.sources == [.card, .phone])
+        model.sourceFilter = .phone
+        #expect(model.filteredRecordings.map(\.id) == [phone.id])
+        model.filter = .starred
+        #expect(model.filteredRecordings.isEmpty)
+        model.filter = .all
+        model.sourceFilter = .card
+        #expect(model.filteredRecordings.allSatisfy { $0.source == .card } && model.filteredRecordings.count == 1)
     }
 
     /// D1c: a folder chip narrows the list on top of the filter; deleting the folder clears it

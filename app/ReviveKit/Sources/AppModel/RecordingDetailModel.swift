@@ -399,8 +399,11 @@ public final class RecordingDetailModel {
 
     public var durationText: String { RecordingText.longDuration(ms: recording?.durationMs ?? 0) }
 
+    /// The card's name for a card recording; "手机录音" or "导入" otherwise (features.md D1c).
     public var sourceText: String? {
-        recording?.deviceId.flatMap { deviceNames[$0] }
+        guard let recording else { return nil }
+        if recording.source == .card { return recording.deviceId.flatMap { deviceNames[$0] } ?? "录音卡" }
+        return RecordingText.sourceName(recording.source)
     }
 
     public var sizeText: String {
