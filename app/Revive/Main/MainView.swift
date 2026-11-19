@@ -172,6 +172,22 @@ private struct MainContent: View {
                 showsStage = false
             }
         }
+        // Audio shared from another app (features.md E2): imported like a pick from Files. Waits
+        // here through first use, so it is not lost before a card is paired.
+        .onChange(of: env.incomingAudio, initial: true) { _, urls in
+            guard !urls.isEmpty, !model.isImporting else { return }
+            env.incomingAudio = []
+            tab = .recordings
+            Task {
+                let opened = urls.filter { $0.startAccessingSecurityScopedResource() }
+                defer {
+                    opened.forEach { $0.stopAccessingSecurityScopedResource() }
+                    // The system's Inbox copies are ours to remove once imported.
+                    urls.filter { $0.path.contains("/Inbox/") }.forEach { try? FileManager.default.removeItem(at: $0) }
+                }
+                await model.importAudio(urls)
+            }
+        }
         // A tapped sync notification about one recording opens it in 录音 (#85).
         .onChange(of: env.notifications.recordingToOpen, initial: true) { _, id in
             guard let id else { return }

@@ -53,6 +53,8 @@ final class AppEnvironment {
 
     /// Taps on the sync notification (#85); the notification center's delegate.
     let notifications = NotificationRouter()
+    /// Audio files other apps handed over (features.md E2), waiting for the tabs to import them.
+    var incomingAudio: [URL] = []
 
     #if DEBUG
     let debugLog = DebugLog()

@@ -44,6 +44,12 @@ targets:
         NSSpeechRecognitionUsageDescription: 在这部手机上把录音转成文字，录音不会离开手机
         UIBackgroundModes: [bluetooth-central, audio]
         LSSupportsOpeningDocumentsInPlace: false
+        # Audio shared from other apps ("拷贝到闻笺", features.md E2): a copy arrives in the app's
+        # Inbox and is imported like a file picked in Files. Alternate: never the default player.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: 音频
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.audio]
         # Export compliance answered in App Store Connect for 0.1.0 (1): standard algorithms only
         # (ChaCha20 to read the card's own audio), not distributed in France; skips the question on later uploads.
         ITSAppUsesNonExemptEncryption: false
