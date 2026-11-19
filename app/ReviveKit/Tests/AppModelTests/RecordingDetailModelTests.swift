@@ -64,12 +64,23 @@ struct RecordingDetailModelTests {
         model.rename(to: "")
         #expect(model.title == "11月7日 14:02")
 
+        // X21: 标星 from the page's menu is stored and survives a trash round trip.
+        #expect(!model.isStarred)
+        model.toggleStar()
+        #expect(model.isStarred && model.toast?.text == "已标星")
+        #expect(try f.library.recording(id: f.recording.id)?.isStarred == true)
+        model.toggleStar()
+        #expect(!model.isStarred && model.toast?.text == "已取消星标")
+        model.toggleStar()
+
         // D1b: delete moves it to 最近删除; the row and the audio stay until it is purged.
         model.delete()
         #expect(model.isDeleted)
         #expect(f.player.state == .idle)
         #expect(try f.library.recording(id: f.recording.id)?.trashedAt != nil)
         #expect(FileManager.default.fileExists(atPath: f.library.store.url(forAudioPath: f.recording.audioPath).path))
+        try f.library.restoreRecording(id: f.recording.id)
+        #expect(try f.library.recording(id: f.recording.id)?.isStarred == true)
     }
 
     /// X9: the transcript is stored, survives a reload, and failures become a toast.
@@ -88,6 +99,12 @@ struct RecordingDetailModelTests {
         #expect(model.timeText(segments[1]) == "00:00:01")
         let reloaded = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
         #expect(reloaded.transcript?.segments == segments)
+
+        // #89: the line being played is known once this recording is in the player.
+        #expect(model.currentSegmentIndex == nil)
+        model.play(from: segments[1])
+        await waitUntil("second line") { model.currentSegmentIndex == 1 }
+        f.player.stop()
 
         let failing = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
                                            transcriber: FakeTranscriber(result: .failure(.unsupportedLanguage)))

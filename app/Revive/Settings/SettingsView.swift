@@ -10,6 +10,14 @@ struct SettingsView: View {
 
     var body: some View {
         List {
+            Section("外观") {
+                Picker("外观", selection: $preferences.appearance) {
+                    ForEach(Preferences.Appearance.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            .surfaceRows()
             Section {
                 NavigationLink("最近删除", value: Route.trash)
             } header: {

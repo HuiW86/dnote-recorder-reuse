@@ -61,10 +61,16 @@ final class AppEnvironment {
 
     init() {
         do {
+            // The DEBUG demo library (screenshots) lives apart from the real one.
+            let folder = LaunchOptions.demoLibrary ? "demo-library" : "library"
             let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("library", isDirectory: true)
-            library = RecordingLibrary(database: try AppDatabase.onDisk(directory: root),
-                                       store: try AudioStore(root: root))
+                .appendingPathComponent(folder, isDirectory: true)
+            let opened = RecordingLibrary(database: try AppDatabase.onDisk(directory: root),
+                                          store: try AudioStore(root: root))
+            #if DEBUG
+            if LaunchOptions.demoLibrary { DemoLibrary.seedIfEmpty(opened) }
+            #endif
+            library = opened
             libraryError = nil
         } catch {
             library = nil
@@ -87,11 +93,17 @@ final class AppEnvironment {
     func startBluetooth() -> CardSession? {
         if let session { return session }
         guard let library else { return nil }
-        let bluetooth = BluetoothCardLink()
-        var link: any CardLink = bluetooth
+        var link: any CardLink
         #if DEBUG
-        bluetooth.onRestore = { [debugLog] in debugLog.add($0) }
-        link = TappedLink(link, log: debugLog)
+        if LaunchOptions.demoLibrary {
+            link = DemoCardLink()
+        } else {
+            let bluetooth = BluetoothCardLink()
+            bluetooth.onRestore = { [debugLog] in debugLog.add($0) }
+            link = TappedLink(bluetooth, log: debugLog)
+        }
+        #else
+        link = BluetoothCardLink()
         #endif
         do {
             // The build lets SyncEngine retry, once per build, files an older build could not decrypt (#59).

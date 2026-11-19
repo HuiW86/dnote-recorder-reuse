@@ -9,6 +9,8 @@ enum Route: Hashable {
     case recording(UUID)
     case device(UUID)
     case settings, about, privacy, permissions
+    /// The detail page opened on its 纪要 pane (a todo on 总览, a summary on 知识库).
+    case recordingSummary(UUID)
     /// 最近删除 (features.md D1b), from settings.
     case trash
     /// 设置 → AI 服务 (features.md X11).
@@ -17,60 +19,16 @@ enum Route: Hashable {
     case connectGuide, pairing
 }
 
-/// P05 home: recording list with device, recording and sync status (product-spec.md §4.2).
-struct HomeView: View {
-    let env: AppEnvironment
-    @State private var model: HomeModel?
-    @State private var path: [Route] = []
-
-    var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if let model {
-                    HomeContent(model: model, env: env, path: $path)
-                } else {
-                    ContentUnavailableView(CardServiceError.bluetoothUnsupported.userText ?? "",
-                                           systemImage: "exclamationmark.triangle")
-                        .paperPage()
-                }
-            }
-            .navigationDestination(for: Route.self) { route in
-                switch route {
-                case .recording(let id):
-                    RecordingDetailView(env: env, recordingId: id) { model?.offerUndo(forTrashed: $0) }
-                case .device(let id): DeviceView(env: env, deviceId: id)
-                case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
-                case .trash: TrashView(env: env)
-                case .assistant: AssistantSettingsView(preferences: env.preferences)
-                case .about: AboutView()
-                case .privacy: PrivacyView()
-                case .permissions: PermissionsView()
-                case .connectGuide: ConnectGuideView { path.append(.pairing) }
-                case .pairing: PairingView(env: env) { path.removeAll() }
-                }
-            }
-        }
-        .onAppear {
-            if model == nil, let session = env.startBluetooth() {
-                model = HomeModel(session: session, preferences: env.preferences, player: env.player)
-            }
-            model?.start()
-        }
-    }
-}
-
-private struct HomeContent: View {
+/// 录音 tab (P05, #89): the list by day with filters, the card and sync status. Search is on
+/// 知识库; the record key and the shared prompts are in `MainView`.
+struct RecordingsView: View {
     @Bindable var model: HomeModel
     let env: AppEnvironment
-    @Binding var path: [Route]
+    @Binding var showsSwitcher: Bool
+    @Binding var showsStage: Bool
+    /// The card name on the chip opens the 录音卡 tab.
+    let openCard: () -> Void
     @State private var pendingDelete: Recording?
-    @State private var query = ""
-    @State private var showsSwitcher = false
-    /// The full-screen recording page (design-spec.md §3).
-    @State private var showsStage = false
-    /// Recording with the phone's microphone (features.md X18).
-    @State private var showsPhoneStage = false
-    @State private var phoneConsent = false
     /// Files picker for importing audio (features.md E2).
     @State private var importing = false
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
@@ -82,7 +40,7 @@ private struct HomeContent: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     DeviceChip(device: model.currentDevice, status: model.status, battery: model.battery,
-                               openDevice: { model.currentDevice.map { path.append(.device($0.id)) } },
+                               openDevice: openCard,
                                openSwitcher: { showsSwitcher = true })
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -96,29 +54,8 @@ private struct HomeContent: View {
                     .disabled(model.isImporting)
                     .accessibilityLabel("导入音频文件")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: Route.settings) {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("设置")
-                }
             }
-            .searchable(text: $query, prompt: "搜索标题、文字稿、纪要")
-            .onChange(of: query) { _, text in model.search(text) }
-            // The list changed (a sync, a delete): refresh what the search shows.
-            .onChange(of: model.recordings) { _, _ in if !query.isEmpty { model.search(query) } }
             .refreshable { await model.refresh() }
-            .safeAreaInset(edge: .bottom) {
-                RecordControlBar(model: model, recordWithPhone: env.phoneRecorder == nil ? nil : { startPhoneRecording() })
-            }
-            .fullScreenCover(isPresented: $showsPhoneStage) {
-                if let recorder = env.phoneRecorder {
-                    PhoneRecordingStage(recorder: recorder) {
-                        showsPhoneStage = false
-                        if let toast = recorder.toast { model.toast = toast }
-                    }
-                }
-            }
             .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
                 guard case .success(let urls) = result else { return }
                 Task {
@@ -128,54 +65,11 @@ private struct HomeContent: View {
                     await model.importAudio(urls)
                 }
             }
-            .sheet(isPresented: $phoneConsent) {
-                ConsentSheet {
-                    env.preferences.recordingConsentGiven = true
-                    phoneConsent = false
-                    startPhoneRecording()
-                }
-            }
-            .sheet(isPresented: $model.showsConsent) {
-                ConsentSheet { model.consentConfirmed() }
-            }
-            // Adding a card on P08 drops the current one; if the new one was not paired, wait for
-            // the current card again.
-            .sheet(isPresented: $showsSwitcher, onDismiss: { model.start() }) {
-                DeviceSwitcherSheet(model: model, env: env)
-            }
             .confirmationDialog("删除这条录音？", isPresented: deleteBinding, titleVisibility: .visible,
                                 presenting: pendingDelete) { recording in
                 Button("删除录音", role: .destructive) { model.delete(recording.id) }
             } message: { _ in
                 Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
-            }
-            .alert(model.prompt?.title ?? "", isPresented: promptBinding, presenting: model.prompt) { prompt in
-                Button(prompt.actionTitle) {
-                    switch prompt {
-                    case .repair:
-                        model.repairTapped()
-                        path.append(.pairing)
-                    case .rescan:
-                        model.prompt = nil
-                        path.append(.connectGuide)
-                    }
-                }
-                Button("取消", role: .cancel) {}
-            } message: { prompt in
-                Text(prompt.message)
-            }
-            .toast($model.toast) { model.undoDelete() }
-            .fullScreenCover(isPresented: $showsStage) {
-                RecordingStage(model: model) { showsStage = false }
-            }
-            .onChange(of: model.status) { old, new in
-                let wasRecording = old == .recording || old == .paused
-                let isRecording = new == .recording || new == .paused
-                if isRecording, !wasRecording, !model.showsConsent, !showsSwitcher {
-                    showsStage = true
-                } else if !isRecording {
-                    showsStage = false
-                }
             }
             .task(id: model.syncCard) {
                 doneCollapsed = false
@@ -199,10 +93,6 @@ private struct HomeContent: View {
                     .buttonStyle(.plain)
                     .accessibilityHint("打开录音页")
                 }
-                if let finished = model.justRecorded {
-                    KeepOrDiscardCard(finished: finished, keep: { model.keepJustRecorded() },
-                                      discard: { model.discardJustRecorded() })
-                }
                 if let card = model.syncCard, !(isDone(card) && doneCollapsed) {
                     SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
                 }
@@ -221,29 +111,10 @@ private struct HomeContent: View {
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
-            } else if let results = model.searchResults {
-                // Search (features.md D2): one flat card, newest first.
-                if results.isEmpty {
-                    ContentUnavailableView.search(text: query)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                } else {
-                    Section {
-                        ForEach(results, id: \.id) { recording in
-                            NavigationLink(value: Route.recording(recording.id)) {
-                                RecordingRow(recording: recording, deviceName: model.deviceName(for: recording),
-                                             markCount: model.markCount(for: recording))
-                            }
-                        }
-                    } header: {
-                        Text("找到 \(results.count) 条").textCase(nil)
-                    }
-                    .surfaceRows()
-                }
             } else if model.recordings.isEmpty {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
-                                           description: Text("按卡上的录音键，或点下方开始录音"))
+                                           description: Text("按卡上的录音键，或点下方中间的红色按钮"))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 }
@@ -253,8 +124,8 @@ private struct HomeContent: View {
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 }
-                // One card per day (design-spec.md §3).
-                ForEach(DayGroup.group(model.filteredRecordings)) { day in
+                // One card per day, with the day's count and length (design-spec.md §3, #89).
+                ForEach(model.days) { day in
                     Section {
                         ForEach(day.recordings, id: \.id) { recording in
                             NavigationLink(value: Route.recording(recording.id)) {
@@ -266,9 +137,18 @@ private struct HomeContent: View {
                                 Button("删除") { pendingDelete = recording }
                                     .tint(.red)
                             }
+                            .swipeActions(edge: .leading) {
+                                Button(recording.isStarred ? "取消星标" : "标星") { model.toggleStar(recording.id) }
+                                    .tint(Theme.accent)
+                            }
                         }
                     } header: {
-                        Text(day.title).textCase(nil)
+                        HStack {
+                            Text(day.title)
+                            Spacer()
+                            Text(day.countText).monospacedDigit()
+                        }
+                        .textCase(nil)
                     }
                     .surfaceRows()
                 }
@@ -281,7 +161,7 @@ private struct HomeContent: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text("全部录音 (\(model.recordings.count))")
+                Text("录音 (\(model.recordings.count))")
                     .font(.largeTitle.bold())
                     .foregroundStyle(Theme.ink)
                 if let card = model.syncCard, isDone(card), doneCollapsed {
@@ -297,7 +177,7 @@ private struct HomeContent: View {
         }
     }
 
-    /// 全部 / 有重点 / 还没转文字 (design-spec.md §3 筛选项).
+    /// 全部 / 星标 / 有待办 / 有重点 / 还没转文字 (design-spec.md §3 筛选项, #89).
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -319,22 +199,6 @@ private struct HomeContent: View {
         }
     }
 
-    /// Asks for consent once (P04), then starts the phone recorder and opens its page.
-    private func startPhoneRecording() {
-        guard let recorder = env.phoneRecorder else { return }
-        guard env.preferences.recordingConsentGiven else {
-            phoneConsent = true
-            return
-        }
-        Task {
-            if await recorder.start() {
-                showsPhoneStage = true
-            } else if let toast = recorder.toast {
-                model.toast = toast
-            }
-        }
-    }
-
     /// No empty state during the first sync: the sync card already explains (product-spec.md P05).
     private var showsEmptyState: Bool {
         switch model.syncCard {
@@ -347,42 +211,8 @@ private struct HomeContent: View {
         if case .done = card { true } else { false }
     }
 
-    private var promptBinding: Binding<Bool> {
-        Binding(get: { model.prompt != nil }, set: { if !$0 { model.prompt = nil } })
-    }
-
     private var deleteBinding: Binding<Bool> {
         Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
-    }
-}
-
-/// Recordings of one calendar day, newest day first, in the order the model gives them.
-private struct DayGroup: Identifiable {
-    let id: Date
-    let title: String
-    var recordings: [Recording]
-
-    static func group(_ recordings: [Recording], calendar: Calendar = .current, now: Date = Date()) -> [DayGroup] {
-        var groups: [DayGroup] = []
-        for recording in recordings {
-            let day = calendar.startOfDay(for: recording.startedAt)
-            if let last = groups.indices.last, groups[last].id == day {
-                groups[last].recordings.append(recording)
-            } else {
-                groups.append(DayGroup(id: day, title: title(day, calendar: calendar, now: now), recordings: [recording]))
-            }
-        }
-        return groups
-    }
-
-    /// "今天", "昨天", "11月7日", and "2025年11月7日" for another year.
-    private static func title(_ day: Date, calendar: Calendar, now: Date) -> String {
-        if calendar.isDate(day, inSameDayAs: now) { return "今天" }
-        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
-           calendar.isDate(day, inSameDayAs: yesterday) { return "昨天" }
-        let c = calendar.dateComponents([.year, .month, .day], from: day)
-        let monthDay = "\(c.month ?? 0)月\(c.day ?? 0)日"
-        return c.year == calendar.component(.year, from: now) ? monthDay : "\(c.year ?? 0)年" + monthDay
     }
 }
 
@@ -409,6 +239,12 @@ private struct RecordingRow: View {
                     .monospacedDigit()
             }
             Spacer(minLength: 0)
+            if recording.isStarred {
+                Image(systemName: "star.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.accent)
+                    .accessibilityHidden(true)
+            }
             if markCount > 0 {
                 Label("\(markCount)", systemImage: "bookmark")
                     .font(.subheadline.monospacedDigit())
@@ -424,6 +260,7 @@ private struct RecordingRow: View {
     private var accessibilityText: String {
         var parts = [RecordingText.title(recording), RecordingText.duration(ms: recording.durationMs)]
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
+        if recording.isStarred { parts.append("已标星") }
         if markCount > 0 { parts.append("\(markCount) 处重点") }
         return parts.joined(separator: "，")
     }

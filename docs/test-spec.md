@@ -143,6 +143,11 @@
 | T-M15-13 | X9 不联网（静态） | `scripts/check-m1-rules.sh` 的不联网检查覆盖 `Transcription` 模块；CI 通过 |
 | T-M15-14 | 迁移 `v3`～`v5` | 新建数据库时所有迁移都已应用，外键开启 |
 | T-M15-15 | 界面颜色只来自 `Theme`（#74） | `scripts/check-theme.sh` 在 `app/Revive/` 下（`Common/Theme.swift` 和 `Debug/` 除外）找不到具体颜色值、被 `Theme` 取代的系统背景和填充、黑色阴影和彩色淡底；系统警告色 `.red`、`.orange` 允许；CI 通过 |
+| T-M15-16 | X21 星标（库与页面状态） | 标星记下时间，再标一次不改时间；取消后为空；不存在的 id 返回空；移入最近删除再恢复后星标还在；详情页「标星」「取消星标」的 Toast 分别是「已标星」「已取消星标」；首页右滑标星后「星标」筛选只列这一条，取消后为空 |
+| T-M15-17 | 迁移 `v7` | `v6` 的库升级后 `recording` 多出 `starred_at`，原有录音都未标星，纪要和待办保留；从 `v1` 一路升到最新时所有迁移都已应用 |
+| T-M15-18 | #89 跨录音的待办与纪要 | 只列未勾的待办，录音新的在前、同一条按纪要顺序；最近删除里的不列；「最近整理好的」按纪要生成时间倒序、`limit` 生效、没有纪要的录音不列；没转文字的条数不含最近删除，存入文字稿后减一；「有待办」筛选在待办勾完后不再列这条 |
+| T-M15-19 | #89 总览页状态 | 待办超过 5 条时只列前 5 条，并显示「还有 N 件，在各条录音的纪要里」；勾掉一条后 Toast「已完成」，列表和「还有」随之更新，纪要里对应待办已勾；「还有 N 条没转成文字」在存入文字稿后消失 |
+| T-M15-20 | #89 列表按天分组的合计、正在播放的句子、外观 | 组标题「今天」「昨天」「3月2日」「2025年11月7日」；合计「2 条 · 1 小时 6 分钟」；正在播放的句子是起点不晚于当前位置的最后一句，第一句之前和没有句子时为空；详情页开始播放某句后，当前句就是这一句；外观默认跟随系统，选择后重新读取仍是所选 |
 
 实现：
 
@@ -163,6 +168,11 @@
 | T-M15-13 | `scripts/check-m1-rules.sh`（CI 第一步） |
 | T-M15-14 | `AppDatabaseTests` `inMemoryDatabaseOpensAndMigrates` |
 | T-M15-15 | `scripts/check-theme.sh` |
+| T-M15-16 | `AppDatabaseTests` `starRecording`；`RecordingDetailModelTests` `playSkipPauseThenDelete`（标星段）；`HomeModelTests` `filtersByMarksAndTranscripts`（星标段） |
+| T-M15-17 | `AppDatabaseTests` `v6LibraryUpgradesToV7`、`v1LibraryUpgradesToTheLatest` |
+| T-M15-18 | `AppDatabaseTests` `openTodosAndRecentSummaries`；`HomeModelTests` `filtersByMarksAndTranscripts`（有待办段） |
+| T-M15-19 | `Tests/AppModelTests/OverviewTests.swift` `OverviewModelTests` |
+| T-M15-20 | `OverviewTests` `RecordingDayTests`、`TranscriptPositionTests`、`AppearanceTests`；`RecordingDetailModelTests` `transcribesStoresAndReportsFailures`（当前句段） |
 
 **没有自动用例覆盖的部分**（代码已合并，靠 §3.6.2 和界面走查）：
 
@@ -173,6 +183,7 @@
 - 真实的系统语音识别 `OnDeviceTranscriber`（T-M15-10 用的是假识别器）
 - 从 `v2` 的旧库升级到 `v5` 的迁移（现有升级用例只到 `v2`）；真机上随 T-M1-56 一起验
 - 录音页 P13 的自动打开和关闭
+- #89 的界面层：底部标签栏和录音键的三种状态、各标签各自的导航栈、P06 三栏和「⋯」、文字稿跟随滚动与「减弱动态效果」、标签与人物的换行排布、P07 作为标签根页面、外观对整个 App 生效。靠 `product-spec.md` §9 的 1.3 检查项和 T-M15-59
 
 #### 3.6.2 真机用例
 
@@ -189,6 +200,8 @@
 | T-M15-56 | 本机转写：5 分钟和 30 分钟真实录音，飞行模式 | ① 开飞行模式（蓝牙可开）；② P09 打开「本机转写（试验）」；③ 对一条约 5 分钟、一条 ≥ 30 分钟的多人中文录音点「转成文字」，计时；④ 转写期间锁屏一次再解锁 | 记录：每条耗时、是否完成、手机型号和 iOS 版本、识别出的字数。通过线：两条都完成（出现文字稿或明确的失败 Toast，不卡死、不崩溃），文字稿每句的时间点击后跳到的位置与那句话相差 ≤ 3 s（抽查 5 句）；全程抓包无网络请求。字错率不在本用例判定，交给 #67 |
 | T-M15-57 | 浅色、深色模式的界面走查 | 按 `product-spec.md` §9 的「M1.5 和改版第一步」逐项，在浅色、深色两种模式下各走一遍，对照 `design-spec.md` §2、§3 截图 | 每项都有截图；颜色与 `design-spec.md` §2.1 的变量一致；正文对比度 ≥ 4.5:1（用取色工具量 `ink`/`inkMuted` 与 `paper`/`surface`）；P13 在浅色模式下也是深色底；`product-spec.md` §7.5 第 7 条列的未实现部分不算失败，但要在截图里标出 |
 | T-M15-58 | Opus 帧头真机统计（#66） | 按 `evidence/v66-opus-toc/README.md`：用 `pull` 留下的 `.raw` 跑 `python dnote.py toc`，输出存为 `toc-v1.50.txt`；样本至少 3 个文件（1 分钟以内、30 分钟以上、按键发起各一条；至少一条有人说话、一条基本安静）；#8 的其他卡各取一条 | 每个文件都是 `matches 20 ms mono: yes` 才算通过；有 `NO` 时按该 README 的判据表分情况处理，结论写进 README。注意 `backend-design.md` §7.2 H2 记录实时流里见过 TOC `0x4b`，它的帧数码是 3，而现行检查（Swift `OpusTOC.isCardFormat` 和 Python `opus_frames_match_card_format`）只接受帧数码 0；文件里若也出现 `0x4b`，会被判为不符，按判据表第 2 行处理 |
+
+| T-M15-59 | #89 界面走查与截图 | ① 在 Mac 上跑 `scripts/shots.sh`（模拟器，示例数据，不连卡）；② 真机上连卡，按 `product-spec.md` §9「界面改版第二步」逐项走一遍，浅色、深色各一遍；③ 走查时打开「减弱动态效果」和最大号动态字体各一次 | ① 浅色、深色各 7 张截图都生成，放进 `evidence/v89-ui/` 并与改版稿并排；② 每项都有截图或录屏；③ 文字稿播放时不滚动但仍高亮，标签和人物换行、没有单字竖排；全程没有 App 崩溃 |
 
 T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录音。T-M15-56 的录音音频不入库，只记 sha256（硬规则 4）。
 
