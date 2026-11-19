@@ -220,7 +220,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M2-04 | 纠错词库（#75） | 「汇款率…」改成「回款率…」记下「汇款→回款」；单字差异向后补字成「张经→章经」，句末向前补成「老王→老汪」；单字整句、纯插入、纯删除、整句改写不记；替换时长词优先；越界、空文字不改；之后新转写的文字稿已改正；删除后不再替换；`v10` 升到 `v11` 后有 `correction` 表 |
 
-实现：T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
+| T-M2-05 | 转写剩余时间（#75） | 没测过时按本机 0.5、服务 0.15（秒工作 / 秒音频）估计；成功的一次按 0.6 旧值 + 0.4 实测更新，本机和服务分开；失败的不更新；剩余时间不小于 0；文案「预计还要 N 分钟」（向上取整）、「预计还要不到 1 分钟」、「快好了」；同一条不能同时开两次 |
+
+实现：T-M2-05 是 `TranscriptionJobsTests`。T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
 
 #### 3.6.4 M4 先做的部分
 

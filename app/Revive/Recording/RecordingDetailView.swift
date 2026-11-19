@@ -537,9 +537,17 @@ extension RecordingDetailContent {
                 if model.isTranscribing {
                     HStack(spacing: 8) {
                         ProgressView()
-                        Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字，长录音需要一些时间")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.inkMuted)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.inkMuted)
+                            // #75: learned from earlier runs on this phone; refreshed every few seconds.
+                            TimelineView(.periodic(from: .now, by: 5)) { _ in
+                                if let remaining = model.transcriptionRemainingText {
+                                    Text(remaining).font(.caption).foregroundStyle(Theme.inkMuted)
+                                }
+                            }
+                        }
                     }
                 } else if model.canTranscribe {
                     Button(model.transcript == nil ? "转成文字" : "重新转写") { model.transcribe() }
