@@ -65,6 +65,15 @@ public struct Recording: Codable, Equatable, Sendable, FetchableRecord, Persista
     public var remoteVersion: Int?
     /// When the user starred it (features.md X21); nil when not starred.
     public var starredAt: Date?
+    /// Who set `title`; nil for the default date title (features.md G1, X6).
+    public var titleSource: TitleSource?
+
+    public enum TitleSource: String, Codable, Sendable {
+        /// Renamed by the user: never replaced by an AI title on its own.
+        case user
+        /// From the user's AI service; replaced by the next summary's title.
+        case ai
+    }
 
     public init(id: UUID = UUID(), deviceId: UUID?, source: Source, cardFileName: String?, cardFileSize: Int?,
                 startedAt: Date, durationMs: Int, audioPath: String, audioSha256: String, title: String,
@@ -102,12 +111,21 @@ extension Recording {
 
     public var isStarred: Bool { starredAt != nil }
 
-    /// True once the user has renamed the recording (features.md X6). Told by the shape of the
-    /// title, not by comparing with `startedAt`, so a phone that changed time zone still agrees.
+    /// True once the user has renamed the recording (features.md X6). Rows from before
+    /// `titleSource` (v9) are told by the shape of the title, not by comparing with `startedAt`,
+    /// so a phone that changed time zone still agrees.
     public var hasCustomTitle: Bool {
-        !title.isEmpty
-            && title.range(of: #"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$"#, options: .regularExpression) == nil
+        switch titleSource {
+        case .user: true
+        case .ai: false
+        case nil:
+            !title.isEmpty
+                && title.range(of: #"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$"#, options: .regularExpression) == nil
+        }
     }
+
+    /// The title came from the user's AI service (features.md G1).
+    public var hasAITitle: Bool { titleSource == .ai }
 }
 
 /// A point the user marked while recording (features.md X7): `offsetMs` into the audio of the
@@ -190,8 +208,20 @@ public struct SummaryTodo: Codable, Equatable, Sendable {
     }
 }
 
+/// One topic of a summary's outline (features.md G1 大纲, also drawn as 思维导图), in the order
+/// the recording took it up.
+public struct OutlineItem: Codable, Equatable, Sendable {
+    public var title: String
+    public var points: [String]
+
+    public init(title: String, points: [String]) {
+        self.title = title
+        self.points = points
+    }
+}
+
 /// The summary of a recording (features.md G1, G2a). One per recording; removed with it.
-/// `sections`, `todos`, `tags` and `people` are stored as JSON.
+/// `sections`, `todos`, `tags`, `people`, `outline` and `quotes` are stored as JSON.
 public struct Summary: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
     public var recordingId: UUID
     /// Scene code, such as "meeting" (the raw value of Assistant's `Scene`).
@@ -202,12 +232,17 @@ public struct Summary: Codable, Equatable, Sendable, FetchableRecord, Persistabl
     public var todos: [SummaryTodo]
     public var tags: [String]
     public var people: [String]
+    /// Topics in the order discussed (G1 大纲); empty for summaries from before v10.
+    public var outline: [OutlineItem]
+    /// Sentences worth keeping, quoted as said (G1 金句); empty for summaries from before v10.
+    public var quotes: [String]
     /// What produced it: the model name, or "keywords" for the rule-based fallback.
     public var model: String
     public var createdAt: Date
 
     public init(recordingId: UUID, scene: String, title: String, summary: String, sections: [SummarySection],
-                todos: [SummaryTodo], tags: [String], people: [String], model: String, createdAt: Date) {
+                todos: [SummaryTodo], tags: [String], people: [String], outline: [OutlineItem] = [],
+                quotes: [String] = [], model: String, createdAt: Date) {
         self.recordingId = recordingId
         self.scene = scene
         self.title = title
@@ -216,6 +251,8 @@ public struct Summary: Codable, Equatable, Sendable, FetchableRecord, Persistabl
         self.todos = todos
         self.tags = tags
         self.people = people
+        self.outline = outline
+        self.quotes = quotes
         self.model = model
         self.createdAt = createdAt
     }

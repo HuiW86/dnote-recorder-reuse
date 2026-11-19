@@ -38,7 +38,9 @@ enum DemoLibrary {
                         recordingId: recording.id, scene: "meeting", title: summary.title, summary: summary.text,
                         sections: [SummarySection(heading: "要点", items: summary.points)],
                         todos: summary.todos.map { SummaryTodo(text: $0) }, tags: summary.tags,
-                        people: summary.people, model: "demo", createdAt: startedAt.addingTimeInterval(600)))
+                        people: summary.people,
+                        outline: summary.points.map { OutlineItem(title: $0, points: []) }, quotes: Array(item.lines.prefix(1)),
+                        model: "demo", createdAt: startedAt.addingTimeInterval(600)))
                 }
             }
         } catch {

@@ -35,6 +35,23 @@ public enum MarkdownExport {
                 lines.append("")
                 lines += summary.todos.map { "- [\($0.done ? "x" : " ")] \($0.text)" }
             }
+            if !summary.outline.isEmpty {
+                lines.append("")
+                lines.append("## 大纲")
+                lines.append("")
+                for item in summary.outline {
+                    lines.append("- \(item.title)")
+                    lines += item.points.map { "  - \($0)" }
+                }
+            }
+            if !summary.quotes.isEmpty {
+                lines.append("")
+                lines.append("## 金句")
+                for quote in summary.quotes {
+                    lines.append("")
+                    lines.append("> \(quote)")
+                }
+            }
         }
         if let transcript, !transcript.segments.isEmpty {
             lines.append("")

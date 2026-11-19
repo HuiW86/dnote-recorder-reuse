@@ -142,6 +142,25 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // Who set the title (features.md G1, X6): "user" after a rename, "ai" from the user's AI
+        // service, null for the default date title. A title the user typed is never replaced by
+        // an AI one; telling them apart by the shape of the title is not enough once AI titles
+        // exist. Rows renamed before v9 keep null and still count as the user's by their shape.
+        migrator.registerMigration("v9") { db in
+            try db.alter(table: "recording") { t in
+                t.add(column: "title_source", .text)
+            }
+        }
+
+        // Outline and quotes of a summary (features.md G1 大纲、金句). JSON like the other list
+        // columns; summaries from before get empty lists.
+        migrator.registerMigration("v10") { db in
+            try db.alter(table: "summary") { t in
+                t.add(column: "outline", .text).notNull().defaults(to: "[]")
+                t.add(column: "quotes", .text).notNull().defaults(to: "[]")
+            }
+        }
+
         return migrator
     }
 

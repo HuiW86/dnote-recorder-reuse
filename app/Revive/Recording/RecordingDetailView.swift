@@ -1,5 +1,6 @@
 import AppModel
 import Assistant
+import Library
 import Player
 import SwiftUI
 import Transcription
@@ -69,6 +70,8 @@ private struct RecordingDetailContent: View {
     @State private var playingLine: Int?
     @State private var confirmingDelete = false
     @State private var shareURL: URL?
+    /// 思维导图 (features.md G1) in a sheet.
+    @State private var showsMindMap = false
     @State private var renaming = false
     @State private var question = ""
     @State private var newTitle = ""
@@ -98,6 +101,8 @@ private struct RecordingDetailContent: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if model.isExporting {
                         ProgressView().accessibilityLabel("正在导出")
+                    } else if model.isRetitling {
+                        ProgressView().accessibilityLabel("正在起标题")
                     }
                     moreMenu
                 }
@@ -133,6 +138,11 @@ private struct RecordingDetailContent: View {
             dismiss()
         }
         .toast($model.toast)
+        .sheet(isPresented: $showsMindMap) {
+            if let summary = model.summary {
+                MindMapSheet(title: model.title, outline: summary.outline)
+            }
+        }
         .sheet(item: $model.assistantOutput) { output in
             AssistantOutputSheet(output: output)
         }
@@ -162,11 +172,33 @@ private struct RecordingDetailContent: View {
                 }
             }
             if model.canSummarize {
-                Button(model.summary == nil ? "生成纪要" : "重新生成纪要", systemImage: "sparkles") {
-                    pane = .summary
-                    model.summarize()
+                if model.summary == nil {
+                    Button("生成纪要", systemImage: "sparkles") {
+                        pane = .summary
+                        model.summarize()
+                    }
+                    .disabled(model.isSummarizing)
+                } else {
+                    // G2a: regenerate with the scene the model picks, or one the user chooses.
+                    Menu("重新生成纪要", systemImage: "sparkles") {
+                        Button("自动判断场景") {
+                            pane = .summary
+                            model.summarize()
+                        }
+                        ForEach(model.scenes) { scene in
+                            Button("按「\(scene.name)」") {
+                                pane = .summary
+                                model.summarize(scene: scene)
+                            }
+                        }
+                    }
+                    .disabled(model.isSummarizing)
                 }
-                .disabled(model.isSummarizing)
+            }
+            if model.canRewrite {
+                // G1: a title from another angle; replaces even a title the user typed.
+                Button("让 AI 重新起标题", systemImage: "wand.and.stars") { model.retitle() }
+                    .disabled(!model.canRetitle)
             }
             Menu("分享", systemImage: "square.and.arrow.up") {
                 if !model.audioMissing {
@@ -404,6 +436,42 @@ extension RecordingDetailContent {
                     }
                     .accessibilityAddTraits(todo.done ? .isSelected : [])
                 }
+                // G1 大纲: topics in the order discussed, with their points; also as a mind map.
+                if !summary.outline.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("大纲").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
+                            Spacer()
+                            Button("思维导图") { showsMindMap = true }
+                                .font(.subheadline)
+                                .buttonStyle(.borderless)
+                        }
+                        ForEach(Array(summary.outline.enumerated()), id: \.offset) { index, item in
+                            Text("\(index + 1). \(item.title)").foregroundStyle(Theme.ink)
+                            ForEach(Array(item.points.enumerated()), id: \.offset) { _, point in
+                                Text("· " + point)
+                                    .foregroundStyle(Theme.inkMuted)
+                                    .padding(.leading, 16)
+                            }
+                        }
+                    }
+                }
+                // G1 金句: sentences quoted as said.
+                if !summary.quotes.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("金句").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
+                        ForEach(Array(summary.quotes.enumerated()), id: \.offset) { _, quote in
+                            Text(quote)
+                                .italic()
+                                .foregroundStyle(Theme.ink)
+                                .padding(.leading, 10)
+                                .overlay(alignment: .leading) {
+                                    Rectangle().fill(Theme.accent).frame(width: 2)
+                                }
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
             }
             if model.isSummarizing {
                 HStack(spacing: 8) {
@@ -628,5 +696,73 @@ private struct Chip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(Theme.accentWash, in: RoundedRectangle(cornerRadius: Theme.Radius.chip))
+    }
+}
+
+/// 思维导图 (features.md G1): the outline as a tree, the recording in the middle of the left
+/// edge, one branch per topic and its points as leaves. Scrolls both ways for long outlines.
+private struct MindMapSheet: View {
+    let title: String
+    let outline: [OutlineItem]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView([.horizontal, .vertical]) {
+                HStack(alignment: .center, spacing: 0) {
+                    node(title, emphasis: true)
+                    connector
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(Array(outline.enumerated()), id: \.offset) { _, item in
+                            HStack(alignment: .center, spacing: 0) {
+                                connector
+                                node(item.title, emphasis: false)
+                                if !item.points.isEmpty {
+                                    connector
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        ForEach(Array(item.points.enumerated()), id: \.offset) { _, point in
+                                            HStack(spacing: 0) {
+                                                connector
+                                                Text(point)
+                                                    .font(.footnote)
+                                                    .foregroundStyle(Theme.ink)
+                                                    .frame(maxWidth: 220, alignment: .leading)
+                                            }
+                                        }
+                                    }
+                                    .overlay(alignment: .leading) { Rectangle().fill(Theme.line).frame(width: 1) }
+                                }
+                            }
+                        }
+                    }
+                    .overlay(alignment: .leading) { Rectangle().fill(Theme.line).frame(width: 1) }
+                }
+                .padding(20)
+            }
+            .background(Theme.paper)
+            .navigationTitle("思维导图")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var connector: some View {
+        Rectangle().fill(Theme.line).frame(width: 16, height: 1).accessibilityHidden(true)
+    }
+
+    private func node(_ text: String, emphasis: Bool) -> some View {
+        Text(text)
+            .font(emphasis ? .headline : .subheadline.weight(.medium))
+            .foregroundStyle(emphasis ? Theme.onDark : Theme.ink)
+            .frame(maxWidth: 200, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(emphasis ? Theme.accent : Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(emphasis ? Color.clear : Theme.line))
     }
 }

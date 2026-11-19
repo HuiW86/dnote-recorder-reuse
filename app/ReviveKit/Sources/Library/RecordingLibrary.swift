@@ -147,6 +147,25 @@ public final class RecordingLibrary: Sendable {
             let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
             recording.title = trimmed.isEmpty
                 ? Recording.defaultTitle(for: recording.startedAt) : String(trimmed.prefix(80))
+            recording.titleSource = trimmed.isEmpty ? nil : .user
+            recording.updatedAt = now
+            try recording.update(db)
+            return recording
+        }
+    }
+
+    /// Sets a title from the user's AI service (features.md G1). A title the user typed is kept
+    /// unless `replacingUserTitle` (the user asked for a new one). An empty title changes
+    /// nothing. Returns the stored recording, nil when it is not in the library.
+    @discardableResult
+    public func applyAITitle(id: UUID, _ title: String, replacingUserTitle: Bool = false,
+                             now: Date = Date()) throws -> Recording? {
+        try database.writer.write { db in
+            guard var recording = try Recording.fetchOne(db, key: id) else { return nil }
+            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, replacingUserTitle || !recording.hasCustomTitle else { return recording }
+            recording.title = String(trimmed.prefix(80))
+            recording.titleSource = .ai
             recording.updatedAt = now
             try recording.update(db)
             return recording
@@ -466,9 +485,10 @@ public final class RecordingLibrary: Sendable {
                      AND (recording.title LIKE ? ESCAPE '\\' OR transcript.segments LIKE ? ESCAPE '\\'
                           OR summary.title LIKE ? ESCAPE '\\' OR summary.summary LIKE ? ESCAPE '\\'
                           OR summary.sections LIKE ? ESCAPE '\\' OR summary.todos LIKE ? ESCAPE '\\'
-                          OR summary.tags LIKE ? ESCAPE '\\' OR summary.people LIKE ? ESCAPE '\\')
+                          OR summary.tags LIKE ? ESCAPE '\\' OR summary.people LIKE ? ESCAPE '\\'
+                          OR summary.outline LIKE ? ESCAPE '\\' OR summary.quotes LIKE ? ESCAPE '\\')
                     """
-                arguments += Array(repeating: pattern, count: 8)
+                arguments += Array(repeating: pattern, count: 10)
             }
             sql += " ORDER BY recording.started_at DESC"
             return try Recording.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))

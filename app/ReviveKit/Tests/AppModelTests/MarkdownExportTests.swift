@@ -17,7 +17,9 @@ struct MarkdownExportTests {
                               sections: [SummarySection(heading: "结论与决定", items: ["下周三发布"]),
                                          SummarySection(heading: "空栏", items: [])],
                               todos: [SummaryTodo(text: "发通知", done: true), SummaryTodo(text: "排查汇款率", done: false)],
-                              tags: ["发布", "a,b"], people: ["李工"], model: "m", createdAt: start)
+                              tags: ["发布", "a,b"], people: ["李工"],
+                              outline: [OutlineItem(title: "排期", points: ["周三发布"])], quotes: ["那就下周三。"],
+                              model: "m", createdAt: start)
         let transcript = Transcript(recordingId: id, engine: "on-device", language: "zh-CN",
                                     segments: [TranscriptSegment(startMs: 0, text: "那就下周三。"),
                                                TranscriptSegment(startMs: 65_000, text: "好的")],
@@ -29,6 +31,8 @@ struct MarkdownExportTests {
         #expect(md.contains("## 结论与决定\n\n- 下周三发布\n"))
         #expect(!md.contains("空栏"))
         #expect(md.contains("## 待办\n\n- [x] 发通知\n- [ ] 排查汇款率\n"))
+        #expect(md.contains("## 大纲\n\n- 排期\n  - 周三发布\n"))
+        #expect(md.contains("## 金句\n\n> 那就下周三。\n"))
         #expect(md.contains("## 文字稿\n\n**00:00:00** 那就下周三。\n\n**00:01:05** 好的\n"))
 
         let bare = MarkdownExport.markdown(title: "11月7日 14:02", recording: recording, sceneName: nil,

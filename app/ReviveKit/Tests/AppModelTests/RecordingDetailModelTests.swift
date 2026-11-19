@@ -141,6 +141,8 @@ struct RecordingDetailModelTests {
         await waitUntil("summarized") { model.summary != nil && !model.isSummarizing }
         #expect(model.summary?.title == "定发布日")
         #expect(model.sceneName == "会议")
+        // G1: the summary's title becomes the recording's, as the default title was not the user's.
+        #expect(model.title == "定发布日" && model.editableTitle == "定发布日")
         #expect(model.summary?.todos.map(\.text) == ["发通知"])
         model.setTodo(0, done: true)
         #expect(model.summary?.todos.first?.done == true)
@@ -174,6 +176,34 @@ struct RecordingDetailModelTests {
         model.rename(to: "周会")
         #expect(try #require(model.exportFile()).lastPathComponent == "周会.ogg")
         RecordingExporter.cleanUp()
+    }
+
+    /// G1 and X6: a summary keeps a title the user typed; "让 AI 重新起标题" replaces it when
+    /// asked; "按场景重新生成" keeps the chosen scene. Same canned reply as the summary test, so
+    /// tests running side by side see the same content.
+    @Test func aiTitleKeepsTheUsersTitleUnlessAsked() async throws {
+        let f = try await DetailFixture()
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "test", language: "zh-CN",
+                                                segments: [TranscriptSegment(startMs: 0, text: "周三发布。")],
+                                                createdAt: Date()))
+        let reply = #"{"scene":"meeting","title":"定发布日","summary":"周三发布。","sections":[],"todos":["发通知"],"tags":[],"people":[]}"#
+        let config = ServiceConfig(baseURL: "https://example.invalid/v1", model: "m", apiKey: "")
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         assistant: AssistantConfigSource { config },
+                                         summarizer: Summarizer(client: ChatClient(session: CannedReply.session(reply))))
+        model.rename(to: "我的标题")
+        model.summarize(scene: .interview)
+        await waitUntil("summarized") { model.summary != nil && !model.isSummarizing }
+        #expect(model.title == "我的标题")
+        #expect(model.sceneName == "访谈")  // the scene the user picked, not the model's
+        #expect(model.scenes.count == RecordingScene.allCases.count)
+
+        #expect(model.canRetitle)
+        model.retitle()
+        await waitUntil("retitled") { !model.isRetitling && model.title != "我的标题" }
+        #expect(model.title == "定发布日")
+        #expect(model.toast?.text == "已换成「定发布日」")
+        #expect(try f.library.recording(id: f.recording.id)?.hasAITitle == true)
     }
 
     /// D1c: "移到文件夹" puts the recording in a folder, a new one or none.

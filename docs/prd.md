@@ -237,6 +237,7 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `created_at` / `updated_at` | DATETIME | — |
 | `folder_id` / `trashed_at` | — | M4 预留 |
 | `starred_at` | DATETIME NULL | 标星的时间，空表示未标星（X21，迁移 `v7`，#89）；移入最近删除和恢复都不改它 |
+| `title_source` | TEXT NULL | 谁定的标题（G1、X6，迁移 `v9`）：`user` 是用户改名，`ai` 是用户自配服务起的，空是默认的时间标题。AI 标题只替换默认标题和上一个 AI 标题，不替换用户的，除非用户点了「让 AI 重新起标题」。`v9` 之前改过名的行仍按标题形状算用户的 |
 | `remote_id` / `remote_version` | — | M2/M4 预留 |
 
 ### 5.3 `sync_item`
@@ -307,6 +308,8 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `sections` | TEXT（JSON） | `[{heading, items}]`，栏目随场景 |
 | `todos` | TEXT（JSON） | `[{text, done}]`，可在详情页勾选 |
 | `tags` / `people` | TEXT（JSON） | 最多 6 个标签、12 个人名 |
+| `outline` | TEXT（JSON） | 大纲：`[{title, points}]`，按录音里谈到的先后，最多 8 个话题、每个最多 6 条；思维导图用它画（迁移 `v10`，旧纪要为 `[]`） |
+| `quotes` | TEXT（JSON） | 金句：文字稿里的原话，最多 5 句，去掉引号（迁移 `v10`，旧纪要为 `[]`） |
 | `model` | TEXT | 生成它的模型名；关键词粗整理为 `keywords` |
 | `created_at` | DATETIME | — |
 

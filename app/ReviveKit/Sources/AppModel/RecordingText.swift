@@ -6,9 +6,9 @@ import SyncEngine
 
 public enum RecordingText {
     /// "11月7日 14:02"; "时间未知" when the card file name carries no time.
-    /// A title the user gave (features.md X6) is shown as it is.
+    /// A title the user gave (features.md X6) or the AI made (G1) is shown as it is.
     public static func title(_ r: Recording, calendar: Calendar = .current) -> String {
-        if r.hasCustomTitle { return r.title }
+        if r.hasCustomTitle || r.hasAITitle { return r.title }
         guard hasKnownTime(r) else { return "时间未知" }
         return dateTime(r.startedAt, calendar: calendar)
     }

@@ -200,7 +200,9 @@ public final class RecordingDetailModel {
 
     /// Sends the transcript to the user's service and stores the summary. The text leaves the
     /// phone here, to the service the user chose (ADR-009); nothing else does.
-    public func summarize() {
+    /// `scene` is the template the user picked ("按场景重新生成", features.md G2a); nil lets the
+    /// model choose. The summary's title becomes the recording's unless the user renamed it (G1).
+    public func summarize(scene: RecordingScene? = nil) {
         guard let transcript, let recording, let config = assistant?.current(), !isSummarizing else { return }
         isSummarizing = true
         let material = Summarizer.material(from: transcript)
@@ -208,16 +210,50 @@ public final class RecordingDetailModel {
             defer { isSummarizing = false }
             do {
                 let draft = try await summarizer.summarize(transcript: material, durationMs: recording.durationMs,
-                                                           config: config)
+                                                           config: config, fixedScene: scene)
                 let stored = draft.record(recordingId: recording.id)
                 try library.saveSummary(stored)
                 summary = stored
+                if let titled = try library.applyAITitle(id: recording.id, stored.title) { self.recording = titled }
             } catch let error as AssistantError {
                 toast = Toast(AssistantSettingsModel.text(for: error))
             } catch is CancellationError {
                 // Left the page.
             } catch {
                 toast = Toast("生成纪要失败，请重试")
+            }
+        }
+    }
+
+    /// The scenes "按场景重新生成" offers (features.md G2a).
+    public var scenes: [RecordingScene] { RecordingScene.allCases }
+
+    /// "让 AI 重新起标题" needs some text and a configured service.
+    public var canRetitle: Bool { canRewrite && !isRetitling }
+    public private(set) var isRetitling = false
+
+    /// Asks the user's service for a title from another angle and uses it, replacing even a
+    /// title the user typed: they asked for a new one (features.md G1).
+    public func retitle() {
+        guard let recording, let config = assistant?.current(), !isRetitling else { return }
+        let material = summary.map { "\($0.title)\n\($0.summary)" } ?? transcript.map(Summarizer.material(from:)) ?? ""
+        guard !material.isEmpty else { return }
+        isRetitling = true
+        let current = title
+        Task {
+            defer { isRetitling = false }
+            do {
+                let new = try await summarizer.retitle(material: material, avoiding: current, config: config)
+                if let titled = try library.applyAITitle(id: recording.id, new, replacingUserTitle: true) {
+                    self.recording = titled
+                    toast = Toast("已换成「\(titled.title)」")
+                }
+            } catch let error as AssistantError {
+                toast = Toast(AssistantSettingsModel.text(for: error))
+            } catch is CancellationError {
+                // Left the page.
+            } catch {
+                toast = Toast("起标题失败，请重试")
             }
         }
     }
@@ -430,7 +466,7 @@ public final class RecordingDetailModel {
 
     /// The title to start a rename from: the user's own, or empty for the default one.
     public var editableTitle: String {
-        guard let recording, recording.hasCustomTitle else { return "" }
+        guard let recording, recording.hasCustomTitle || recording.hasAITitle else { return "" }
         return recording.title
     }
 
