@@ -194,6 +194,34 @@ struct PlayerTests {
         #expect(siblings == [url.lastPathComponent])
     }
 
+    /// E1c: the WAV copy is 16-bit PCM at the decoded rate, as long as the recording; a phone
+    /// recording's M4A is decoded to WAV too.
+    @Test func exportsWAV() async throws {
+        let f = try Fixture()
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("wav-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: base) }
+        let url = try await RecordingExporter.exportWAV(for: f.recording, library: f.library, title: "周会", in: base)
+        #expect(url.lastPathComponent == "周会.wav")
+        let header = try Data(contentsOf: url).prefix(12)
+        #expect(header.prefix(4) == Data("RIFF".utf8) && header.suffix(4) == Data("WAVE".utf8))
+        let file = try AVAudioFile(forReading: url)
+        let settings = file.fileFormat.settings
+        #expect(settings[AVFormatIDKey] as? UInt32 == kAudioFormatLinearPCM)
+        #expect(settings[AVLinearPCMBitDepthKey] as? Int == 16)
+        let seconds = Double(file.length) / file.fileFormat.sampleRate
+        #expect(abs(seconds - 2) < 0.2, "seconds \(seconds)")
+        let siblings = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
+        #expect(siblings == [url.lastPathComponent])
+
+        let m4a = try await RecordingExporter.exportM4A(for: f.recording, library: f.library,
+                                                        in: base.appendingPathComponent("phone-src"))
+        let phone = try f.library.addPhoneRecording(file: m4a, startedAt: Date(), durationMs: 2_000)
+        let phoneWAV = try await RecordingExporter.exportWAV(for: phone, library: f.library, in: base)
+        let phoneFile = try AVAudioFile(forReading: phoneWAV)
+        #expect(phoneFile.fileFormat.settings[AVFormatIDKey] as? UInt32 == kAudioFormatLinearPCM)
+        #expect(abs(Double(phoneFile.length) / phoneFile.fileFormat.sampleRate - 2) < 0.2)
+    }
+
     /// X18: a phone recording is shared and transcribed from its own M4A, without decoding.
     @Test func phoneRecordingExportsAsIs() async throws {
         let f = try Fixture()

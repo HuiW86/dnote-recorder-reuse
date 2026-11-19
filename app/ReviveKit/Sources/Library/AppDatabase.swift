@@ -170,6 +170,14 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // 逐句润色 (#75): the transcript as recognized, kept when its text is polished. JSON like
+        // `segments`; null for a transcript that was never polished.
+        migrator.registerMigration("v12") { db in
+            try db.alter(table: "transcript") { t in
+                t.add(column: "original_segments", .text)
+            }
+        }
+
         return migrator
     }
 

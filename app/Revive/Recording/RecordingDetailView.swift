@@ -215,6 +215,9 @@ private struct RecordingDetailContent: View {
                     Button("M4A（微信等大多数 App 可播放）", systemImage: "waveform") {
                         Task { shareURL = await model.exportM4A() }
                     }
+                    Button("WAV（无损，用于剪辑，文件较大）", systemImage: "waveform.badge.plus") {
+                        Task { shareURL = await model.exportWAV() }
+                    }
                     Button("原始文件（OGG）", systemImage: "doc") {
                         shareURL = model.exportFile()
                     }
@@ -504,9 +507,22 @@ extension RecordingDetailContent {
     /// 文字稿 (features.md X9): made on this phone; tapping a line plays from there.
     @ViewBuilder fileprivate var transcriptSection: some View {
         Section {
+            if let looping = model.loopingIndex {
+                // 单句循环 (features.md X20): what is looping and how to stop it.
+                HStack(spacing: 8) {
+                    Label("正在循环第 \(looping + 1) 句", systemImage: "repeat.1")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.accent)
+                    Spacer()
+                    Button("停止循环") { model.stopLoop() }
+                        .font(.subheadline)
+                }
+                .listRowBackground(Color.clear)
+            }
             if let transcript = model.transcript {
                 ForEach(Array(transcript.segments.enumerated()), id: \.offset) { index, segment in
                     let playing = index == playingLine
+                    let looping = index == model.loopingIndex
                     Button { model.play(from: segment) } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text(model.timeText(segment))
@@ -515,19 +531,35 @@ extension RecordingDetailContent {
                             Text(segment.text)
                                 .foregroundStyle(Theme.ink)
                                 .multilineTextAlignment(.leading)
+                            if looping {
+                                Spacer(minLength: 0)
+                                Image(systemName: "repeat.1")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.accent)
+                                    .accessibilityHidden(true)
+                            }
                         }
                     }
                     .id(TranscriptLineID(index: index))
                     .listRowBackground(playing ? Theme.accentWash : Color.clear)
-                    .accessibilityValue(playing ? "正在播放" : "")
+                    .accessibilityValue(looping ? "正在循环" : playing ? "正在播放" : "")
                     .accessibilityHint("从这里播放")
                     .contextMenu {
-                        Button("修改这一句", systemImage: "pencil") {
-                            lineText = segment.text
-                            editingLine = index
+                        Button(looping ? "停止循环" : "单句循环", systemImage: "repeat.1") {
+                            model.toggleLoop(lineAt: index)
+                        }
+                        if !model.isPolishing {
+                            Button("修改这一句", systemImage: "pencil") {
+                                lineText = segment.text
+                                editingLine = index
+                            }
                         }
                     }
+                    .accessibilityAction(named: looping ? "停止循环" : "单句循环") {
+                        model.toggleLoop(lineAt: index)
+                    }
                     .accessibilityAction(named: "修改这一句") {
+                        guard !model.isPolishing else { return }
                         lineText = segment.text
                         editingLine = index
                     }
@@ -551,7 +583,19 @@ extension RecordingDetailContent {
                     }
                 } else if model.canTranscribe {
                     Button(model.transcript == nil ? "转成文字" : "重新转写") { model.transcribe() }
-                } else if model.transcript == nil {
+                }
+                // 逐句润色 (#75): optional, through the user's AI service; the transcribed text is kept.
+                if model.isPolishing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("正在用你的 AI 服务润色文字稿").font(.subheadline).foregroundStyle(Theme.inkMuted)
+                    }
+                } else if model.transcript?.isPolished == true {
+                    Button("恢复原文") { model.restoreOriginal() }
+                } else if model.canPolish {
+                    Button("润色文字稿（去掉语气词，句子和时间不变）") { model.polish() }
+                }
+                if !model.isTranscribing, !model.canTranscribe, model.transcript == nil {
                     Text("在设置里打开本机转写，或者给你的 AI 服务填上转写模型，就能把这条录音转成文字。")
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkMuted)
@@ -561,10 +605,15 @@ extension RecordingDetailContent {
         } header: {
             Text("文字稿")
         } footer: {
-            if model.canTranscribe {
-                Text(model.transcriptionUsesNetwork
-                     ? "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
-                     : "在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+            VStack(alignment: .leading, spacing: 4) {
+                if model.canTranscribe {
+                    Text(model.transcriptionUsesNetwork
+                         ? "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
+                         : "在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+                }
+                if model.canPolish || model.transcript?.isPolished == true {
+                    Text("润色时，文字稿会发送给你在设置里填的 AI 服务；原文保留，可以恢复。")
+                }
             }
         }
     }

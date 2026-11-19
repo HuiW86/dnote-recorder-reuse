@@ -286,8 +286,11 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `recording_id` | UUID PK FK | — |
 | `engine` | TEXT | 谁生成的；本机识别为 `on-device` |
 | `language` | TEXT | 如 `zh-CN` |
-| `segments` | TEXT（JSON） | 每句 `{startMs, text}` |
+| `segments` | TEXT（JSON） | 每句 `{startMs, text}`；润色后是润色过的文字 |
 | `created_at` | DATETIME | — |
+| `original_segments` | TEXT（JSON），可空 | 逐句润色（#75，迁移 `v12`）前的原文，句数和时间与 `segments` 相同；从没润色过为空。再次润色保留第一次的原文；「恢复原文」把它写回 `segments` 并清空 |
+
+逐句润色把每句的文字（只发文字，不发音频）分批发给用户自配的 AI 服务，每批 40 句，回复的句数必须相同；对不上的那一批保持原文，全部对不上才报错。润色后改一句只改润色后的文字，恢复原文时这些修改一并丢弃。
 
 本机转写在 `Transcription` 模块里，用系统语音识别并强制离线（`requiresOnDeviceRecognition`），不联网，纳入 `scripts/check-m1-rules.sh` 的检查。设置里的开关默认关闭，质量由 #67 测量后再决定是否默认打开。
 

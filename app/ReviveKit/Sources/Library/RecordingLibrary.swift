@@ -523,6 +523,39 @@ public final class RecordingLibrary: Sendable {
         }
     }
 
+    /// 逐句润色 (#75): puts the polished text on each line, keeping its time. The lines as they
+    /// were before the first polish are kept, so `restoreOriginalTranscript` can bring them back;
+    /// polishing again keeps that first original. `texts` has one entry per line; an empty entry
+    /// keeps the line's text. Nil when there is no transcript or the count does not match.
+    @discardableResult
+    public func savePolishedTranscript(recordingId: UUID, texts: [String]) throws -> Transcript? {
+        try database.writer.write { db in
+            guard var transcript = try Transcript.fetchOne(db, key: recordingId),
+                  texts.count == transcript.segments.count else { return nil }
+            if transcript.originalSegments == nil { transcript.originalSegments = transcript.segments }
+            for (i, text) in texts.enumerated() {
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { transcript.segments[i].text = trimmed }
+            }
+            try transcript.update(db)
+            return transcript
+        }
+    }
+
+    /// Goes back to the lines as transcribed, dropping the polished text (and edits made to
+    /// it). Returns the transcript unchanged when it was never polished; nil when there is none.
+    @discardableResult
+    public func restoreOriginalTranscript(recordingId: UUID) throws -> Transcript? {
+        try database.writer.write { db in
+            guard var transcript = try Transcript.fetchOne(db, key: recordingId) else { return nil }
+            guard let original = transcript.originalSegments else { return transcript }
+            transcript.segments = original
+            transcript.originalSegments = nil
+            try transcript.update(db)
+            return transcript
+        }
+    }
+
     /// 纠错词库, newest first.
     public func corrections() throws -> [Correction] {
         try database.writer.read { try Correction.order(Column("created_at").desc).fetchAll($0) }

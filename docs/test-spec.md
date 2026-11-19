@@ -222,7 +222,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M2-05 | 转写剩余时间（#75） | 没测过时按本机 0.5、服务 0.15（秒工作 / 秒音频）估计；成功的一次按 0.6 旧值 + 0.4 实测更新，本机和服务分开；失败的不更新；剩余时间不小于 0；文案「预计还要 N 分钟」（向上取整）、「预计还要不到 1 分钟」、「快好了」；同一条不能同时开两次 |
 
-实现：T-M2-05 是 `TranscriptionJobsTests`。T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
+| T-M2-06 | 逐句润色（#75） | 每批 40 句、请求带 `json_object`；回复句数对上时逐句替换，回显的「3. 」序号去掉（原句本身以序号开头时保留）；某一批对不上时那一批保持原文、Toast 说明有几句没能润色；全部对不上报「润色后的句数对不上」；没有句子不发请求、没设置服务不发；库：时间不变、空的一句保留原文、再次润色保留第一次的原文、恢复原文后与转写结果一致；`v11` 升到 `v12` 后原有文字稿 `original_segments` 为空；页面：没设置服务时不能润色，润色后 Toast「已润色，可以随时恢复原文」，恢复后 Toast「已恢复原文」 |
+
+实现：T-M2-06 是 `PolisherTests`（4 个）、`AppDatabaseTests` `polishingKeepsTimesAndTheOriginal`、`v11LibraryUpgradesToV12`，`PolishAndLoopTests` `polishesAndRestores`。T-M2-05 是 `TranscriptionJobsTests`。T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
 
 #### 3.6.4 M4 先做的部分
 
@@ -237,7 +239,11 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M4-05 | D1c 按来源筛选 | 只有一种来源时没有来源筛选项；有卡录音和手机录音时依次给出「录音卡」「手机录音」；选来源后只列这一来源，叠加星标等筛选；非卡录音的副标题末尾是「· 手机录音」或「· 导入」 |
 
-实现：T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
+| T-M4-06 | X20 单句循环 | 一句的范围是从它的开头到下一句开头，最后一句到录音结束，越界或长度为 0 不循环；播到范围末尾（含 1.5 秒内的超出）或播完时回到这句开头；位置远离这句时停止；页面：循环第一句时播过下一句开头后回到开头；再点同一句、点另一句播放、拖动进度或快进快退都停止循环；暂停不停止循环 |
+
+| T-M4-07 | E1c 导出 WAV | 文件名是显示的标题加 `.wav`；文件头是 `RIFF…WAVE`，16 位线性 PCM，时长与录音相差不到 0.2 秒；导出目录里只剩这个文件；手机录音（M4A）同样能导出 WAV |
+
+实现：T-M4-06 是 `PolishAndLoopTests` `loopRangeAndSteps`、`loopsALine`（「暂停不停止循环」只在代码里，没有测试）。T-M4-07 是 `PlayerTests` `exportsWAV`。T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
 
 ## 4. 真机测试方法与证据
 

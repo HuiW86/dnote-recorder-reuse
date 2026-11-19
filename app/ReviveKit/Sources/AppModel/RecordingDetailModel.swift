@@ -18,7 +18,7 @@ public final class RecordingDetailModel {
     public private(set) var isPreparing = false
     /// The OGG file is gone; the page offers to delete the row.
     public private(set) var audioMissing = false
-    /// An M4A export is being made; the share button shows progress meanwhile.
+    /// An M4A or WAV export is being made; the share button shows progress meanwhile.
     public private(set) var isExporting = false
     /// Points marked while recording, in playback order (features.md X7).
     public private(set) var marks: [RecordingMark] = []
@@ -49,19 +49,22 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let assistant: AssistantConfigSource?
     @ObservationIgnored private let jobs: TranscriptionJobs
     @ObservationIgnored private let summarizer: Summarizer
+    @ObservationIgnored private let polisher: Polisher
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "Detail")
 
     public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
                 transcriber: (any SpeechTranscribing)? = nil,
                 transcriberSource: (@MainActor () -> (any SpeechTranscribing)?)? = nil,
                 assistant: AssistantConfigSource? = nil,
-                summarizer: Summarizer = Summarizer(), jobs: TranscriptionJobs = .shared) {
+                summarizer: Summarizer = Summarizer(), polisher: Polisher? = nil,
+                jobs: TranscriptionJobs = .shared) {
         self.recordingId = recordingId
         self.library = library
         self.player = player
         self.transcriberSource = transcriberSource ?? { transcriber }
         self.assistant = assistant
         self.summarizer = summarizer
+        self.polisher = polisher ?? Polisher(client: summarizer.client)
         self.jobs = jobs
         transcript = try? library.transcript(recordingId: recordingId)
         summary = try? library.summary(recordingId: recordingId)
@@ -121,11 +124,13 @@ public final class RecordingDetailModel {
     /// Jumps by `seconds` (negative goes back), within the recording.
     public func skip(by seconds: TimeInterval) {
         guard isLoaded else { return }
+        stopLoop()
         player.seek(to: player.currentTime + seconds)
     }
 
     public func seek(to time: TimeInterval) {
         guard isLoaded else { return }
+        stopLoop()
         player.seek(to: time)
     }
 
@@ -343,6 +348,57 @@ public final class RecordingDetailModel {
         }
     }
 
+    // MARK: - 逐句润色 (#75)
+
+    public private(set) var isPolishing = false
+
+    /// "润色文字稿" needs a transcript with text and a configured service.
+    public var canPolish: Bool {
+        transcript.map { !$0.segments.isEmpty } == true && assistant?.current() != nil && !isPolishing
+    }
+
+    /// Sends the transcript's lines (text only) to the user's service and puts the polished text
+    /// on each line, keeping times; the lines as transcribed are kept for `restoreOriginal`.
+    public func polish() {
+        guard let transcript, let config = assistant?.current(), !isPolishing else { return }
+        isPolishing = true
+        let lines = transcript.segments.map(\.text)
+        Task {
+            defer { isPolishing = false }
+            do {
+                let result = try await polisher.polish(lines, config: config)
+                guard let stored = try library.savePolishedTranscript(recordingId: recordingId, texts: result.texts),
+                      stored.segments.count == lines.count else {
+                    toast = Toast("文字稿已经变了，请再润色一次")
+                    reloadTranscript()
+                    return
+                }
+                self.transcript = stored
+                toast = Toast(result.unchangedLines > 0
+                              ? "已润色，有 \(result.unchangedLines) 句没能润色，保留了原文"
+                              : "已润色，可以随时恢复原文")
+            } catch let error as AssistantError {
+                toast = Toast(AssistantSettingsModel.text(for: error))
+            } catch is CancellationError {
+                // Left the page.
+            } catch {
+                toast = Toast("润色失败，请重试")
+            }
+        }
+    }
+
+    /// Goes back to the text as transcribed.
+    public func restoreOriginal() {
+        do {
+            if let restored = try library.restoreOriginalTranscript(recordingId: recordingId) {
+                transcript = restored
+                toast = Toast("已恢复原文")
+            }
+        } catch {
+            toast = Toast("保存失败，请重试")
+        }
+    }
+
     /// "00:18:06" for a transcript line.
     public func timeText(_ segment: TranscriptSegment) -> String {
         RecordingText.clock(seconds: segment.startMs / 1000)
@@ -365,8 +421,9 @@ public final class RecordingDetailModel {
         return low == 0 ? nil : low - 1
     }
 
-    /// Plays from a transcript line.
+    /// Plays from a transcript line; a line on loop stops looping.
     public func play(from segment: TranscriptSegment) {
+        stopLoop()
         play(fromMs: segment.startMs)
     }
 
@@ -397,6 +454,89 @@ public final class RecordingDetailModel {
         }
     }
 
+    // MARK: - 单句循环 (features.md X20)
+
+    /// The transcript line being played over and over; nil when no line is on loop.
+    public private(set) var loopingIndex: Int?
+    @ObservationIgnored private var loopTask: Task<Void, Never>?
+
+    /// Plays line `index` over and over until `stopLoop`, another line is played, the user seeks
+    /// or skips, or the player moves to another recording. Pausing keeps the loop; playing on
+    /// resumes it. Calling it for the line already on loop stops it.
+    public func toggleLoop(lineAt index: Int) {
+        if loopingIndex == index {
+            stopLoop()
+            return
+        }
+        guard let recording, let segments = transcript?.segments,
+              let range = Self.loopRange(segments.map(\.startMs), index: index,
+                                         durationMs: Int(duration * 1000)) else { return }
+        stopLoop()
+        loopingIndex = index
+        loopTask = Task {
+            do {
+                if !isLoaded || !isPlaying { try await player.play(recording) }
+            } catch is CancellationError {
+                return
+            } catch PlayerError.audioMissing {
+                audioMissing = true
+                loopingIndex = nil
+                return
+            } catch {
+                toast = Toast("无法播放这条录音")
+                loopingIndex = nil
+                return
+            }
+            player.seek(to: Double(range.lowerBound) / 1000)
+            while !Task.isCancelled, loopingIndex == index {
+                guard isLoaded else { break }  // stopped, or another recording is playing
+                let finished = player.state == .idle
+                if player.state != .paused {
+                    switch Self.loopStep(positionMs: Int(player.currentTime * 1000), range: range, finished: finished) {
+                    case .wait:
+                        break
+                    case .restart:
+                        player.seek(to: Double(range.lowerBound) / 1000)
+                        if finished { try? await player.play(recording) }
+                    case .stop:
+                        loopingIndex = nil
+                    }
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            if loopingIndex == index { loopingIndex = nil }
+        }
+    }
+
+    public func stopLoop() {
+        loopTask?.cancel()
+        loopTask = nil
+        loopingIndex = nil
+    }
+
+    /// Line `index` in ms: from its start to the next line's start, or to the end of the
+    /// recording for the last line. Nil out of range or for a line with no length.
+    public nonisolated static func loopRange(_ starts: [Int], index: Int, durationMs: Int) -> Range<Int>? {
+        guard starts.indices.contains(index) else { return nil }
+        let end = index + 1 < starts.count ? starts[index + 1] : durationMs
+        return starts[index] < end ? starts[index]..<end : nil
+    }
+
+    public enum LoopStep: Equatable, Sendable {
+        case wait, restart, stop
+    }
+
+    /// What the loop does at `positionMs`: start the line again once playback reaches its end
+    /// (or the recording finished); stop when the position is well outside the line, which only
+    /// happens when something else moved it.
+    public nonisolated static func loopStep(positionMs: Int, range: Range<Int>, finished: Bool) -> LoopStep {
+        let slack = 1500
+        if finished { return .restart }
+        if positionMs >= range.upperBound { return positionMs < range.upperBound + slack ? .restart : .stop }
+        if positionMs < range.lowerBound - slack { return .stop }
+        return .wait
+    }
+
     /// "00:18:06" for a mark row.
     public func markText(_ mark: RecordingMark) -> String {
         RecordingText.clock(seconds: mark.offsetMs / 1000)
@@ -404,6 +544,7 @@ public final class RecordingDetailModel {
 
     /// Leaving the page while a decode runs cancels it; playback that already started goes on.
     public func leave() {
+        stopLoop()
         if playTask != nil, !isPlaying { player.stop() }
     }
 
@@ -463,6 +604,22 @@ public final class RecordingDetailModel {
             audioMissing = true
         } catch {
             log.error("cannot export m4a: \(String(describing: error), privacy: .public)")
+            toast = Toast("导出失败，请重试")
+        }
+        return nil
+    }
+
+    /// A temporary `<title>.wav` for the share sheet (features.md E1c); nil with a toast on failure.
+    public func exportWAV() async -> URL? {
+        guard let recording, !isExporting else { return nil }
+        isExporting = true
+        defer { isExporting = false }
+        do {
+            return try await RecordingExporter.exportWAV(for: recording, library: library, title: title)
+        } catch PlayerError.audioMissing {
+            audioMissing = true
+        } catch {
+            log.error("cannot export wav: \(String(describing: error), privacy: .public)")
             toast = Toast("导出失败，请重试")
         }
         return nil

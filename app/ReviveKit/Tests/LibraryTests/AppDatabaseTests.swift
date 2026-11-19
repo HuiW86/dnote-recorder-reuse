@@ -467,6 +467,61 @@ struct RecordingLibraryTests {
         #expect(lib.corrected(fresh) == fresh)
     }
 
+    /// 逐句润色 (#75): polished text replaces each line's and keeps its time; the first
+    /// original is kept across a second polish and comes back on restore.
+    @Test func polishingKeepsTimesAndTheOriginal() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: UUID(), path: path)
+        r.deviceId = nil
+        try lib.database.writer.write { db in try r.insert(db) }
+        let raw = [TranscriptSegment(startMs: 0, text: "嗯那个我们下周三上线吧"),
+                   TranscriptSegment(startMs: 1_800, text: "嗯。")]
+        try lib.saveTranscript(Transcript(recordingId: id, engine: "t", language: "zh-CN", segments: raw,
+                                          createdAt: Date()))
+        #expect(try lib.transcript(recordingId: id)?.isPolished == false)
+        #expect(try lib.savePolishedTranscript(recordingId: id, texts: ["只有一句"]) == nil)
+        #expect(try lib.savePolishedTranscript(recordingId: UUID(), texts: []) == nil)
+
+        let polished = try #require(try lib.savePolishedTranscript(recordingId: id, texts: [" 我们下周三上线。 ", ""]))
+        #expect(polished.segments == [TranscriptSegment(startMs: 0, text: "我们下周三上线。"),
+                                      TranscriptSegment(startMs: 1_800, text: "嗯。")])
+        #expect(polished.originalSegments == raw && polished.isPolished)
+        #expect(try lib.transcript(recordingId: id) == polished)
+
+        let again = try #require(try lib.savePolishedTranscript(recordingId: id, texts: ["下周三上线。", "好。"]))
+        #expect(again.originalSegments == raw)
+
+        let restored = try #require(try lib.restoreOriginalTranscript(recordingId: id))
+        #expect(restored.segments == raw && !restored.isPolished)
+        #expect(try lib.transcript(recordingId: id) == restored)
+        #expect(try lib.restoreOriginalTranscript(recordingId: id) == restored)
+        #expect(try lib.restoreOriginalTranscript(recordingId: UUID()) == nil)
+    }
+
+    @Test func v11LibraryUpgradesToV12() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v11")
+        let recordingId = UUID()
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO recording (id, source, started_at, duration_ms, audio_path, audio_sha256, title,
+                                       created_at, updated_at)
+                VALUES (?, 'import', ?, 1000, 'audio/x.ogg', 'x', 't', ?, ?)
+                """, arguments: [recordingId, Date(), Date(), Date()])
+            try db.execute(sql: """
+                INSERT INTO transcript (recording_id, engine, language, segments, created_at)
+                VALUES (?, 'on-device', 'zh-CN', '[{"startMs":0,"text":"你好"}]', ?)
+                """, arguments: [recordingId, Date()])
+        }
+        let db = try AppDatabase(queue)
+        let transcript = try #require(try db.writer.read { try Transcript.fetchOne($0, key: recordingId) })
+        #expect(transcript.segments == [TranscriptSegment(startMs: 0, text: "你好")])
+        #expect(transcript.originalSegments == nil && !transcript.isPolished)
+    }
+
     @Test func v10LibraryUpgradesToV11() throws {
         let queue = try DatabaseQueue()
         try AppDatabase.migrator.migrate(queue, upTo: "v10")

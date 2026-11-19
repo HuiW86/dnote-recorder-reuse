@@ -172,14 +172,22 @@ public struct Transcript: Codable, Equatable, Sendable, FetchableRecord, Persist
     public var language: String
     public var segments: [TranscriptSegment]
     public var createdAt: Date
+    /// The lines as transcribed, kept after 逐句润色 (#75) replaced the text of `segments` so the
+    /// user can go back to them; nil when the text was never polished. Same count and times.
+    public var originalSegments: [TranscriptSegment]?
 
-    public init(recordingId: UUID, engine: String, language: String, segments: [TranscriptSegment], createdAt: Date) {
+    public init(recordingId: UUID, engine: String, language: String, segments: [TranscriptSegment], createdAt: Date,
+                originalSegments: [TranscriptSegment]? = nil) {
         self.recordingId = recordingId
         self.engine = engine
         self.language = language
         self.segments = segments
         self.createdAt = createdAt
+        self.originalSegments = originalSegments
     }
+
+    /// True when the text shown is the polished one.
+    public var isPolished: Bool { originalSegments != nil }
 
     public static let databaseTableName = "transcript"
     public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase

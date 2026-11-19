@@ -195,8 +195,6 @@ public enum RecordingExporter {
         return target
     }
 
-    /// An AAC `.m4a` copy for the share sheet (features.md E1b): other apps and older systems do
-    /// not open OGG Opus. Decodes and encodes off the main actor; a long recording takes a while.
     /// The recording as a PCM file the system frameworks can read (the decoded copy the player
     /// also uses), made if it is not there yet. For speech recognition (features.md X9).
     public static func decodedPCM(for recording: Recording, library: RecordingLibrary) async throws -> URL {
@@ -211,6 +209,8 @@ public enum RecordingExporter {
         return decoded
     }
 
+    /// An AAC `.m4a` copy for the share sheet (features.md E1b): other apps and older systems do
+    /// not open OGG Opus. Decodes and encodes off the main actor; a long recording takes a while.
     /// `base` is where the export directory is made; the default is the one `cleanUp` empties.
     public static func exportM4A(for recording: Recording, library: RecordingLibrary,
                                  title: String? = nil, in base: URL? = nil) async throws -> URL {
@@ -229,27 +229,56 @@ public enum RecordingExporter {
         defer { try? FileManager.default.removeItem(at: pcm) }
         try OggOpusDecoder.decode(source, to: pcm)
         let target = dir.appendingPathComponent(fileName(for: title ?? recording.title, fileExtension: "m4a"))
-        // Scoped so both files are closed, and the m4a finished, before the URL is returned.
+        try transcode(pcm, to: target) { format in
+            [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: format.sampleRate,
+             AVNumberOfChannelsKey: Int(format.channelCount)]
+        }
+        return target
+    }
+
+    /// A 16-bit PCM `.wav` copy for the share sheet (features.md E1c): for editors and tools that
+    /// take neither OGG nor AAC. Lossless against the decoded audio, about 32 KB per second at
+    /// 16 kHz mono, so ten times the OGG. A phone recording's M4A is decoded the same way.
+    public static func exportWAV(for recording: Recording, library: RecordingLibrary,
+                                 title: String? = nil, in base: URL? = nil) async throws -> URL {
+        let source = library.store.url(forAudioPath: recording.audioPath)
+        guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
+        let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let isOgg = source.pathExtension.lowercased() == "ogg"
+        let pcm = dir.appendingPathComponent("decoded.caf")
+        defer { try? FileManager.default.removeItem(at: pcm) }
+        if isOgg { try OggOpusDecoder.decode(source, to: pcm) }
+        let target = dir.appendingPathComponent(fileName(for: title ?? recording.title, fileExtension: "wav"))
+        try transcode(isOgg ? pcm : source, to: target) { format in
+            [AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: format.sampleRate,
+             AVNumberOfChannelsKey: Int(format.channelCount), AVLinearPCMBitDepthKey: 16,
+             AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false, AVLinearPCMIsNonInterleaved: false]
+        }
+        return target
+    }
+
+    /// Reads `input` with the system reader and writes it to `target` with the settings made from
+    /// the input's processing format; the file type follows `target`'s extension. Both files are
+    /// closed, and the output finished, when this returns.
+    private static func transcode(_ input: URL, to target: URL,
+                                  settings: (AVAudioFormat) -> [String: Any]) throws {
         do {
-            let input = try AVAudioFile(forReading: pcm)
-            let format = input.processingFormat
-            let settings: [String: Any] = [
-                AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: format.sampleRate,
-                AVNumberOfChannelsKey: Int(format.channelCount),
-            ]
-            let output = try AVAudioFile(forWriting: target, settings: settings, commonFormat: format.commonFormat,
-                                         interleaved: format.isInterleaved)
+            let reader = try AVAudioFile(forReading: input)
+            let format = reader.processingFormat
+            let writer = try AVAudioFile(forWriting: target, settings: settings(format),
+                                         commonFormat: format.commonFormat, interleaved: format.isInterleaved)
             guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16384) else {
                 throw PlayerError.cannotOpen
             }
-            while input.framePosition < input.length {
+            while reader.framePosition < reader.length {
                 try Task.checkCancellation()
-                try input.read(into: buffer)
+                try reader.read(into: buffer)
                 if buffer.frameLength == 0 { break }
-                try output.write(from: buffer)
+                try writer.write(from: buffer)
             }
         }
-        return target
     }
 
     /// `2026-11-01 09:00` -> `2026-11-01 09.00.ogg`; characters file systems reject are replaced.
