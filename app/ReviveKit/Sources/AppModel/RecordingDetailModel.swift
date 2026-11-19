@@ -26,6 +26,8 @@ public final class RecordingDetailModel {
     public private(set) var transcript: Transcript?
     /// A transcription of this recording is running, started from this page or an earlier one.
     public var isTranscribing: Bool { jobs.running.contains(recordingId) }
+    /// "预计还要 3 分钟" while this recording is being transcribed (#75); nil otherwise.
+    public var transcriptionRemainingText: String? { jobs.remainingText(recordingId) }
     /// The stored summary (features.md G1), if one was made.
     public private(set) var summary: Summary?
     public private(set) var isSummarizing = false
@@ -160,15 +162,20 @@ public final class RecordingDetailModel {
 
     /// Recognizes the recording on this phone and stores the text. Replaces an earlier transcript.
     public func transcribe(language: String = "zh-CN") {
-        guard let transcriber, let recording, jobs.begin(recording.id) else { return }
+        guard let transcriber, let recording,
+              jobs.begin(recording.id, audioMs: recording.durationMs, usesNetwork: transcriber.usesNetwork)
+        else { return }
         Task { [jobs] in
-            defer { jobs.end(recording.id) }
+            var succeeded = false
+            defer { jobs.end(recording.id, succeeded: succeeded) }
             do {
-                let segments = try await transcriber.transcribe(recording, language: language)
+                // 纠错词库 (#75): words the user corrected before are fixed in the new text.
+                let segments = library.corrected(try await transcriber.transcribe(recording, language: language))
                 let result = Transcript(recordingId: recording.id, engine: transcriber.engineName,
                                         language: language, segments: segments, createdAt: Date())
                 try library.saveTranscript(result)
                 transcript = result
+                succeeded = true
             } catch let error as TranscriptionError {
                 toast = Toast(Self.text(for: error))
             } catch {
@@ -320,6 +327,22 @@ public final class RecordingDetailModel {
         transcript = try? library.transcript(recordingId: recordingId)
     }
 
+    /// Fixes the text of one transcript line; a short word swap goes into 纠错词库 (#75) so later
+    /// transcripts get it right. Empty text changes nothing.
+    public func editLine(_ index: Int, to text: String) {
+        do {
+            let before = try library.corrections().count
+            guard let updated = try library.editTranscriptLine(recordingId: recordingId, index: index, to: text) else {
+                return
+            }
+            transcript = updated
+            let learned = try library.corrections().count > before
+            toast = Toast(learned ? "已修改，以后转写会自动改正这个词" : "已修改")
+        } catch {
+            toast = Toast("保存失败，请重试")
+        }
+    }
+
     /// "00:18:06" for a transcript line.
     public func timeText(_ segment: TranscriptSegment) -> String {
         RecordingText.clock(seconds: segment.startMs / 1000)
@@ -399,8 +422,11 @@ public final class RecordingDetailModel {
 
     public var durationText: String { RecordingText.longDuration(ms: recording?.durationMs ?? 0) }
 
+    /// The card's name for a card recording; "手机录音" or "导入" otherwise (features.md D1c).
     public var sourceText: String? {
-        recording?.deviceId.flatMap { deviceNames[$0] }
+        guard let recording else { return nil }
+        if recording.source == .card { return recording.deviceId.flatMap { deviceNames[$0] } ?? "录音卡" }
+        return RecordingText.sourceName(recording.source)
     }
 
     public var sizeText: String {

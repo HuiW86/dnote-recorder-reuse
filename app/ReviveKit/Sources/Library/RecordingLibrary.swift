@@ -502,6 +502,43 @@ public final class RecordingLibrary: Sendable {
         try database.writer.write { db in try transcript.save(db) }
     }
 
+    /// Replaces the text of one transcript line (the user fixed a misheard word). A short word
+    /// swap is remembered in 纠错词库 (#75). Returns the stored transcript, nil when there is no
+    /// transcript or no line at `index`.
+    @discardableResult
+    public func editTranscriptLine(recordingId: UUID, index: Int, to text: String,
+                                   now: Date = Date()) throws -> Transcript? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try database.writer.write { db in
+            guard var transcript = try Transcript.fetchOne(db, key: recordingId),
+                  transcript.segments.indices.contains(index), !trimmed.isEmpty else { return nil }
+            let original = transcript.segments[index].text
+            guard original != trimmed else { return transcript }
+            transcript.segments[index].text = trimmed
+            try transcript.update(db)
+            if let pair = Correction.between(original, trimmed) {
+                try Correction(wrong: pair.wrong, right: pair.right, createdAt: now).save(db)
+            }
+            return transcript
+        }
+    }
+
+    /// 纠错词库, newest first.
+    public func corrections() throws -> [Correction] {
+        try database.writer.read { try Correction.order(Column("created_at").desc).fetchAll($0) }
+    }
+
+    public func deleteCorrection(wrong: String) throws {
+        try database.writer.write { db in _ = try Correction.deleteOne(db, key: wrong) }
+    }
+
+    /// Segments with 纠错词库 applied, for a transcript about to be stored.
+    public func corrected(_ segments: [TranscriptSegment]) -> [TranscriptSegment] {
+        let corrections = (try? corrections()) ?? []
+        guard !corrections.isEmpty else { return segments }
+        return segments.map { TranscriptSegment(startMs: $0.startMs, text: Correction.apply(corrections, to: $0.text)) }
+    }
+
     public func transcript(recordingId: UUID) throws -> Transcript? {
         try database.writer.read { try Transcript.fetchOne($0, key: recordingId) }
     }

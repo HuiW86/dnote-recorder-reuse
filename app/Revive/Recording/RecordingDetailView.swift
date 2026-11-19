@@ -77,6 +77,9 @@ private struct RecordingDetailContent: View {
     @State private var newTitle = ""
     @State private var newFolder = false
     @State private var folderName = ""
+    /// The transcript line being corrected (纠错词库, #75), and its text in the field.
+    @State private var editingLine: Int?
+    @State private var lineText = ""
 
     var body: some View {
         Group {
@@ -112,6 +115,13 @@ private struct RecordingDetailContent: View {
             Button("删除录音", role: .destructive) { model.delete() }
         } message: {
             Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
+        }
+        .alert("修改这一句", isPresented: Binding(get: { editingLine != nil }, set: { if !$0 { editingLine = nil } })) {
+            TextField("文字", text: $lineText, axis: .vertical)
+            Button("保存") { if let index = editingLine { model.editLine(index, to: lineText) } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("改正听错的词后，以后的转写会自动改正它。")
         }
         .alert("新建文件夹", isPresented: $newFolder) {
             TextField("文件夹名称", text: $folderName)
@@ -511,15 +521,33 @@ extension RecordingDetailContent {
                     .listRowBackground(playing ? Theme.accentWash : Color.clear)
                     .accessibilityValue(playing ? "正在播放" : "")
                     .accessibilityHint("从这里播放")
+                    .contextMenu {
+                        Button("修改这一句", systemImage: "pencil") {
+                            lineText = segment.text
+                            editingLine = index
+                        }
+                    }
+                    .accessibilityAction(named: "修改这一句") {
+                        lineText = segment.text
+                        editingLine = index
+                    }
                 }
             }
             Group {
                 if model.isTranscribing {
                     HStack(spacing: 8) {
                         ProgressView()
-                        Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字，长录音需要一些时间")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.inkMuted)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.inkMuted)
+                            // #75: learned from earlier runs on this phone; refreshed every few seconds.
+                            TimelineView(.periodic(from: .now, by: 5)) { _ in
+                                if let remaining = model.transcriptionRemainingText {
+                                    Text(remaining).font(.caption).foregroundStyle(Theme.inkMuted)
+                                }
+                            }
+                        }
                     }
                 } else if model.canTranscribe {
                     Button(model.transcript == nil ? "转成文字" : "重新转写") { model.transcribe() }
@@ -657,7 +685,7 @@ private struct AssistantOutputSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(output.text)
+                Text(RichText.attributed(output.text))
                     .foregroundStyle(Theme.ink)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

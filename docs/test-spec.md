@@ -218,7 +218,11 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M2-03 | G1 大纲、金句、思维导图 | 回复里的大纲按顺序读出，最多 8 个话题、每个 6 条，空标题的话题丢掉；金句最多 5 句、去掉引号；没有这两项的回复照常解析；存取往返不变，搜索能搜到大纲和金句里的词；`v9` 的纪要升到 `v10` 后两项为空、其余不变；Markdown 导出有「大纲」「金句」两节 |
 
-实现：T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
+| T-M2-04 | 纠错词库（#75） | 「汇款率…」改成「回款率…」记下「汇款→回款」；单字差异向后补字成「张经→章经」，句末向前补成「老王→老汪」；单字整句、纯插入、纯删除、整句改写不记；替换时长词优先；越界、空文字不改；之后新转写的文字稿已改正；删除后不再替换；`v10` 升到 `v11` 后有 `correction` 表 |
+
+| T-M2-05 | 转写剩余时间（#75） | 没测过时按本机 0.5、服务 0.15（秒工作 / 秒音频）估计；成功的一次按 0.6 旧值 + 0.4 实测更新，本机和服务分开；失败的不更新；剩余时间不小于 0；文案「预计还要 N 分钟」（向上取整）、「预计还要不到 1 分钟」、「快好了」；同一条不能同时开两次 |
+
+实现：T-M2-05 是 `TranscriptionJobsTests`。T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
 
 #### 3.6.4 M4 先做的部分
 
@@ -227,7 +231,13 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 | T-M4-01 | D1c 文件夹（库） | 空名字不建；名字去首尾空白；按名字排序；移入、移出、改名（空名字不改）；删除文件夹后录音还在、不在任何文件夹里；`v7` 的库升级到 `v8` 后有 `folder` 表，原有录音不在文件夹里、星标保留 |
 | T-M4-02 | D1c 文件夹（页面状态） | 列表的文件夹筛选叠加在筛选项之上；删除文件夹后 Toast「已删除文件夹，里面的录音还在」、筛选取消、录音都回到列表；详情页「移到文件夹」可新建并移入、换文件夹、移出，Toast 分别是「已移到「名字」」「已移出文件夹」 |
 
-实现：T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
+| T-M4-03 | G3 全局对话 | 回答里的 [n] 只取存在的编号、按首次出现排序（支持「[1，3]」）；资料按编号排列，超出上限的不发、第一条总会发（截断）；只发纪要，问题在末尾；没有纪要报错；没设置服务时不发请求；页面状态：最新的纪要是 [1]，回答引用 [2] 时列出较早那条录音；空问题不发；清除后回答为空 |
+
+| T-M4-04 | X15、#75 回复的 Markdown | 「** 重点 **」整理成「**重点**」；标题行变粗体；不成对的 `**` 去掉；空粗体去掉；渲染后看不到星号，粗体范围正确 |
+
+| T-M4-05 | D1c 按来源筛选 | 只有一种来源时没有来源筛选项；有卡录音和手机录音时依次给出「录音卡」「手机录音」；选来源后只列这一来源，叠加星标等筛选；非卡录音的副标题末尾是「· 手机录音」或「· 导入」 |
+
+实现：T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
 
 ## 4. 真机测试方法与证据
 

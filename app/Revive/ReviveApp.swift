@@ -12,6 +12,8 @@ struct ReviveApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(env: delegate.env)
+                // Audio another app shared or opened in 闻笺 (features.md E2); imported on 录音.
+                .onOpenURL { delegate.env.incomingAudio.append($0) }
         }
     }
 }

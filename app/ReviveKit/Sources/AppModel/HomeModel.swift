@@ -500,6 +500,15 @@ public final class HomeModel {
     public var filter: Filter = .all
     /// The folder chip that is selected, if any (features.md D1c); applies on top of `filter`.
     public var folderFilter: UUID?
+    /// The source chip that is selected, if any (features.md D1c 按来源筛选); also on top of `filter`.
+    public var sourceFilter: Recording.Source?
+
+    /// Sources to offer as chips: only when the list holds more than one, card first.
+    public var sources: [Recording.Source] {
+        let present = Set(recordings.map(\.source))
+        guard present.count > 1 else { return [] }
+        return [Recording.Source.card, .phone, .import, .realtime].filter(present.contains)
+    }
     public private(set) var folders: [Folder] = []
 
     /// Reads the folders again (they change on the recording page and in the chip menu).
@@ -530,7 +539,8 @@ public final class HomeModel {
 
     /// `recordings` narrowed by `folderFilter` and `filter`, newest first.
     public var filteredRecordings: [Recording] {
-        let recordings = folderFilter.map { id in self.recordings.filter { $0.folderId == id } } ?? self.recordings
+        var recordings = folderFilter.map { id in self.recordings.filter { $0.folderId == id } } ?? self.recordings
+        if let sourceFilter { recordings = recordings.filter { $0.source == sourceFilter } }
         switch filter {
         case .all:
             return recordings

@@ -15,6 +15,8 @@ enum Route: Hashable {
     case trash
     /// 设置 → AI 服务 (features.md X11).
     case assistant
+    /// 设置 → 纠错词库 (#75).
+    case corrections
     /// P02 → P03 from home: "重新搜索" after `unknownCard`; "重新配对" goes to P03 directly.
     case connectGuide, pairing
 }
@@ -193,15 +195,34 @@ struct RecordingsView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(HomeModel.Filter.allCases) { filter in
-                    let selected = model.filter == filter && (filter != .all || model.folderFilter == nil)
+                    let selected = model.filter == filter
+                        && (filter != .all || (model.folderFilter == nil && model.sourceFilter == nil))
                     Button {
                         model.filter = filter
-                        if filter == .all { model.folderFilter = nil }
+                        if filter == .all {
+                            model.folderFilter = nil
+                            model.sourceFilter = nil
+                        }
                     } label: {
                         Text(filter.title)
                             .font(.subheadline.weight(selected ? .semibold : .regular))
                             .foregroundStyle(selected ? Theme.onDark : Theme.ink)
                             .padding(.horizontal, 16)
+                            .frame(minHeight: 36)
+                            .background(selected ? Theme.accent : Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+                // Sources (features.md D1c), only when the list has more than one.
+                ForEach(model.sources, id: \.self) { source in
+                    let selected = model.sourceFilter == source
+                    Button { model.sourceFilter = selected ? nil : source } label: {
+                        Text(RecordingText.sourceName(source))
+                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? Theme.onDark : Theme.ink)
+                            .padding(.horizontal, 14)
                             .frame(minHeight: 36)
                             .background(selected ? Theme.accent : Theme.surface, in: Capsule())
                             .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))

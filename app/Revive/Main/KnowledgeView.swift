@@ -2,14 +2,15 @@ import AppModel
 import Library
 import SwiftUI
 
-/// 知识库 (#89): search titles, transcripts and summaries on this phone, and the latest
-/// summaries. Asking across recordings (features.md G3) is added here when it is built; no
-/// placeholder until then.
+/// 知识库 (#89): ask across recordings (features.md G3) with the user's own service, search
+/// titles, transcripts and summaries on this phone, and the latest summaries.
 struct KnowledgeView: View {
     @Bindable var model: HomeModel
     @Bindable var overview: OverviewModel
+    @Bindable var questions: LibraryQuestionModel
     let env: AppEnvironment
     @State private var query = ""
+    @State private var question = ""
 
     var body: some View {
         List {
@@ -22,6 +23,12 @@ struct KnowledgeView: View {
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+
+            // G3: only when there are summaries to ask about; otherwise the empty state below says
+            // how to get them.
+            if model.searchResults == nil, !overview.digest.recentSummaries.isEmpty {
+                askSection
+            }
 
             if let results = model.searchResults {
                 if results.isEmpty {
@@ -72,10 +79,60 @@ struct KnowledgeView: View {
         .listStyle(.insetGrouped)
         .paperBackground()
         .navigationBarTitleDisplayMode(.inline)
+        .toast($questions.toast)
         .searchable(text: $query, prompt: "搜索标题、文字稿、纪要")
         .onChange(of: query) { _, text in model.search(text) }
         // The library changed (a sync, a delete): refresh what the search shows.
         .onChange(of: model.recordings) { _, _ in if !query.isEmpty { model.search(query) } }
+    }
+}
+
+extension KnowledgeView {
+    /// "问问你的录音": the question, the answer with the recordings it cited (features.md G3).
+    @ViewBuilder fileprivate var askSection: some View {
+        Section {
+            if questions.isConfigured {
+                HStack {
+                    TextField("问问你的录音", text: $question, axis: .vertical)
+                        .lineLimit(1...4)
+                        .submitLabel(.send)
+                        .onSubmit { questions.ask(question) }
+                    if questions.isAsking {
+                        ProgressView()
+                    } else {
+                        Button("提问") { questions.ask(question) }
+                            .disabled(question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+                if let answer = questions.answer {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(answer.question).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
+                        Text(RichText.attributed(answer.text)).foregroundStyle(Theme.ink).textSelection(.enabled)
+                    }
+                    if !answer.sources.isEmpty {
+                        ForEach(Array(answer.sources.enumerated()), id: \.offset) { _, item in
+                            NavigationLink(value: Route.recordingSummary(item.recording.id)) {
+                                Label(item.summary.title.isEmpty ? RecordingText.title(item.recording) : item.summary.title,
+                                      systemImage: "doc.text")
+                                    .foregroundStyle(Theme.ink)
+                            }
+                        }
+                    }
+                    Button("清除回答") { questions.clear() }
+                        .font(.subheadline)
+                }
+            } else {
+                NavigationLink(value: Route.assistant) {
+                    Label("填上你的 AI 服务后，可以问所有录音", systemImage: "sparkles")
+                        .foregroundStyle(Theme.ink)
+                }
+            }
+        } header: {
+            Text("问问你的录音").textCase(nil)
+        } footer: {
+            if questions.isConfigured { Text(questions.privacyNote) }
+        }
+        .surfaceRows()
     }
 }
 

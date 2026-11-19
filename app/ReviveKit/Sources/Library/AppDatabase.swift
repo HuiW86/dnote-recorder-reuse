@@ -161,6 +161,15 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // 纠错词库 (#75): words the user corrected in a transcript, replaced in later ones.
+        migrator.registerMigration("v11") { db in
+            try db.create(table: "correction") { t in
+                t.primaryKey("wrong", .text)
+                t.column("right", .text).notNull()
+                t.column("created_at", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

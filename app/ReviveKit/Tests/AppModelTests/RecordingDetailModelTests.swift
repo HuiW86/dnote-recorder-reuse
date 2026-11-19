@@ -206,6 +206,29 @@ struct RecordingDetailModelTests {
         #expect(try f.library.recording(id: f.recording.id)?.hasAITitle == true)
     }
 
+    /// 纠错词库 (#75): fixing a word in a line is remembered, and the next transcript of any
+    /// recording comes out corrected; the settings list shows and deletes it.
+    @Test func correctedWordsFixLaterTranscripts() async throws {
+        let f = try await DetailFixture()
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "t", language: "zh-CN",
+                                                segments: [TranscriptSegment(startMs: 0, text: "汇款率还在排查")],
+                                                createdAt: Date()))
+        let fake = FakeTranscriber(result: .success([TranscriptSegment(startMs: 0, text: "汇款要加快")]))
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         transcriber: fake)
+        model.editLine(0, to: "回款率还在排查")
+        #expect(model.transcript?.segments.first?.text == "回款率还在排查")
+        #expect(model.toast?.text == "已修改，以后转写会自动改正这个词")
+
+        let corrections = CorrectionsModel(library: f.library)
+        #expect(corrections.corrections.map(\.right) == ["回款"])
+
+        model.transcribe()
+        await waitUntil("transcribed again") { model.transcript?.segments.first?.text == "回款要加快" }
+        corrections.delete(try #require(corrections.corrections.first))
+        #expect(corrections.corrections.isEmpty)
+    }
+
     /// D1c: "移到文件夹" puts the recording in a folder, a new one or none.
     @Test func movesBetweenFolders() async throws {
         let f = try await DetailFixture()

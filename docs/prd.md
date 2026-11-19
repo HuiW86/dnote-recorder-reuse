@@ -20,7 +20,7 @@
         │     ├─ CardLink ──── CoreBluetooth：扫描、连接、写、通知、断线恢复
         │     └─ CardProtocol ── 帧编解码、命令白名单、固件差异适配（CardLink 也依赖它）
         │
-        ├─ SyncEngine ───── 卡上文件 → 本地录音库，按 §4 状态机（依赖 CardService、Library）
+        ├─ SyncEngine ───── 卡上文件 → 本地录音库，按 §4 状态机（依赖 `SyncSource` 接口和 Library；CardService 是第一个实现，ADR-010）
         │
         ├─ Library ──────── 本地数据库与音频文件（§5）
         │
@@ -326,6 +326,18 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `created_at` | DATETIME | — |
 
 迁移编号：PR #88 原来用 `v7`，`v7` 已给星标（X21，#89）先用，文件夹顺延为 `v8`。
+
+### 5.10 `correction`（纠错词库，迁移 `v11`，#75）
+
+用户在文字稿里改正过的词，之后新转写的文字稿存入前自动替换（长的词优先）。只在本机。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `wrong` | TEXT PK | 识别错的词，2～12 字 |
+| `right` | TEXT | 改正后的词，2～12 字 |
+| `created_at` | DATETIME | — |
+
+改一句时，去掉前后相同的部分得到改动的那段；不足 2 字时向后（没有就向前）补上未改的字，避免把单个字全局替换；纯插入、纯删除和整句改写不记。已有的文字稿不回头改。
 
 ## 6. App 错误码（M1）
 
