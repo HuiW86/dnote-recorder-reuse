@@ -657,7 +657,7 @@ private struct AssistantOutputSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(output.text)
+                Text(RichText.attributed(output.text))
                     .foregroundStyle(Theme.ink)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

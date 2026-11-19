@@ -7,7 +7,7 @@ import Foundation
 import Library
 
 public enum RewriteStyle: String, CaseIterable, Sendable, Identifiable {
-    case voiceover, shortVideo, thread, article, email
+    case voiceover, shortVideo, thread, article, email, bilingual
 
     public var id: String { rawValue }
 
@@ -18,6 +18,7 @@ public enum RewriteStyle: String, CaseIterable, Sendable, Identifiable {
         case .thread: "社交媒体长帖"
         case .article: "公众号文章"
         case .email: "会后邮件"
+        case .bilingual: "中英对照"
         }
     }
 
@@ -28,6 +29,8 @@ public enum RewriteStyle: String, CaseIterable, Sendable, Identifiable {
         case .thread: "改写成一条适合发在社交媒体上的长帖：开头一句话点明观点，中间分 3 到 5 个要点，每点两三句，语气直接，有具体细节和数字，结尾一句总结。"
         case .article: "改写成一篇公众号文章：有标题，有 3 到 4 个小标题分段，开头用一个场景或问题引入，行文连贯，保留原话里的具体例子。"
         case .email: "改写成一封会后跟进邮件：称呼、一句话说明来意、分点列出达成的结论和各自的待办（带负责人和时间）、礼貌收尾。简洁。"
+        // X15 双语对照 (beanpod Shared/Translate.swift): Chinese and English paragraph by paragraph.
+        case .bilingual: "整理成中英对照：先把内容整理成通顺的段落，然后每段先写中文、紧接着写对应的英文译文，两种语言意思一致，人名、数字、术语保持一致；原文是英文时同样先中文后英文。不加标题以外的说明。"
         }
     }
 }

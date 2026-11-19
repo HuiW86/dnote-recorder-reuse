@@ -229,7 +229,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M4-03 | G3 全局对话 | 回答里的 [n] 只取存在的编号、按首次出现排序（支持「[1，3]」）；资料按编号排列，超出上限的不发、第一条总会发（截断）；只发纪要，问题在末尾；没有纪要报错；没设置服务时不发请求；页面状态：最新的纪要是 [1]，回答引用 [2] 时列出较早那条录音；空问题不发；清除后回答为空 |
 
-实现：T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
+| T-M4-04 | X15、#75 回复的 Markdown | 「** 重点 **」整理成「**重点**」；标题行变粗体；不成对的 `**` 去掉；空粗体去掉；渲染后看不到星号，粗体范围正确 |
+
+实现：T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
 
 ## 4. 真机测试方法与证据
 

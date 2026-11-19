@@ -107,7 +107,7 @@ extension KnowledgeView {
                 if let answer = questions.answer {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(answer.question).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
-                        Text(answer.text).foregroundStyle(Theme.ink).textSelection(.enabled)
+                        Text(RichText.attributed(answer.text)).foregroundStyle(Theme.ink).textSelection(.enabled)
                     }
                     if !answer.sources.isEmpty {
                         ForEach(Array(answer.sources.enumerated()), id: \.offset) { _, item in
