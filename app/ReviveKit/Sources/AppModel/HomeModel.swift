@@ -498,9 +498,39 @@ public final class HomeModel {
     }
 
     public var filter: Filter = .all
+    /// The folder chip that is selected, if any (features.md D1c); applies on top of `filter`.
+    public var folderFilter: UUID?
+    public private(set) var folders: [Folder] = []
 
-    /// `recordings` narrowed by `filter`, newest first.
+    /// Reads the folders again (they change on the recording page and in the chip menu).
+    public func refreshFolders() {
+        folders = (try? session.library.folders()) ?? []
+        if let folderFilter, !folders.contains(where: { $0.id == folderFilter }) { self.folderFilter = nil }
+    }
+
+    public func renameFolder(_ folder: Folder, to name: String) {
+        do {
+            try session.library.renameFolder(id: folder.id, to: name)
+        } catch {
+            toast = Toast("重命名失败，请重试")
+        }
+        refreshFolders()
+    }
+
+    /// Deletes the folder; its recordings stay in the list.
+    public func deleteFolder(_ folder: Folder) {
+        do {
+            try session.library.deleteFolder(id: folder.id)
+            toast = Toast("已删除文件夹，里面的录音还在")
+        } catch {
+            toast = Toast("删除失败，请重试")
+        }
+        refreshFolders()
+    }
+
+    /// `recordings` narrowed by `folderFilter` and `filter`, newest first.
     public var filteredRecordings: [Recording] {
+        let recordings = folderFilter.map { id in self.recordings.filter { $0.folderId == id } } ?? self.recordings
         switch filter {
         case .all:
             return recordings

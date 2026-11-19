@@ -132,6 +132,16 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // Folders (features.md D1c). `recording.folder_id`, reserved in v1, points here; a deleted
+        // folder leaves its recordings in place, outside any folder.
+        migrator.registerMigration("v8") { db in
+            try db.create(table: "folder") { t in
+                t.primaryKey("id", .blob)
+                t.column("name", .text).notNull()
+                t.column("created_at", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

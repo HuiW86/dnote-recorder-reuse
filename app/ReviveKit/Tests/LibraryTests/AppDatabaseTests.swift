@@ -125,7 +125,7 @@ struct RecordingLibraryTests {
         let db = try AppDatabase(queue)
         let applied = try db.writer.read { try AppDatabase.migrator.appliedIdentifiers($0) }
         #expect(applied == Set(AppDatabase.migrator.migrations))
-        for table in ["recording_mark", "discard_request", "transcript", "summary"] {
+        for table in ["recording_mark", "discard_request", "transcript", "summary", "folder"] {
             #expect(try db.writer.read { try $0.tableExists(table) }, "table \(table)")
         }
         let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
@@ -318,6 +318,53 @@ struct RecordingLibraryTests {
         #expect(try lib.searchRecordings("   ").isEmpty)
         try lib.trashRecording(id: a)
         #expect(try lib.searchRecordings("周会").isEmpty)
+    }
+
+    /// D1c: folders hold recordings; deleting a folder keeps its recordings; a library from
+    /// before folders (v7) gains the table and keeps its recordings outside any folder.
+    @Test func foldersHoldRecordings() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        let item = try lib.syncItem(deviceId: device.id, name: "a.opus", size: 10)
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        _ = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
+
+        #expect(try lib.createFolder(named: "   ") == nil)
+        let work = try #require(try lib.createFolder(named: " 客户 "))
+        let home = try #require(try lib.createFolder(named: "家里"))
+        #expect(try lib.folders().map(\.name) == ["客户", "家里"].sorted())
+        try lib.moveRecording(id: id, toFolder: work.id)
+        #expect(try lib.recording(id: id)?.folderId == work.id)
+        try lib.renameFolder(id: work.id, to: "客户 A")
+        #expect(try lib.folders().contains { $0.name == "客户 A" })
+        try lib.renameFolder(id: work.id, to: "  ")
+        #expect(try lib.folders().contains { $0.name == "客户 A" })  // an empty name changes nothing
+        try lib.deleteFolder(id: work.id)
+        #expect(try lib.recording(id: id)?.folderId == nil)  // the recording stays
+        #expect(try lib.folders().map(\.id) == [home.id])
+        try lib.moveRecording(id: id, toFolder: home.id)
+        try lib.moveRecording(id: id, toFolder: nil)
+        #expect(try lib.recording(id: id)?.folderId == nil)
+    }
+
+    @Test func v7LibraryUpgradesToV8() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v7")
+        let recordingId = UUID()
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO recording (id, source, started_at, duration_ms, audio_path, audio_sha256, title,
+                                       created_at, updated_at, starred_at)
+                VALUES (?, 'import', ?, 1000, 'audio/x.ogg', 'x', 't', ?, ?, ?)
+                """, arguments: [recordingId, Date(), Date(), Date(), Date()])
+        }
+        #expect(try queue.read { try $0.tableExists("folder") } == false)
+        let db = try AppDatabase(queue)
+        #expect(try db.writer.read { try $0.tableExists("folder") })
+        let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
+        #expect(recording.folderId == nil && recording.isStarred)
     }
 
     /// X21: starring is kept across trash and restore, a second star keeps the first time, and

@@ -72,6 +72,8 @@ private struct RecordingDetailContent: View {
     @State private var renaming = false
     @State private var question = ""
     @State private var newTitle = ""
+    @State private var newFolder = false
+    @State private var folderName = ""
 
     var body: some View {
         Group {
@@ -105,6 +107,11 @@ private struct RecordingDetailContent: View {
             Button("删除录音", role: .destructive) { model.delete() }
         } message: {
             Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
+        }
+        .alert("新建文件夹", isPresented: $newFolder) {
+            TextField("文件夹名称", text: $folderName)
+            Button("新建并移入") { model.moveToNewFolder(named: folderName) }
+            Button("取消", role: .cancel) {}
         }
         .alert("重命名", isPresented: $renaming) {
             TextField("录音名称", text: $newTitle)
@@ -140,6 +147,19 @@ private struct RecordingDetailContent: View {
             }
             Button(model.isStarred ? "取消星标" : "标星", systemImage: model.isStarred ? "star.slash" : "star") {
                 model.toggleStar()
+            }
+            // features.md D1c.
+            Menu("移到文件夹", systemImage: "folder") {
+                ForEach(model.folders) { folder in
+                    Button(folder.name) { model.move(toFolder: folder.id) }
+                }
+                Button("新建文件夹…", systemImage: "folder.badge.plus") {
+                    folderName = ""
+                    newFolder = true
+                }
+                if model.recording?.folderId != nil {
+                    Button("移出文件夹", systemImage: "folder.badge.minus") { model.move(toFolder: nil) }
+                }
             }
             if model.canSummarize {
                 Button(model.summary == nil ? "生成纪要" : "重新生成纪要", systemImage: "sparkles") {
@@ -244,6 +264,11 @@ private struct RecordingDetailContent: View {
             Text(model.title)
                 .font(.title2.bold())
                 .foregroundStyle(Theme.ink)
+            if let folder = model.folderName {
+                Label(folder, systemImage: "folder")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.inkMuted)
+            }
             HStack(spacing: 6) {
                 Text(headerLine)
                     .font(.subheadline)

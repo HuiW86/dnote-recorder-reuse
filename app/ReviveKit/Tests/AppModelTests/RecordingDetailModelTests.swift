@@ -176,6 +176,24 @@ struct RecordingDetailModelTests {
         RecordingExporter.cleanUp()
     }
 
+    /// D1c: "移到文件夹" puts the recording in a folder, a new one or none.
+    @Test func movesBetweenFolders() async throws {
+        let f = try await DetailFixture()
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(model.folderName == nil && model.folders.isEmpty)
+        model.moveToNewFolder(named: "   ")
+        #expect(model.folders.isEmpty)
+        model.moveToNewFolder(named: "客户")
+        #expect(model.folderName == "客户")
+        #expect(model.toast?.text == "已移到「客户」")
+        let other = try #require(try f.library.createFolder(named: "家里"))
+        model.move(toFolder: other.id)
+        #expect(model.folderName == "家里")
+        #expect(try f.library.recording(id: f.recording.id)?.folderId == other.id)
+        model.move(toFolder: nil)
+        #expect(model.folderName == nil && model.toast?.text == "已移出文件夹")
+    }
+
     /// #85: turning transcription on or off in settings applies to a page that is already open.
     @Test func transcriptionSwitchAppliesToAnOpenPage() async throws {
         let f = try await DetailFixture()

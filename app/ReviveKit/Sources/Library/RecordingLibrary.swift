@@ -317,6 +317,48 @@ public final class RecordingLibrary: Sendable {
         return recording
     }
 
+    // MARK: Folders (features.md D1c)
+
+    /// Folders by name.
+    public func folders() throws -> [Folder] {
+        try database.writer.read { try Folder.order(Column("name")).fetchAll($0) }
+    }
+
+    /// A new folder; the name is trimmed and capped at 40 characters. Nil for an empty name.
+    @discardableResult
+    public func createFolder(named name: String, now: Date = Date()) throws -> Folder? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let folder = Folder(name: String(trimmed.prefix(40)), createdAt: now)
+        try database.writer.write { db in try folder.insert(db) }
+        return folder
+    }
+
+    /// Renames a folder; an empty name changes nothing.
+    public func renameFolder(id: UUID, to name: String) throws {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE folder SET name = ? WHERE id = ?", arguments: [String(trimmed.prefix(40)), id])
+        }
+    }
+
+    /// Deletes the folder only: its recordings stay, outside any folder.
+    public func deleteFolder(id: UUID) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE recording SET folder_id = NULL WHERE folder_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM folder WHERE id = ?", arguments: [id])
+        }
+    }
+
+    /// Puts a recording in a folder, or takes it out with nil.
+    public func moveRecording(id: UUID, toFolder folderId: UUID?, now: Date = Date()) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE recording SET folder_id = ?, updated_at = ? WHERE id = ?",
+                           arguments: [folderId, now, id])
+        }
+    }
+
     // MARK: Filters (design-spec.md §3 筛选项)
 
     /// Recordings that have at least one mark.
