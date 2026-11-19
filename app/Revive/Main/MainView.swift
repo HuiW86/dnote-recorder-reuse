@@ -33,11 +33,12 @@ struct MainView: View {
     let env: AppEnvironment
     @State private var model: HomeModel?
     @State private var overview: OverviewModel?
+    @State private var questions: LibraryQuestionModel?
 
     var body: some View {
         Group {
-            if let model, let overview {
-                MainContent(model: model, overview: overview, env: env)
+            if let model, let overview, let questions {
+                MainContent(model: model, overview: overview, questions: questions, env: env)
             } else {
                 ContentUnavailableView(CardServiceError.bluetoothUnsupported.userText ?? "",
                                        systemImage: "exclamationmark.triangle")
@@ -51,6 +52,9 @@ struct MainView: View {
             if overview == nil, let library = env.library {
                 overview = OverviewModel(library: library)
             }
+            if questions == nil, let library = env.library {
+                questions = LibraryQuestionModel(library: library, assistant: env.assistantConfig)
+            }
             model?.start()
             overview?.start()
         }
@@ -60,6 +64,7 @@ struct MainView: View {
 private struct MainContent: View {
     @Bindable var model: HomeModel
     let overview: OverviewModel
+    let questions: LibraryQuestionModel
     let env: AppEnvironment
     @State private var tab: MainTab = LaunchOptions.startTab ?? .overview
     @State private var paths: [MainTab: [Route]] = [:]
@@ -190,7 +195,7 @@ private struct MainContent: View {
             RecordingsView(model: model, env: env, showsSwitcher: $showsSwitcher, showsStage: $showsStage,
                            openCard: { tab = .card })
         case .knowledge:
-            KnowledgeView(model: model, overview: overview, env: env)
+            KnowledgeView(model: model, overview: overview, questions: questions, env: env)
         case .card:
             CardTabView(model: model, env: env, showsSwitcher: $showsSwitcher)
         }
