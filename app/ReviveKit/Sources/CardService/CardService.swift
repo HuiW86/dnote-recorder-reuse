@@ -48,7 +48,9 @@ public final class CardService {
 
     private let link: any CardLink
     private let bondStore: any BondStore
-    private let timing: Timing
+    /// Settable so a test can connect with patient timeouts and then shorten only the one it
+    /// exercises; the app sets it once, at init.
+    var timing: Timing
     private let now: () -> Date
     private let timeZone: () -> TimeZone
     private let continuation: AsyncStream<CardEvent>.Continuation

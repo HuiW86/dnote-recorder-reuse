@@ -1,16 +1,19 @@
 import CardLink
 import CardProtocol
-import CardService
+@testable import CardService
 import CardTestSupport
 import Foundation
 import Testing
 
 // CardService against the fake card (prd.md §2.3, §3; test-spec.md T-M1-10…15).
 
-/// Room for the slow start of a parallel run on CI (every request timed out at 100 ms there).
-/// The two tests that wait for a timeout shorten only the timeout they wait for.
-private let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
-                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(2))
+/// Patient timeouts for every reply a test expects to arrive. In a parallel run all main-actor
+/// suites share one thread, which on CI stays busy for about 5 s at the start; 100 ms and later
+/// 2 s request timeouts both expired there before the fake card's reply was handled. A reply
+/// that arrives returns at once, so this costs nothing when the run is quick. The two tests
+/// that wait for a timeout connect with these and then shorten only the timeout they wait for.
+private let fastTiming = CardService.Timing(request: .seconds(30), listFiles: .seconds(30),
+                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(30))
 
 @MainActor
 private final class EventReader {
@@ -105,7 +108,8 @@ struct CardServiceTests {
 
     @Test func noResponseIsRequestTimeout() async throws {
         let card = FakeCard()
-        let service = try await connected(card, timing: .init(request: .seconds(2), listFiles: .seconds(2)))
+        let service = try await connected(card)
+        service.timing.request = .seconds(2)
         card.faults = [.noResponse(.switches)]
         await #expect(throws: CardServiceError.requestTimeout(.switches)) { try await service.switches() }
     }
@@ -205,7 +209,8 @@ struct CardServiceTests {
     /// A list that never ends is a timeout, not "not paired".
     @Test func listTimeoutIsRequestTimeout() async throws {
         let card = FakeCard(files: [.init(name: "a.opus", content: Data(count: 10))])
-        let service = try await connected(card, timing: .init(request: .seconds(2), listFiles: .milliseconds(100)))
+        let service = try await connected(card)
+        service.timing.listFiles = .milliseconds(100)
         card.faults = [.noResponse(.listFiles)]
         await #expect(throws: CardServiceError.requestTimeout(.listFiles)) { try await service.listFiles() }
     }

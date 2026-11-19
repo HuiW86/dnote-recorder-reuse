@@ -1,6 +1,6 @@
 import CardLink
 import CardProtocol
-import CardService
+@testable import CardService
 import CardTestSupport
 import Foundation
 import Library
@@ -24,17 +24,20 @@ private func plainOpus(frames: Int, seed: UInt8) -> Data {
     Data((0..<(frames * 40)).map { UInt8(truncatingIfNeeded: $0) &+ seed })
 }
 
-// Room for the slow start of a parallel run on CI (every request timed out at 200 ms there);
-// no test here waits for a request to time out.
-private let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
-                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(2))
+// Patient timeouts: in a parallel run on CI the shared main thread stays busy for about 5 s at
+// the start, and 200 ms, then 2 s, request timeouts expired before the fake card's reply was
+// handled. Replies that arrive return at once. The one test that waits for a timeout shortens
+// only that timeout.
+private let fastTiming = CardService.Timing(request: .seconds(30), listFiles: .seconds(30),
+                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(30))
 /// Long retry delays so no timer fires during a test unless the test asks for it.
 private let testOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
                                              recordingStoppedDelay: .milliseconds(10), spaceMargin: 0)
 
-/// Polls until `condition` holds; fails the test after `timeout`.
+/// Polls until `condition` holds; fails the test after `timeout`. Generous for the same reason
+/// as `fastTiming`; a condition that holds returns at once.
 @MainActor
-private func waitUntil(_ what: String, timeout: Duration = .seconds(3),
+private func waitUntil(_ what: String, timeout: Duration = .seconds(30),
                        _ condition: () throws -> Bool) async rethrows {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
@@ -278,6 +281,7 @@ struct SyncEngineTests {
                                   faults: [.chunkStatus(index: 1, status: 0x40)])
         #expect(try h.items.first?.state == .failed)
         let before = h.card.sentRequests.filter { $0.command == .listFiles }.count
+        h.service.timing.listFiles = .seconds(2)
         h.card.faults = [.noResponse(.listFiles)]
         let manual = Task { await h.engine.syncNow() }
         await waitUntil("manual list was sent") {

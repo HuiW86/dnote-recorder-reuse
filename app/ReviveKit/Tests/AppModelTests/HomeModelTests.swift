@@ -182,9 +182,10 @@ struct HomeModelTests {
         await waitUntil("idle") { model.status == .idle }
         await h.session.syncEngine.idle()
         h.preferences.recordingConsentGiven = true
+        h.shortenRequestTimeouts()
         h.card.faults = [.noResponse(.startRecording)]
         model.startTapped()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
         #expect(model.toast?.text == "录音卡没有响应，请重试")
         #expect(model.status == .idle)
         #expect(model.prompt == nil)
@@ -204,12 +205,13 @@ struct HomeModelTests {
     /// #47: the pause took effect but its reply was lost; 0x56 settles the state, no Toast.
     @Test func lostPauseReplyFollowsTheCard() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording)]
         model.pause()
         // Controls stay locked until the card's state is known.
         model.resume()
         model.stopRecording()
-        await waitUntil("paused", timeout: .seconds(6)) { model.status == .paused && model.pendingCommand == nil }
+        await waitUntil("paused") { model.status == .paused && model.pendingCommand == nil }
         #expect(model.toast == nil)
         #expect(h.sent(.pauseRecording) == 1)
         #expect(h.sent(.resumeRecording) == 0)
@@ -221,9 +223,10 @@ struct HomeModelTests {
         await waitUntil("idle") { model.status == .idle }
         await h.session.syncEngine.idle()
         h.preferences.recordingConsentGiven = true
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.startRecording)]
         model.startTapped()
-        await waitUntil("recording", timeout: .seconds(6)) { model.status == .recording && model.pendingCommand == nil }
+        await waitUntil("recording") { model.status == .recording && model.pendingCommand == nil }
         #expect(model.toast == nil)
         #expect(model.recordingStartedAt != nil)
         #expect(h.sent(.startRecording) == 1)
@@ -233,9 +236,10 @@ struct HomeModelTests {
     /// the next 0x80 push corrects the state through 0x56.
     @Test func unansweredStatusKeepsToastUntilTheNextDeviceInfo() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
         model.pause()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
         #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
         #expect(model.status == .recording)
         #expect(h.sent(.pauseRecording) == 1)
@@ -248,20 +252,22 @@ struct HomeModelTests {
     /// When 0x56 stays silent, the 0x80 state itself is used.
     @Test func deviceInfoStateIsUsedWhenStatusStaysSilent() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
         model.pause()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
         h.card.pushDeviceInfo()
-        await waitUntil("paused", timeout: .seconds(4)) { model.status == .paused }
+        await waitUntil("paused") { model.status == .paused }
     }
 
     /// An unrecognised `rec` in 0x56 does not settle a timed-out command.
     @Test func unknownStatusCodeKeepsTheCommandUnconfirmed() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording)]
         h.card.recordingCodeOverride = 7
         model.pause()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
         #expect(model.toast?.text == "录音卡没有响应，录音状态未确认")
         #expect(h.sent(.pauseRecording) == 1)
     }
@@ -269,9 +275,10 @@ struct HomeModelTests {
     /// A button press while the 0x56 behind a 0x80 is pending beats that 0x80's state.
     @Test func newerStateBeatsTheDeviceInfoFallback() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
         model.pause()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
         #expect(model.status == .recording)
 
         h.card.pushDeviceInfo()                      // says paused; its 0x56 goes unanswered
@@ -286,9 +293,10 @@ struct HomeModelTests {
     /// is handled after it.
     @Test func newerStateBeatsALateStatusAnswer() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
         model.pause()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
 
         h.card.faults = [.delayReply(.recordingStatus, milliseconds: 300)]
         h.card.pushDeviceInfo()                      // says paused; 0x56 answers paused, late
@@ -305,10 +313,11 @@ struct HomeModelTests {
         await waitUntil("idle") { model.status == .idle }
         await h.session.syncEngine.idle()
         h.preferences.recordingConsentGiven = true
+        h.shortenRequestTimeouts()
         h.card.faults = [.noResponse(.startRecording), .delayReply(.recordingStatus, milliseconds: 300)]
         let reads = h.sent(.recordingStatus)
         model.startTapped()
-        await waitUntil("0x56 sent", timeout: .seconds(4)) { h.sent(.recordingStatus) > reads }  // answers idle, late
+        await waitUntil("0x56 sent") { h.sent(.recordingStatus) > reads }  // answers idle, late
         h.card.pressButtonToRecord()
         await waitUntil("done") { model.pendingCommand == nil }
         #expect(model.status == .recording)
@@ -318,9 +327,10 @@ struct HomeModelTests {
     /// A newer 0x80 that agrees with the app supersedes an older one's pending fallback.
     @Test func newerDeviceInfoBeatsAnOlderFallback() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
         model.pause()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
 
         h.card.pushDeviceInfo()                      // says paused; its 0x56 goes unanswered
         try await Task.sleep(for: .milliseconds(100))
@@ -339,9 +349,10 @@ struct HomeModelTests {
         model.stopRecording()
         await waitUntil("first stop") { stops == 1 && model.pendingCommand == nil }
 
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.startRecording)]
         model.startTapped()
-        await waitUntil("recovered", timeout: .seconds(6)) { model.status == .recording && model.pendingCommand == nil }
+        await waitUntil("recovered") { model.status == .recording && model.pendingCommand == nil }
         h.card.faults = []
         h.card.pressButtonToStop()
         await waitUntil("second stop") { stops == 2 }
@@ -360,9 +371,10 @@ struct HomeModelTests {
     /// The DEBUG card screen (autoSyncEnabled off) sends its own requests only.
     @Test func deviceInfoSendsNothingWhileDebugScreenIsOpen() async throws {
         let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
         h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
         model.pause()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil && model.pendingCommand == nil }
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
         h.card.faults = []
         h.session.autoSyncEnabled = false
         let reads = h.sent(.recordingStatus)
