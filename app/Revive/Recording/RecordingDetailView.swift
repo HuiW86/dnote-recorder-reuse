@@ -534,9 +534,13 @@ private struct PlayerCard: View {
                 }
                 .accessibilityLabel("前进 15 秒")
                 Button { model.cycleSpeed() } label: {
+                    // One line at any text size: "1.25×" wrapped and made the player taller (#89).
                     Text(model.speedText)
                         .font(.footnote.weight(.semibold).monospacedDigit())
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                         .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 4)
                         .frame(minWidth: 44, minHeight: 44)
                         .background(Theme.paper, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                 }
