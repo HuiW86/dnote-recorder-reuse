@@ -73,16 +73,21 @@ private struct MainContent: View {
     @State private var offersPhone = false
 
     var body: some View {
-        TabView(selection: $tab) {
+        // Not a TabView: its tabs live in UIKit containers that do not take the bottom bar's
+        // inset, so the bar covered the pages (the detail page's player, #89 evidence). All four
+        // stacks stay alive here, so each tab keeps its place; only the selected one is shown.
+        ZStack {
             ForEach(MainTab.allCases, id: \.self) { item in
+                let selected = item == tab
                 NavigationStack(path: path(item)) {
                     root(item)
                         .navigationDestination(for: Route.self) { route in
                             RouteDestination(route: route, env: env, model: model, path: path(item))
                         }
                 }
-                .toolbar(.hidden, for: .tabBar)
-                .tag(item)
+                .opacity(selected ? 1 : 0)
+                .allowsHitTesting(selected)
+                .accessibilityHidden(!selected)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -252,6 +257,7 @@ private struct BottomBar: View {
     @Binding var tab: MainTab
     let model: HomeModel
     let recordTapped: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
@@ -263,6 +269,8 @@ private struct BottomBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 6)
+        // Like the system tab bar: the bar stops growing at the largest standard size.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .background(Theme.surface)
         .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 1) }
     }
@@ -274,13 +282,24 @@ private struct BottomBar: View {
                 Image(systemName: value.symbol)
                     .font(.system(size: 20, weight: selected ? .semibold : .regular))
                     .frame(height: 26)
-                Text(value.title).font(.caption2.weight(.medium))
+                // Accessibility text sizes show the icon only, as the system tab bar does;
+                // a long press shows the title in the large content viewer.
+                if !typeSize.isAccessibilitySize {
+                    Text(value.title)
+                        .font(.caption2.weight(.medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
             }
             .foregroundStyle(selected ? Theme.accent : Theme.inkMuted)
             .frame(maxWidth: .infinity, minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(value.title)
+        .accessibilityShowsLargeContentViewer {
+            Label(value.title, systemImage: value.symbol)
+        }
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
