@@ -513,6 +513,65 @@ struct RecordingLibraryTests {
         #expect(try lib.markSynced(deviceId: UUID(), at: when) == nil)
     }
 
+    /// D1c 标签: counts skip 最近删除; rename merges into a tag a summary already has; delete
+    /// drops it; both apply to summaries saved later, and later edits chain.
+    @Test func tagsRenameMergeAndDeleteAcrossSummaries() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        func add(_ tags: [String], at seconds: TimeInterval) throws -> UUID {
+            let id = UUID()
+            let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+            var r = recording(id, device: UUID(), path: path)
+            r.deviceId = nil
+            r.startedAt = Date(timeIntervalSince1970: seconds)
+            try lib.database.writer.write { db in try r.insert(db) }
+            try lib.saveSummary(Summary(recordingId: id, scene: "meeting", title: "t", summary: "s", sections: [],
+                                        todos: [], tags: tags, people: [], model: "m", createdAt: Date()))
+            return id
+        }
+        let a = try add(["发布", "排期"], at: 1_000)
+        let b = try add(["上线", "发布"], at: 2_000)
+        let trashed = try add(["发布", "旧事"], at: 3_000)
+        try lib.trashRecording(id: trashed)
+
+        #expect(try lib.tagCounts() == [TagCount(name: "发布", count: 2), TagCount(name: "上线", count: 1),
+                                        TagCount(name: "排期", count: 1)])
+        #expect(try lib.digest().tags == lib.tagCounts())
+        #expect(try lib.recordings(taggedWith: "发布").map(\.id) == [b, a])
+
+        // 上线 → 发布 merges: b keeps one 发布.
+        #expect(try lib.renameTag("上线", to: " #发布 ") >= 1)
+        #expect(try lib.summary(recordingId: b)?.tags == ["发布"])
+        #expect(try lib.renameTag("发布", to: "  ") == 0)
+        #expect(try lib.renameTag("发布", to: "发布") == 0)
+
+        // 排期 → 计划, then 计划 → 日程: a later 排期 from the AI becomes 日程.
+        try lib.renameTag("排期", to: "计划")
+        try lib.renameTag("计划", to: "日程")
+        #expect(try lib.summary(recordingId: a)?.tags == ["发布", "日程"])
+        try lib.deleteTag("发布")
+        #expect(try lib.summary(recordingId: a)?.tags == ["日程"])
+        #expect(try lib.summary(recordingId: trashed)?.tags == ["旧事"])
+
+        let later = try add(["上线", "排期", "计划", "发布", "新话题"], at: 4_000)
+        #expect(try lib.summary(recordingId: later)?.tags == ["日程", "新话题"])
+        #expect(Set(try lib.tagRules().map(\.tag)) == ["上线", "排期", "计划", "发布"])
+
+        // Renaming back to an old name drops the rule that sent it away.
+        try lib.renameTag("日程", to: "计划")
+        #expect(try lib.summary(recordingId: later)?.tags == ["计划", "新话题"])
+        let again = try add(["计划"], at: 5_000)
+        #expect(try lib.summary(recordingId: again)?.tags == ["计划"])
+    }
+
+    @Test func v13LibraryUpgradesToV14() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v13")
+        #expect(try queue.read { try $0.tableExists("tag_rule") } == false)
+        let db = try AppDatabase(queue)
+        #expect(try db.writer.read { try $0.tableExists("tag_rule") })
+    }
+
     @Test func v12LibraryUpgradesToV13() throws {
         let queue = try DatabaseQueue()
         try AppDatabase.migrator.migrate(queue, upTo: "v12")

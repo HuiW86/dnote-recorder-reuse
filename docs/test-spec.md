@@ -247,7 +247,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M4-09 | P08 上次同步 | 同步完整跑完后这张卡的 `last_synced_at` 有值且不早于 `last_seen_at`，P08 副标题是「已连接 · 上次同步 …」；未知的卡不写；`v12` 升到 `v13` 后原有的卡 `last_synced_at` 为空 |
 
-实现：T-M4-09 是 `HomeModelTests` `lastSeenFollowsEachPass`、`AppDatabaseTests` `markSyncedStampsTheCard`、`v12LibraryUpgradesToV13`。T-M4-08 是 `PDFExportTests`（2 个，只在 macOS 上跑）、`RecordingDetailModelTests` `exportsUnderTitle`。T-M4-06 是 `PolishAndLoopTests` `loopRangeAndSteps`、`loopsALine`（「暂停不停止循环」只在代码里，没有测试）。T-M4-07 是 `PlayerTests` `exportsWAV`。T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
+| T-M4-10 | D1c 标签管理 | 条数不含最近删除，按条数从多到少、同条数按名字；按标签列录音新的在前；改名去掉空白和 `#`，空名字、同名不改；改成已有的名字时合并为一个；改名接力（A→B→C 后再来的 A 变成 C）；删除后之后的纪要也不带它；改回被改掉的名字后，那个名字的规则作废；`v13` 升到 `v14` 后有 `tag_rule` 表；页面：Toast「已改名为「…」」「已并入「…」」「已删除标签「…」，录音还在」，删除后录音还在 |
+
+实现：T-M4-10 是 `AppDatabaseTests` `tagsRenameMergeAndDeleteAcrossSummaries`、`v13LibraryUpgradesToV14`，`TagsModelTests`。T-M4-09 是 `HomeModelTests` `lastSeenFollowsEachPass`、`AppDatabaseTests` `markSyncedStampsTheCard`、`v12LibraryUpgradesToV13`。T-M4-08 是 `PDFExportTests`（2 个，只在 macOS 上跑）、`RecordingDetailModelTests` `exportsUnderTitle`。T-M4-06 是 `PolishAndLoopTests` `loopRangeAndSteps`、`loopsALine`（「暂停不停止循环」只在代码里，没有测试）。T-M4-07 是 `PlayerTests` `exportsWAV`。T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
 
 ## 4. 真机测试方法与证据
 

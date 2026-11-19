@@ -186,6 +186,15 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // D1c 标签: renames, merges and deletes of tags, applied to summaries saved later.
+        migrator.registerMigration("v14") { db in
+            try db.create(table: "tag_rule") { t in
+                t.primaryKey("tag", .text)
+                t.column("replacement", .text)
+                t.column("created_at", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

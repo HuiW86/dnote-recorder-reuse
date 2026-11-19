@@ -64,6 +64,9 @@ struct KnowledgeView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
             } else {
+                if !overview.digest.tags.isEmpty {
+                    tagsSection
+                }
                 Section {
                     ForEach(overview.digest.recentSummaries) { item in
                         NavigationLink(value: Route.recordingSummary(item.recording.id)) {
@@ -88,6 +91,24 @@ struct KnowledgeView: View {
 }
 
 extension KnowledgeView {
+    /// 标签 (features.md D1c): the most used tags at a glance; the row opens the full list.
+    @ViewBuilder fileprivate var tagsSection: some View {
+        Section {
+            NavigationLink(value: Route.tags) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("全部 \(overview.digest.tags.count) 个标签").foregroundStyle(Theme.ink)
+                    Text(overview.digest.tags.prefix(6).map { "# \($0.name)" }.joined(separator: "  "))
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkMuted)
+                        .lineLimit(2)
+                }
+            }
+        } header: {
+            Text("标签").textCase(nil)
+        }
+        .surfaceRows()
+    }
+
     /// "问问你的录音": the question, the answer with the recordings it cited (features.md G3).
     @ViewBuilder fileprivate var askSection: some View {
         Section {
