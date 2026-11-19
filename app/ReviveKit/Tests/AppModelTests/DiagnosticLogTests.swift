@@ -42,9 +42,10 @@ struct DiagnosticLogTests {
         model.start()
         await h.session.syncEngine.idle()
         h.preferences.recordingConsentGiven = true
+        h.shortenRequestTimeouts()
         h.card.faults = [.noResponse(.startRecording)]
         model.startTapped()
-        await waitUntil("toast", timeout: .seconds(6)) { model.toast != nil }
+        await waitUntil("toast") { model.toast != nil }
 
         let text = try #require(log.contents())
         #expect(text.contains("[pair] already paired"))

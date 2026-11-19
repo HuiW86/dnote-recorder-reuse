@@ -249,4 +249,5 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 - M2 起增加后端：`pytest`，数据库用 PostgreSQL 服务容器。
 - M1.5 起 `scripts/check-m1-rules.sh` 的不联网检查也覆盖 `Transcription` 模块（T-M15-13）。
 - #74 起 CI 在 `swift test` 之前还跑 `scripts/check-theme.sh`（T-M15-15）。
+- 计时（2026-11-19）：`swift test` 并行跑所有套件，主线程隔离的测试共用一个主线程，CI 上开头约 5 s 都很忙。所以「等一个应该到的回包或状态」一律用宽松上限：模拟卡请求超时 30 s、`waitUntil` 30 s，条件一满足就返回，测试不会变慢。只有专门测超时的用例（注入 `noResponse`、`dropReply`）在连上卡之后才把要测的那个超时缩短（`Harness.shortenRequestTimeouts()`、`service.timing`），连接本身不受影响。此前 100 ms、200 ms、2 s、3 s 的上限都在 CI 上超时过（`e962290`、PR #90）。
 - 真机与端到端不进 CI；结果以证据目录和 PR 记录为准。

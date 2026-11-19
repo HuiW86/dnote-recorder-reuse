@@ -165,6 +165,7 @@ struct RecordingControlTests {
         let (h, id) = try await pairedHarness()
         await waitUntil("idle") { h.session.status(of: id) == .idle }
         await h.session.syncEngine.idle()
+        h.shortenRequestTimeouts()
         h.card.faults = [.noResponse(.recordingStatus)]
         h.card.dropLink()
         h.card.advertise()

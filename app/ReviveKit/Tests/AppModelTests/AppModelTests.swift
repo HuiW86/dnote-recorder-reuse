@@ -1,7 +1,7 @@
 import AppModel
 import CardLink
 import CardProtocol
-import CardService
+@testable import CardService
 import CardTestSupport
 import Foundation
 import Library
@@ -10,15 +10,23 @@ import Testing
 
 // First-use flow against the fake card (product-spec.md §3.1, P01–P03).
 
-// Tests that wait for a request to time out (#47) allow for these 2 s; the margin keeps tests that
-// briefly hold the main actor (player setup) from failing unrelated requests when suites run in parallel.
-let fastTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
-                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(2))
+// Patient timeouts for every reply a test expects. In a parallel run all main-actor suites share
+// one thread, which on CI stays busy for about 5 s at the start; 2 s request timeouts expired
+// there before the fake card's reply was handled (connects failing with requestTimeout). Replies
+// that arrive return at once. Tests that wait for a request to time out (#47) call
+// `Harness.shortenRequestTimeouts()` after connecting, so only the timeout under test is short.
+let fastTiming = CardService.Timing(request: .seconds(30), listFiles: .seconds(30),
+                                            downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(30))
+/// The timeouts a #47 test waits for.
+let shortTiming = CardService.Timing(request: .seconds(2), listFiles: .seconds(2),
+                                     downloadBytesPerSecond: 1_000_000, downloadSlack: .seconds(2))
 let syncOptions = SyncEngine.Options(retryDelays: [.seconds(60), .seconds(60), .seconds(60)],
                                              recordingStoppedDelay: .milliseconds(10), spaceMargin: 0)
 
+/// Polls until `condition` holds; fails the test after `timeout`. Generous for the same reason
+/// as `fastTiming`; a condition that holds returns at once.
 @MainActor
-func waitUntil(_ what: String, timeout: Duration = .seconds(3),
+func waitUntil(_ what: String, timeout: Duration = .seconds(30),
                        _ condition: () throws -> Bool) async rethrows {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
@@ -50,6 +58,12 @@ final class Harness {
     }
 
     deinit { try? FileManager.default.removeItem(at: root) }
+
+    /// For a test that waits for a request to time out: call once connected, so the connect
+    /// itself keeps the patient timeouts.
+    func shortenRequestTimeouts() {
+        session.service.timing = shortTiming
+    }
 
     func sent(_ command: Command) -> Int { card.sentRequests.filter { $0.command == command }.count }
 
