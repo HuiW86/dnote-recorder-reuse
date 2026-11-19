@@ -262,6 +262,64 @@ public struct Summary: Codable, Equatable, Sendable, FetchableRecord, Persistabl
     public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
 }
 
+/// A word the user corrected in a transcript (纠错词库, #75): `wrong` is replaced by `right` in
+/// transcripts made afterwards.
+public struct Correction: Codable, Equatable, Hashable, Sendable, Identifiable, FetchableRecord, PersistableRecord {
+    public var wrong: String
+    public var right: String
+    public var createdAt: Date
+
+    public var id: String { wrong }
+
+    public init(wrong: String, right: String, createdAt: Date = Date()) {
+        self.wrong = wrong
+        self.right = right
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "correction"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+
+    /// The part `edited` changed in `original`, when it is a short word swap: the common start
+    /// and end are dropped, then the span is widened with unchanged neighbours (the next
+    /// character first) until both sides have at least 2 characters, so one misheard character
+    /// is not replaced everywhere ("汇款" → "回款", not "汇" → "回"). Both sides must then be
+    /// 2 to 12 characters and differ. Nil for a rewrite, a pure insertion or a pure deletion.
+    public static func between(_ original: String, _ edited: String) -> (wrong: String, right: String)? {
+        let a = Array(original), b = Array(edited)
+        var start = 0
+        while start < a.count, start < b.count, a[start] == b[start] { start += 1 }
+        var endA = a.count, endB = b.count
+        while endA > start, endB > start, a[endA - 1] == b[endB - 1] {
+            endA -= 1
+            endB -= 1
+        }
+        // A pure insertion or deletion: one side is empty.
+        guard endA > start, endB > start else { return nil }
+        while endA - start < 2 || endB - start < 2 {
+            if endA < a.count, endB < b.count {
+                endA += 1
+                endB += 1
+            } else if start > 0 {
+                start -= 1
+            } else {
+                break
+            }
+        }
+        let wrong = String(a[start..<endA]).trimmingCharacters(in: .whitespaces)
+        let right = String(b[start..<endB]).trimmingCharacters(in: .whitespaces)
+        guard (2...12).contains(wrong.count), (2...12).contains(right.count), wrong != right else { return nil }
+        return (wrong, right)
+    }
+
+    /// `text` with every correction applied, longest `wrong` first so a longer word wins.
+    public static func apply(_ corrections: [Correction], to text: String) -> String {
+        corrections.sorted { $0.wrong.count > $1.wrong.count }
+            .reduce(text) { $0.replacingOccurrences(of: $1.wrong, with: $1.right) }
+    }
+}
+
 /// A folder recordings can be put in (features.md D1c). A recording is in at most one.
 public struct Folder: Codable, Equatable, Hashable, Sendable, Identifiable, FetchableRecord, PersistableRecord {
     public var id: UUID

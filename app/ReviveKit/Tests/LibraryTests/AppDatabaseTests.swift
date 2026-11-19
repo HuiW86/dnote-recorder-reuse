@@ -422,6 +422,59 @@ struct RecordingLibraryTests {
         #expect(summary.todos.map(\.text) == ["a"] && summary.summary == "S")
     }
 
+    /// 纠错词库 (#75): a short word swap is what a correction is; a rewrite, an insertion or a
+    /// deletion is not.
+    @Test func correctionsAreShortWordSwaps() {
+        #expect(Correction.between("汇款率还在排查", "回款率还在排查")! == ("汇款", "回款"))
+        #expect(Correction.between("请张经理确认", "请章经理确认")! == ("张经", "章经"))
+        #expect(Correction.between("找老王", "找老汪")! == ("老王", "老汪"))  // no next character: widen left
+        #expect(Correction.between("王", "汪") == nil)  // too short to be safe
+        #expect(Correction.between("好的", "好的。") == nil)  // insertion only
+        #expect(Correction.between("好的。", "好的") == nil)  // deletion only
+        #expect(Correction.between("今天的会先开到这里吧大家", "明天上午我们再接着讨论预算问题") == nil)  // a rewrite
+        #expect(Correction.between("一样", "一样") == nil)
+        let applied = Correction.apply([Correction(wrong: "汇款", right: "回款"),
+                                        Correction(wrong: "汇款率", right: "回款比例")],
+                                       to: "汇款率和汇款")
+        #expect(applied == "回款比例和回款")  // the longer word wins
+    }
+
+    @Test func editingALineLearnsTheCorrection() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: UUID(), path: path)
+        r.deviceId = nil
+        try lib.database.writer.write { db in try r.insert(db) }
+        try lib.saveTranscript(Transcript(recordingId: id, engine: "t", language: "zh-CN",
+                                          segments: [TranscriptSegment(startMs: 0, text: "汇款率还在排查"),
+                                                     TranscriptSegment(startMs: 900, text: "好的")],
+                                          createdAt: Date()))
+        #expect(try lib.editTranscriptLine(recordingId: id, index: 5, to: "x") == nil)
+        #expect(try lib.editTranscriptLine(recordingId: id, index: 0, to: "  ") == nil)
+        let edited = try #require(try lib.editTranscriptLine(recordingId: id, index: 0, to: " 回款率还在排查 "))
+        #expect(edited.segments.map(\.text) == ["回款率还在排查", "好的"])
+        #expect(edited.segments[0].startMs == 0)
+        #expect(try lib.corrections().map(\.wrong) == ["汇款"])
+        try lib.editTranscriptLine(recordingId: id, index: 1, to: "好的。")  // not a swap: nothing learned
+        #expect(try lib.corrections().count == 1)
+
+        let fresh = lib.corrected([TranscriptSegment(startMs: 5, text: "汇款要加快")])
+        #expect(fresh == [TranscriptSegment(startMs: 5, text: "回款要加快")])
+        try lib.deleteCorrection(wrong: "汇款")
+        #expect(try lib.corrections().isEmpty)
+        #expect(lib.corrected(fresh) == fresh)
+    }
+
+    @Test func v10LibraryUpgradesToV11() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v10")
+        #expect(try queue.read { try $0.tableExists("correction") } == false)
+        let db = try AppDatabase(queue)
+        #expect(try db.writer.read { try $0.tableExists("correction") })
+    }
+
     @Test func v8LibraryUpgradesToV9() throws {
         let queue = try DatabaseQueue()
         try AppDatabase.migrator.migrate(queue, upTo: "v8")

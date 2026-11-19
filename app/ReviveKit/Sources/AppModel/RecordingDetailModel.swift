@@ -164,7 +164,8 @@ public final class RecordingDetailModel {
         Task { [jobs] in
             defer { jobs.end(recording.id) }
             do {
-                let segments = try await transcriber.transcribe(recording, language: language)
+                // 纠错词库 (#75): words the user corrected before are fixed in the new text.
+                let segments = library.corrected(try await transcriber.transcribe(recording, language: language))
                 let result = Transcript(recordingId: recording.id, engine: transcriber.engineName,
                                         language: language, segments: segments, createdAt: Date())
                 try library.saveTranscript(result)
@@ -318,6 +319,22 @@ public final class RecordingDetailModel {
     /// have finished while this one was open.
     public func reloadTranscript() {
         transcript = try? library.transcript(recordingId: recordingId)
+    }
+
+    /// Fixes the text of one transcript line; a short word swap goes into 纠错词库 (#75) so later
+    /// transcripts get it right. Empty text changes nothing.
+    public func editLine(_ index: Int, to text: String) {
+        do {
+            let before = try library.corrections().count
+            guard let updated = try library.editTranscriptLine(recordingId: recordingId, index: index, to: text) else {
+                return
+            }
+            transcript = updated
+            let learned = try library.corrections().count > before
+            toast = Toast(learned ? "已修改，以后转写会自动改正这个词" : "已修改")
+        } catch {
+            toast = Toast("保存失败，请重试")
+        }
     }
 
     /// "00:18:06" for a transcript line.

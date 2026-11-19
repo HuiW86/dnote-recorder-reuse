@@ -218,7 +218,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M2-03 | G1 大纲、金句、思维导图 | 回复里的大纲按顺序读出，最多 8 个话题、每个 6 条，空标题的话题丢掉；金句最多 5 句、去掉引号；没有这两项的回复照常解析；存取往返不变，搜索能搜到大纲和金句里的词；`v9` 的纪要升到 `v10` 后两项为空、其余不变；Markdown 导出有「大纲」「金句」两节 |
 
-实现：T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
+| T-M2-04 | 纠错词库（#75） | 「汇款率…」改成「回款率…」记下「汇款→回款」；单字差异向后补字成「张经→章经」，句末向前补成「老王→老汪」；单字整句、纯插入、纯删除、整句改写不记；替换时长词优先；越界、空文字不改；之后新转写的文字稿已改正；删除后不再替换；`v10` 升到 `v11` 后有 `correction` 表 |
+
+实现：T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
 
 #### 3.6.4 M4 先做的部分
 

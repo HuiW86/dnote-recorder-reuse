@@ -15,6 +15,8 @@ enum Route: Hashable {
     case trash
     /// 设置 → AI 服务 (features.md X11).
     case assistant
+    /// 设置 → 纠错词库 (#75).
+    case corrections
     /// P02 → P03 from home: "重新搜索" after `unknownCard`; "重新配对" goes to P03 directly.
     case connectGuide, pairing
 }

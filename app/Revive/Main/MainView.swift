@@ -255,6 +255,7 @@ struct RouteDestination: View {
         case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
         case .trash: TrashView(env: env)
         case .assistant: AssistantSettingsView(preferences: env.preferences)
+        case .corrections: CorrectionsView(env: env)
         case .about: AboutView()
         case .privacy: PrivacyView()
         case .permissions: PermissionsView()

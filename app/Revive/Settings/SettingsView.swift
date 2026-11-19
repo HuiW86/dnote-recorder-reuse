@@ -43,6 +43,12 @@ struct SettingsView: View {
             }
             .surfaceRows()
             Section {
+                NavigationLink("纠错词库", value: Route.corrections)
+            } footer: {
+                Text("在文字稿里长按一句改正听错的词，以后转写会自动改正。")
+            }
+            .surfaceRows()
+            Section {
                 Toggle("本机转写（试验）", isOn: $preferences.onDeviceTranscriptEnabled)
             } footer: {
                 Text("打开后，录音详情里可以把录音转成文字。识别在这部手机上完成，不联网；第一次使用时系统会询问语音识别权限。准确度还没有充分验证。")
