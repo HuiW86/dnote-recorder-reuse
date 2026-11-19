@@ -51,6 +51,9 @@ final class AppEnvironment {
         fileURL: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("diagnostics.log"))
 
+    /// Taps on the sync notification (#85); the notification center's delegate.
+    let notifications = NotificationRouter()
+
     #if DEBUG
     let debugLog = DebugLog()
     #endif

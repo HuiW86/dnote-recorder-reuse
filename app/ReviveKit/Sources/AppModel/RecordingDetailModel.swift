@@ -39,8 +39,10 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private let deviceNames: [UUID: String]
     @ObservationIgnored private var playTask: Task<Void, Never>?
-    /// Nil when on-device transcription is switched off.
-    @ObservationIgnored private let transcriber: (any SpeechTranscribing)?
+    /// Read on every use, so turning transcription on or off in settings applies to a page that
+    /// is already open (#85). Nil while transcription is switched off.
+    @ObservationIgnored private let transcriberSource: @MainActor () -> (any SpeechTranscribing)?
+    private var transcriber: (any SpeechTranscribing)? { transcriberSource() }
     /// The user's AI service; nil when the app has none (features.md X11).
     @ObservationIgnored private let assistant: AssistantConfigSource?
     @ObservationIgnored private let jobs: TranscriptionJobs
@@ -48,12 +50,14 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "Detail")
 
     public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
-                transcriber: (any SpeechTranscribing)? = nil, assistant: AssistantConfigSource? = nil,
+                transcriber: (any SpeechTranscribing)? = nil,
+                transcriberSource: (@MainActor () -> (any SpeechTranscribing)?)? = nil,
+                assistant: AssistantConfigSource? = nil,
                 summarizer: Summarizer = Summarizer(), jobs: TranscriptionJobs = .shared) {
         self.recordingId = recordingId
         self.library = library
         self.player = player
-        self.transcriber = transcriber
+        self.transcriberSource = transcriberSource ?? { transcriber }
         self.assistant = assistant
         self.summarizer = summarizer
         self.jobs = jobs
@@ -372,11 +376,12 @@ public final class RecordingDetailModel {
 
     // MARK: - Export and delete
 
-    /// A temporary `<title>.ogg` for the share sheet (features.md E1a); nil with a toast on failure.
+    /// A temporary `<title>.ogg` for the share sheet (features.md E1a), named as the page shows
+    /// the recording ("11月7日 14.02.ogg", #85); nil with a toast on failure.
     public func exportFile() -> URL? {
         guard let recording else { return nil }
         do {
-            return try RecordingExporter.exportFile(for: recording, library: library)
+            return try RecordingExporter.exportFile(for: recording, library: library, title: title)
         } catch PlayerError.audioMissing {
             audioMissing = true
         } catch {
@@ -391,7 +396,7 @@ public final class RecordingDetailModel {
         isExporting = true
         defer { isExporting = false }
         do {
-            return try await RecordingExporter.exportM4A(for: recording, library: library)
+            return try await RecordingExporter.exportM4A(for: recording, library: library, title: title)
         } catch PlayerError.audioMissing {
             audioMissing = true
         } catch {
@@ -414,7 +419,7 @@ public final class RecordingDetailModel {
                 .appendingPathComponent("export", isDirectory: true)
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent(RecordingExporter.fileName(for: recording.title, fileExtension: "md"))
+            let url = dir.appendingPathComponent(RecordingExporter.fileName(for: title, fileExtension: "md"))
             try Data(text.utf8).write(to: url, options: .atomic)
             return url
         } catch {
