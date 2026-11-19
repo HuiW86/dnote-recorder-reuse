@@ -209,7 +209,16 @@
 
 T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录音。T-M15-56 的录音音频不入库，只记 sha256（硬规则 4）。
 
-#### 3.6.3 M4 先做的部分
+#### 3.6.3 M2 先做的部分（用户自配服务）
+
+| 编号 | 用例 | 通过线 |
+|---|---|---|
+| T-M2-01 | G1、X6 AI 标题（库） | 空标题不改；AI 标题替换默认标题和上一个 AI 标题；改名后标为用户的，AI 标题不替换，除非明确要求；改名留空回到时间标题、来源为空；`v9` 前改过名的行仍算用户的；`v8` 升到 `v9` 后原有行来源为空 |
+| T-M2-02 | G1、G2a 页面状态 | 生成纪要后默认标题换成纪要标题；用户改过名时保留用户的；按指定场景重新生成后场景是所选的；「让 AI 重新起标题」替换用户标题并 Toast「已换成「…」」；新标题的回复解析（JSON 的 `title`、单行文字、去引号、最多 30 字、空标题报错） |
+
+实现：T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
+
+#### 3.6.4 M4 先做的部分
 
 | 编号 | 用例 | 通过线 |
 |---|---|---|

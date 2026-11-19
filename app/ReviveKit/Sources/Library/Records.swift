@@ -65,6 +65,15 @@ public struct Recording: Codable, Equatable, Sendable, FetchableRecord, Persista
     public var remoteVersion: Int?
     /// When the user starred it (features.md X21); nil when not starred.
     public var starredAt: Date?
+    /// Who set `title`; nil for the default date title (features.md G1, X6).
+    public var titleSource: TitleSource?
+
+    public enum TitleSource: String, Codable, Sendable {
+        /// Renamed by the user: never replaced by an AI title on its own.
+        case user
+        /// From the user's AI service; replaced by the next summary's title.
+        case ai
+    }
 
     public init(id: UUID = UUID(), deviceId: UUID?, source: Source, cardFileName: String?, cardFileSize: Int?,
                 startedAt: Date, durationMs: Int, audioPath: String, audioSha256: String, title: String,
@@ -102,12 +111,21 @@ extension Recording {
 
     public var isStarred: Bool { starredAt != nil }
 
-    /// True once the user has renamed the recording (features.md X6). Told by the shape of the
-    /// title, not by comparing with `startedAt`, so a phone that changed time zone still agrees.
+    /// True once the user has renamed the recording (features.md X6). Rows from before
+    /// `titleSource` (v9) are told by the shape of the title, not by comparing with `startedAt`,
+    /// so a phone that changed time zone still agrees.
     public var hasCustomTitle: Bool {
-        !title.isEmpty
-            && title.range(of: #"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$"#, options: .regularExpression) == nil
+        switch titleSource {
+        case .user: true
+        case .ai: false
+        case nil:
+            !title.isEmpty
+                && title.range(of: #"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$"#, options: .regularExpression) == nil
+        }
     }
+
+    /// The title came from the user's AI service (features.md G1).
+    public var hasAITitle: Bool { titleSource == .ai }
 }
 
 /// A point the user marked while recording (features.md X7): `offsetMs` into the audio of the

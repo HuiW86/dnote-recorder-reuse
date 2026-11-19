@@ -147,6 +147,25 @@ public final class RecordingLibrary: Sendable {
             let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
             recording.title = trimmed.isEmpty
                 ? Recording.defaultTitle(for: recording.startedAt) : String(trimmed.prefix(80))
+            recording.titleSource = trimmed.isEmpty ? nil : .user
+            recording.updatedAt = now
+            try recording.update(db)
+            return recording
+        }
+    }
+
+    /// Sets a title from the user's AI service (features.md G1). A title the user typed is kept
+    /// unless `replacingUserTitle` (the user asked for a new one). An empty title changes
+    /// nothing. Returns the stored recording, nil when it is not in the library.
+    @discardableResult
+    public func applyAITitle(id: UUID, _ title: String, replacingUserTitle: Bool = false,
+                             now: Date = Date()) throws -> Recording? {
+        try database.writer.write { db in
+            guard var recording = try Recording.fetchOne(db, key: id) else { return nil }
+            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, replacingUserTitle || !recording.hasCustomTitle else { return recording }
+            recording.title = String(trimmed.prefix(80))
+            recording.titleSource = .ai
             recording.updatedAt = now
             try recording.update(db)
             return recording

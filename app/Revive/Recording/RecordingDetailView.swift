@@ -98,6 +98,8 @@ private struct RecordingDetailContent: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if model.isExporting {
                         ProgressView().accessibilityLabel("正在导出")
+                    } else if model.isRetitling {
+                        ProgressView().accessibilityLabel("正在起标题")
                     }
                     moreMenu
                 }
@@ -162,11 +164,33 @@ private struct RecordingDetailContent: View {
                 }
             }
             if model.canSummarize {
-                Button(model.summary == nil ? "生成纪要" : "重新生成纪要", systemImage: "sparkles") {
-                    pane = .summary
-                    model.summarize()
+                if model.summary == nil {
+                    Button("生成纪要", systemImage: "sparkles") {
+                        pane = .summary
+                        model.summarize()
+                    }
+                    .disabled(model.isSummarizing)
+                } else {
+                    // G2a: regenerate with the scene the model picks, or one the user chooses.
+                    Menu("重新生成纪要", systemImage: "sparkles") {
+                        Button("自动判断场景") {
+                            pane = .summary
+                            model.summarize()
+                        }
+                        ForEach(model.scenes) { scene in
+                            Button("按「\(scene.name)」") {
+                                pane = .summary
+                                model.summarize(scene: scene)
+                            }
+                        }
+                    }
+                    .disabled(model.isSummarizing)
                 }
-                .disabled(model.isSummarizing)
+            }
+            if model.canRewrite {
+                // G1: a title from another angle; replaces even a title the user typed.
+                Button("让 AI 重新起标题", systemImage: "wand.and.stars") { model.retitle() }
+                    .disabled(!model.canRetitle)
             }
             Menu("分享", systemImage: "square.and.arrow.up") {
                 if !model.audioMissing {

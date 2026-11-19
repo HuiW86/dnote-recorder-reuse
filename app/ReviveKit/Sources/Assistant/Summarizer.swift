@@ -80,6 +80,35 @@ public struct Summarizer: Sendable {
         return try Self.parse(reply, fixedScene: fixedScene, model: config.model)
     }
 
+    /// A new title from another angle (features.md G1 "换一个角度重起"): one request, answered
+    /// in the same JSON shape as a summary's title. `avoiding` is the title to move away from.
+    public func retitle(material: String, avoiding current: String, config: ServiceConfig) async throws -> String {
+        guard config.isComplete else { throw AssistantError.notConfigured }
+        let user = "现在的标题：\(current)\n\n内容：\n\(String(material.prefix(Self.longTranscriptThreshold)))"
+        let reply = try await client.complete(config, system: Self.retitlePrompt, user: user, json: true)
+        return try Self.parseTitle(reply)
+    }
+
+    static let retitlePrompt = """
+        你在给一段录音起标题。换一个角度重新起一个：可以突出结论、人物、数字或要做的事，但不要和「现在的标题」相同或只改几个字。不超过 18 个字，简体中文，只写录音里真有的内容。
+        只输出一个 JSON 对象，不要任何别的文字：{"title": "新标题"}
+        """
+
+    /// The `title` of a JSON reply; a reply that is just a line of text is taken as the title.
+    public static func parseTitle(_ reply: String) throws -> String {
+        let text = ChatClient.stripThinking(reply)
+        var title = ""
+        if let start = text.firstIndex(of: "{"), let end = text.lastIndex(of: "}"), start < end,
+           let object = try? JSONSerialization.jsonObject(with: Data(text[start...end].utf8)) as? [String: Any] {
+            title = trimmed(object["title"])
+        } else {
+            title = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+            title = title.trimmingCharacters(in: CharacterSet(charactersIn: " \"'“”「」《》").union(.whitespaces))
+        }
+        guard !title.isEmpty else { throw AssistantError.badReply("没有标题") }
+        return String(title.prefix(30))
+    }
+
     /// The text of a stored transcript, one segment per line, as `summarize` expects it.
     public static func material(from transcript: Transcript) -> String {
         transcript.segments.map(\.text).joined(separator: "\n")

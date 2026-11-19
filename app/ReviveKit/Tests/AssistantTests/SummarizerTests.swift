@@ -29,6 +29,15 @@ struct SummaryParsingTests {
         #expect(draft.scene == .meeting && draft.summary == "下周三上线。")
     }
 
+    /// G1 "换一个角度重起": the title of a JSON reply, or a bare line; quotes trimmed; capped.
+    @Test func readsANewTitle() throws {
+        #expect(try Summarizer.parseTitle(#"{"title": " 周四发外部测试 "}"#) == "周四发外部测试")
+        #expect(try Summarizer.parseTitle("<think>想一想</think>\n「定下发布日」\n多余的话") == "定下发布日")
+        #expect(try Summarizer.parseTitle(String(repeating: "长", count: 40)).count == 30)
+        #expect(throws: AssistantError.badReply("没有标题")) { try Summarizer.parseTitle(#"{"title": ""}"#) }
+        #expect(Summarizer.retitlePrompt.contains("不要和「现在的标题」相同"))
+    }
+
     @Test func missingSummaryIsBadReply() {
         for reply in [#"{"scene": "meeting", "title": "t"}"#, #"{"summary": "   "}"#, "没有 JSON", "} 反了 {"] {
             #expect(throws: AssistantError.self) { try Summarizer.parse(reply, fixedScene: nil, model: "m") }

@@ -367,6 +367,58 @@ struct RecordingLibraryTests {
         #expect(recording.folderId == nil && recording.isStarred)
     }
 
+    /// G1 and X6: an AI title replaces the default and an earlier AI title, never one the user
+    /// typed unless asked; renaming marks the title as the user's; clearing it goes back to the
+    /// date title. Rows renamed before v9 still count as the user's by their shape.
+    @Test func aiTitlesNeverReplaceTheUsersTitle() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: UUID(), path: path)
+        r.deviceId = nil
+        r.title = Recording.defaultTitle(for: r.startedAt)
+        try lib.database.writer.write { db in try r.insert(db) }
+
+        #expect(try lib.applyAITitle(id: id, "  ")?.titleSource == nil)  // empty: no change
+        let ai = try #require(try lib.applyAITitle(id: id, " 定发布日 "))
+        #expect(ai.title == "定发布日" && ai.hasAITitle && !ai.hasCustomTitle)
+        #expect(try lib.applyAITitle(id: id, "周四发测试")?.title == "周四发测试")
+        let mine = try #require(try lib.renameRecording(id: id, to: "我的标题"))
+        #expect(mine.titleSource == .user && mine.hasCustomTitle)
+        #expect(try lib.applyAITitle(id: id, "别的")?.title == "我的标题")
+        #expect(try lib.applyAITitle(id: id, "换一个", replacingUserTitle: true)?.title == "换一个")
+        let cleared = try #require(try lib.renameRecording(id: id, to: ""))
+        #expect(cleared.titleSource == nil && !cleared.hasCustomTitle && !cleared.hasAITitle)
+
+        // A row renamed before v9: no source, but not a date title.
+        try lib.database.writer.write { db in
+            try db.execute(sql: "UPDATE recording SET title = '旧名字', title_source = NULL WHERE id = ?", arguments: [id])
+        }
+        #expect(try lib.recording(id: id)?.hasCustomTitle == true)
+        #expect(try lib.applyAITitle(id: id, "别的")?.title == "旧名字")
+    }
+
+    @Test func v8LibraryUpgradesToV9() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v8")
+        let renamed = UUID(), plain = UUID()
+        try queue.write { db in
+            for (id, title) in [(renamed, "周会"), (plain, "2026-11-07 14:02")] {
+                try db.execute(sql: """
+                    INSERT INTO recording (id, source, started_at, duration_ms, audio_path, audio_sha256, title,
+                                           created_at, updated_at)
+                    VALUES (?, 'import', ?, 1000, 'audio/x.ogg', 'x', ?, ?, ?)
+                    """, arguments: [id, Date(), title, Date(), Date()])
+            }
+        }
+        let db = try AppDatabase(queue)
+        let a = try #require(try db.writer.read { try Recording.fetchOne($0, key: renamed) })
+        let b = try #require(try db.writer.read { try Recording.fetchOne($0, key: plain) })
+        #expect(a.titleSource == nil && a.hasCustomTitle)
+        #expect(b.titleSource == nil && !b.hasCustomTitle)
+    }
+
     /// X21: starring is kept across trash and restore, a second star keeps the first time, and
     /// an unknown id changes nothing.
     @Test func starRecording() throws {
