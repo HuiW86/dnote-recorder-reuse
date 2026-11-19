@@ -216,7 +216,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 | T-M2-01 | G1、X6 AI 标题（库） | 空标题不改；AI 标题替换默认标题和上一个 AI 标题；改名后标为用户的，AI 标题不替换，除非明确要求；改名留空回到时间标题、来源为空；`v9` 前改过名的行仍算用户的；`v8` 升到 `v9` 后原有行来源为空 |
 | T-M2-02 | G1、G2a 页面状态 | 生成纪要后默认标题换成纪要标题；用户改过名时保留用户的；按指定场景重新生成后场景是所选的；「让 AI 重新起标题」替换用户标题并 Toast「已换成「…」」；新标题的回复解析（JSON 的 `title`、单行文字、去引号、最多 30 字、空标题报错） |
 
-实现：T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
+| T-M2-03 | G1 大纲、金句、思维导图 | 回复里的大纲按顺序读出，最多 8 个话题、每个 6 条，空标题的话题丢掉；金句最多 5 句、去掉引号；没有这两项的回复照常解析；存取往返不变，搜索能搜到大纲和金句里的词；`v9` 的纪要升到 `v10` 后两项为空、其余不变；Markdown 导出有「大纲」「金句」两节 |
+
+实现：T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
 
 #### 3.6.4 M4 先做的部分
 
