@@ -20,7 +20,7 @@
         │     ├─ CardLink ──── CoreBluetooth：扫描、连接、写、通知、断线恢复
         │     └─ CardProtocol ── 帧编解码、命令白名单、固件差异适配（CardLink 也依赖它）
         │
-        ├─ SyncEngine ───── 卡上文件 → 本地录音库，按 §4 状态机（依赖 CardService、Library）
+        ├─ SyncEngine ───── 卡上文件 → 本地录音库，按 §4 状态机（依赖 `SyncSource` 接口和 Library；CardService 是第一个实现，ADR-010）
         │
         ├─ Library ──────── 本地数据库与音频文件（§5）
         │

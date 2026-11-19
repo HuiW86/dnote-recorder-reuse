@@ -99,7 +99,8 @@ public final class SyncEngine {
     /// A pass is running or queued ("正在检查录音卡", product-spec.md P05).
     public var isRunning: Bool { pass != nil }
 
-    @ObservationIgnored private let service: CardService
+    /// The device files come from (ADR-010); the D·NOTE card's `CardService` in the app.
+    @ObservationIgnored private let service: any SyncSource
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private let freeSpace: () -> Int64
     @ObservationIgnored private let now: () -> Date
@@ -117,7 +118,7 @@ public final class SyncEngine {
     @ObservationIgnored private var passDeletesAfterSync = false
 
     /// Recovers from a previous crash before anything else touches the library (prd.md §4.3).
-    public init(service: CardService, library: RecordingLibrary, options: Options = Options(),
+    public init(service: any SyncSource, library: RecordingLibrary, options: Options = Options(),
                 freeSpace: (() -> Int64)? = nil, now: @escaping () -> Date = Date.init) throws {
         self.service = service
         self.library = library
