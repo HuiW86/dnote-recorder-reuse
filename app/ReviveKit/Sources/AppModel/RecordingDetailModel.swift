@@ -21,7 +21,7 @@ public final class RecordingDetailModel {
     /// An M4A or WAV export is being made; the share button shows progress meanwhile.
     public private(set) var isExporting = false
     /// Points marked while recording, in playback order (features.md X7).
-    public private(set) var marks: [RecordingMark] = []
+    public private(set) var marks: [PlaybackMark] = []
     /// The stored text of this recording, if it has been transcribed (features.md X9).
     public private(set) var transcript: Transcript?
     /// A transcription of this recording is running, started from this page or an earlier one.
@@ -80,7 +80,7 @@ public final class RecordingDetailModel {
         deviceNames = Dictionary(((try? library.pairedDevices()) ?? []).map { ($0.id, $0.name) },
                                  uniquingKeysWith: { a, _ in a })
         if let recording {
-            marks = (try? library.marks(for: recording)) ?? []
+            marks = (try? library.playbackMarks(for: recording)) ?? []
             // A text-only recording (features.md E2) has no audio to miss.
             audioMissing = recording.hasAudio
                 && !FileManager.default.fileExists(atPath: library.store.url(forAudioPath: recording.audioPath).path)
@@ -543,7 +543,7 @@ public final class RecordingDetailModel {
     }
 
     /// Plays from a mark; loads the recording first when it is not the one in the player.
-    public func play(from mark: RecordingMark) {
+    public func play(from mark: PlaybackMark) {
         play(fromMs: mark.offsetMs)
     }
 
@@ -654,7 +654,7 @@ public final class RecordingDetailModel {
     }
 
     /// "00:18:06" for a mark row.
-    public func markText(_ mark: RecordingMark) -> String {
+    public func markText(_ mark: PlaybackMark) -> String {
         RecordingText.clock(seconds: mark.offsetMs / 1000)
     }
 

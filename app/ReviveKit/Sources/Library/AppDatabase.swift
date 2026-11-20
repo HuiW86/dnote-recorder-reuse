@@ -205,6 +205,18 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // 标重点 while recording with the phone (features.md X7, X18): no card file to hang the
+        // marks on, so they belong to the recording.
+        migrator.registerMigration("v16") { db in
+            try db.create(table: "phone_mark") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("recording_id", .blob).notNull().references("recording", onDelete: .cascade)
+                t.column("offset_ms", .integer).notNull()
+                t.column("created_at", .datetime).notNull()
+            }
+            try db.create(index: "phone_mark_recording", on: "phone_mark", columns: ["recording_id"])
+        }
+
         return migrator
     }
 
