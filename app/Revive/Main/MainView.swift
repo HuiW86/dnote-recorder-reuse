@@ -272,6 +272,8 @@ struct RouteDestination: View {
         case .trash: TrashView(env: env)
         case .assistant: AssistantSettingsView(preferences: env.preferences)
         case .corrections: CorrectionsView(env: env)
+        case .tags: TagsView(env: env)
+        case .tag(let name): TagRecordingsView(env: env, tag: name, model: model, path: $path)
         case .about: AboutView()
         case .privacy: PrivacyView()
         case .permissions: PermissionsView()

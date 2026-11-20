@@ -59,6 +59,18 @@ public final class RecordingLibrary: Sendable {
         }
     }
 
+    /// Records that a sync pass finished on the card. Returns the stored row, nil for an
+    /// unknown id.
+    @discardableResult
+    public func markSynced(deviceId: UUID, at date: Date) throws -> Device? {
+        try database.writer.write { db in
+            guard var device = try Device.fetchOne(db, key: deviceId) else { return nil }
+            device.lastSyncedAt = date
+            try device.update(db)
+            return device
+        }
+    }
+
     // MARK: Sync items
 
     public func syncItems(deviceId: UUID) throws -> [SyncItem] {
@@ -434,10 +446,21 @@ public final class RecordingLibrary: Sendable {
             SELECT COUNT(*) FROM recording LEFT JOIN transcript ON transcript.recording_id = recording.id
             WHERE recording.trashed_at IS NULL AND transcript.recording_id IS NULL
             """) ?? 0
+        let summarized = try summarizedRecordings(db, newestSummaryFirst: true)
         return LibraryDigest(openTodos: try openTodos(db),
-                             recentSummaries: Array(try summarizedRecordings(db, newestSummaryFirst: true)
-                                 .prefix(summaryLimit)),
-                             untranscribedCount: untranscribed)
+                             recentSummaries: Array(summarized.prefix(summaryLimit)),
+                             untranscribedCount: untranscribed,
+                             tags: tagCounts(summarized.map(\.summary)))
+    }
+
+    /// Each tag with the number of summaries carrying it, most used first, then by name.
+    static func tagCounts(_ summaries: [Summary]) -> [TagCount] {
+        var counts: [String: Int] = [:]
+        for summary in summaries {
+            for tag in Set(summary.tags) where !tag.isEmpty { counts[tag, default: 0] += 1 }
+        }
+        return counts.map { TagCount(name: $0.key, count: $0.value) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
     }
 
     private static func openTodos(_ db: Database) throws -> [OpenTodo] {
@@ -523,6 +546,39 @@ public final class RecordingLibrary: Sendable {
         }
     }
 
+    /// 逐句润色 (#75): puts the polished text on each line, keeping its time. The lines as they
+    /// were before the first polish are kept, so `restoreOriginalTranscript` can bring them back;
+    /// polishing again keeps that first original. `texts` has one entry per line; an empty entry
+    /// keeps the line's text. Nil when there is no transcript or the count does not match.
+    @discardableResult
+    public func savePolishedTranscript(recordingId: UUID, texts: [String]) throws -> Transcript? {
+        try database.writer.write { db in
+            guard var transcript = try Transcript.fetchOne(db, key: recordingId),
+                  texts.count == transcript.segments.count else { return nil }
+            if transcript.originalSegments == nil { transcript.originalSegments = transcript.segments }
+            for (i, text) in texts.enumerated() {
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { transcript.segments[i].text = trimmed }
+            }
+            try transcript.update(db)
+            return transcript
+        }
+    }
+
+    /// Goes back to the lines as transcribed, dropping the polished text (and edits made to
+    /// it). Returns the transcript unchanged when it was never polished; nil when there is none.
+    @discardableResult
+    public func restoreOriginalTranscript(recordingId: UUID) throws -> Transcript? {
+        try database.writer.write { db in
+            guard var transcript = try Transcript.fetchOne(db, key: recordingId) else { return nil }
+            guard let original = transcript.originalSegments else { return transcript }
+            transcript.segments = original
+            transcript.originalSegments = nil
+            try transcript.update(db)
+            return transcript
+        }
+    }
+
     /// 纠错词库, newest first.
     public func corrections() throws -> [Correction] {
         try database.writer.read { try Correction.order(Column("created_at").desc).fetchAll($0) }
@@ -547,7 +603,72 @@ public final class RecordingLibrary: Sendable {
 
     /// Stores the summary of a recording, replacing an earlier one.
     public func saveSummary(_ summary: Summary) throws {
-        try database.writer.write { db in try summary.save(db) }
+        try database.writer.write { db in
+            var summary = summary
+            summary.tags = TagRule.apply(try TagRule.fetchAll(db), to: summary.tags)
+            try summary.save(db)
+        }
+    }
+
+    // MARK: Tags (features.md D1c 标签)
+
+    /// Tags of recordings not in 最近删除, most used first (the same list as `LibraryDigest.tags`).
+    public func tagCounts() throws -> [TagCount] {
+        try database.writer.read { db in
+            Self.tagCounts(try Self.summarizedRecordings(db, newestSummaryFirst: true).map(\.summary))
+        }
+    }
+
+    /// Recordings not in 最近删除 whose summary carries `tag`, newest first.
+    public func recordings(taggedWith tag: String) throws -> [Recording] {
+        try database.writer.read { db in
+            try Self.summarizedRecordings(db, newestSummaryFirst: false)
+                .filter { $0.summary.tags.contains(tag) }
+                .map(\.recording)
+        }
+    }
+
+    /// Renames `old` to `new` in every summary; when a summary already has `new` the two merge.
+    /// Summaries saved later get the same treatment. Returns how many summaries changed; 0
+    /// for an empty or unchanged name.
+    @discardableResult
+    public func renameTag(_ old: String, to new: String, now: Date = Date()) throws -> Int {
+        let name = new.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespacesAndNewlines))
+        guard !name.isEmpty, name != old else { return 0 }
+        return try database.writer.write { db in
+            // The user now wants `name` itself: an older rule sending it elsewhere goes.
+            _ = try TagRule.deleteOne(db, key: name)
+            try db.execute(sql: "UPDATE tag_rule SET replacement = ? WHERE replacement = ?", arguments: [name, old])
+            try TagRule(tag: old, replacement: name, createdAt: now).save(db)
+            return try Self.rewriteTags(db) { TagRule.apply([TagRule(tag: old, replacement: name)], to: $0) }
+        }
+    }
+
+    /// Removes `tag` from every summary, and from summaries saved later. Returns how many changed.
+    @discardableResult
+    public func deleteTag(_ tag: String, now: Date = Date()) throws -> Int {
+        try database.writer.write { db in
+            try db.execute(sql: "UPDATE tag_rule SET replacement = NULL WHERE replacement = ?", arguments: [tag])
+            try TagRule(tag: tag, replacement: nil, createdAt: now).save(db)
+            return try Self.rewriteTags(db) { $0.filter { $0 != tag } }
+        }
+    }
+
+    public func tagRules() throws -> [TagRule] {
+        try database.writer.read { try TagRule.order(Column("created_at").desc).fetchAll($0) }
+    }
+
+    /// Applies `change` to the tags of every summary; saves and counts those that changed.
+    private static func rewriteTags(_ db: Database, _ change: ([String]) -> [String]) throws -> Int {
+        var changed = 0
+        for var summary in try Summary.fetchAll(db) {
+            let tags = change(summary.tags)
+            guard tags != summary.tags else { continue }
+            summary.tags = tags
+            try summary.update(db)
+            changed += 1
+        }
+        return changed
     }
 
     public func summary(recordingId: UUID) throws -> Summary? {

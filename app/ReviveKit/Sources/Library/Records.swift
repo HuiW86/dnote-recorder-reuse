@@ -16,10 +16,13 @@ public struct Device: Codable, Equatable, Sendable, FetchableRecord, Persistable
     public var freeMb: Int?
     public var totalMb: Int?
     public var remoteId: String?
+    /// End of the last sync pass that ran to completion on this card (migration v13); nil until
+    /// one does. `lastSeenAt` is when a pass reached the card, finished or not.
+    public var lastSyncedAt: Date?
 
     public init(id: UUID = UUID(), peripheralId: String? = nil, sn: String, name: String, firmware: String,
                 pairedAt: Date? = nil, lastSeenAt: Date? = nil, battery: Int? = nil, freeMb: Int? = nil,
-                totalMb: Int? = nil, remoteId: String? = nil) {
+                totalMb: Int? = nil, remoteId: String? = nil, lastSyncedAt: Date? = nil) {
         self.id = id
         self.peripheralId = peripheralId
         self.sn = sn
@@ -31,6 +34,7 @@ public struct Device: Codable, Equatable, Sendable, FetchableRecord, Persistable
         self.freeMb = freeMb
         self.totalMb = totalMb
         self.remoteId = remoteId
+        self.lastSyncedAt = lastSyncedAt
     }
 
     public static let databaseTableName = "device"
@@ -172,14 +176,22 @@ public struct Transcript: Codable, Equatable, Sendable, FetchableRecord, Persist
     public var language: String
     public var segments: [TranscriptSegment]
     public var createdAt: Date
+    /// The lines as transcribed, kept after 逐句润色 (#75) replaced the text of `segments` so the
+    /// user can go back to them; nil when the text was never polished. Same count and times.
+    public var originalSegments: [TranscriptSegment]?
 
-    public init(recordingId: UUID, engine: String, language: String, segments: [TranscriptSegment], createdAt: Date) {
+    public init(recordingId: UUID, engine: String, language: String, segments: [TranscriptSegment], createdAt: Date,
+                originalSegments: [TranscriptSegment]? = nil) {
         self.recordingId = recordingId
         self.engine = engine
         self.language = language
         self.segments = segments
         self.createdAt = createdAt
+        self.originalSegments = originalSegments
     }
+
+    /// True when the text shown is the polished one.
+    public var isPolished: Bool { originalSegments != nil }
 
     public static let databaseTableName = "transcript"
     public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
@@ -405,11 +417,61 @@ public struct LibraryDigest: Equatable, Sendable {
     public var recentSummaries: [SummarizedRecording]
     /// Recordings not in 最近删除 that have no transcript yet.
     public var untranscribedCount: Int
+    /// Tags of the summaries of recordings not in 最近删除, most used first (D1c 标签).
+    public var tags: [TagCount]
 
-    public init(openTodos: [OpenTodo] = [], recentSummaries: [SummarizedRecording] = [], untranscribedCount: Int = 0) {
+    public init(openTodos: [OpenTodo] = [], recentSummaries: [SummarizedRecording] = [], untranscribedCount: Int = 0,
+                tags: [TagCount] = []) {
         self.openTodos = openTodos
         self.recentSummaries = recentSummaries
         self.untranscribedCount = untranscribedCount
+        self.tags = tags
+    }
+}
+
+/// A tag and how many recordings carry it.
+public struct TagCount: Equatable, Hashable, Sendable, Identifiable {
+    public var name: String
+    public var count: Int
+
+    public var id: String { name }
+
+    public init(name: String, count: Int) {
+        self.name = name
+        self.count = count
+    }
+}
+
+/// What the user did to a tag (features.md D1c 标签), applied to every summary saved later so an
+/// AI tag never brings back a tag the user renamed, merged or deleted. `replacement` nil means
+/// deleted.
+public struct TagRule: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public var tag: String
+    public var replacement: String?
+    public var createdAt: Date
+
+    public init(tag: String, replacement: String?, createdAt: Date = Date()) {
+        self.tag = tag
+        self.replacement = replacement
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "tag_rule"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+
+    /// `tags` with each rule applied once (renamed, or dropped when deleted), duplicates removed
+    /// in order.
+    public static func apply(_ rules: [TagRule], to tags: [String]) -> [String] {
+        guard !rules.isEmpty else { return tags }
+        let map = Dictionary(rules.map { ($0.tag, $0.replacement) }, uniquingKeysWith: { _, last in last })
+        var seen = Set<String>()
+        return tags.compactMap { tag -> String? in
+            let mapped: String?
+            if let rule = map[tag] { mapped = rule } else { mapped = tag }
+            guard let name = mapped, seen.insert(name).inserted else { return nil }
+            return name
+        }
     }
 }
 

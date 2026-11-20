@@ -170,6 +170,31 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // 逐句润色 (#75): the transcript as recognized, kept when its text is polished. JSON like
+        // `segments`; null for a transcript that was never polished.
+        migrator.registerMigration("v12") { db in
+            try db.alter(table: "transcript") { t in
+                t.add(column: "original_segments", .text)
+            }
+        }
+
+        // When a sync pass last finished on each card (product-spec.md P08, §2.4 上次同步完成时间).
+        // Null until the first pass after the upgrade finishes.
+        migrator.registerMigration("v13") { db in
+            try db.alter(table: "device") { t in
+                t.add(column: "last_synced_at", .datetime)
+            }
+        }
+
+        // D1c 标签: renames, merges and deletes of tags, applied to summaries saved later.
+        migrator.registerMigration("v14") { db in
+            try db.create(table: "tag_rule") { t in
+                t.primaryKey("tag", .text)
+                t.column("replacement", .text)
+                t.column("created_at", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

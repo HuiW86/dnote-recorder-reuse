@@ -17,6 +17,9 @@ enum Route: Hashable {
     case assistant
     /// 设置 → 纠错词库 (#75).
     case corrections
+    /// 知识库 → 标签, and one tag's recordings (features.md D1c).
+    case tags
+    case tag(String)
     /// P02 → P03 from home: "重新搜索" after `unknownCard`; "重新配对" goes to P03 directly.
     case connectGuide, pairing
 }

@@ -77,8 +77,9 @@ public final class SyncEngine {
 
     public var options: Options
     @ObservationIgnored public var hooks = Hooks()
-    /// Runs after each pass saves the card's row (`lastSeenAt`, battery, space), so cached
-    /// copies of the paired cards can be re-read (product-spec.md P08 "上次连接").
+    /// Runs after each pass saves the card's row (`lastSeenAt`, battery, space) and again when
+    /// the pass finishes (`lastSyncedAt`), so cached copies of the paired cards can be re-read
+    /// (product-spec.md P08 "上次同步", "上次连接").
     @ObservationIgnored public var onDeviceSaved: (@MainActor (Device) -> Void)?
     /// Redacted diagnostics: why a pass was requested, and whether it was queued behind one.
     @ObservationIgnored public var onSyncRequested: (@MainActor (Trigger, Bool) -> Void)?
@@ -252,7 +253,10 @@ public final class SyncEngine {
             try await deletePending(device)
             try checkSameCard()
             status = .idle
-            lastCompletedAt = now()
+            let completed = now()
+            lastCompletedAt = completed
+            // P08 "上次同步" per card; a failed write only loses the display, not the pass.
+            if let synced = try? library.markSynced(deviceId: device.id, at: completed) { onDeviceSaved?(synced) }
             onPassCompleted?(listed.count, queue.count, failures.autoRetrying)
             if relistAfterNotFound {
                 relistAfterNotFound = false

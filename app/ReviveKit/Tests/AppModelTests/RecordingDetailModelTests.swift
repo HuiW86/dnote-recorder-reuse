@@ -175,6 +175,13 @@ struct RecordingDetailModelTests {
         #expect(url.lastPathComponent == "11月7日 14.02.ogg")
         model.rename(to: "周会")
         #expect(try #require(model.exportFile()).lastPathComponent == "周会.ogg")
+        #expect(model.originalFormat == "OGG")
+        #if canImport(CoreText)
+        // J1: the PDF is named like the other exports and is a PDF.
+        let pdf = try #require(model.exportPDF())
+        #expect(pdf.lastPathComponent == "周会.pdf")
+        #expect(try Data(contentsOf: pdf).prefix(5) == Data("%PDF-".utf8))
+        #endif
         RecordingExporter.cleanUp()
     }
 
@@ -298,6 +305,124 @@ private final class CannedReply: URLProtocol {
             "choices": [["message": ["role": "assistant", "content": Self.content]]],
         ])
         let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+                                       headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: body ?? Data())
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+/// 逐句润色 (#75) and 单句循环 (X20) on the detail page.
+@MainActor
+struct PolishAndLoopTests {
+    /// The polished text replaces each line's and keeps its time; 恢复原文 brings the
+    /// transcribed text back. The service is a stub on its own host, never the network.
+    @Test func polishesAndRestores() async throws {
+        let f = try await DetailFixture()
+        let raw = [TranscriptSegment(startMs: 0, text: "嗯那个周三发布"), TranscriptSegment(startMs: 900, text: "嗯")]
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "t", language: "zh-CN",
+                                                segments: raw, createdAt: Date()))
+        let none = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(!none.canPolish)
+
+        let base = HostReply.register(#"{"lines": ["周三发布。", ""]}"#)
+        let config = ServiceConfig(baseURL: base, model: "m", apiKey: "")
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         assistant: AssistantConfigSource { config },
+                                         polisher: Polisher(client: ChatClient(session: HostReply.session())))
+        #expect(model.canPolish && model.transcript?.isPolished == false)
+        model.polish()
+        await waitUntil("polished") { model.transcript?.isPolished == true && !model.isPolishing }
+        #expect(model.transcript?.segments == [TranscriptSegment(startMs: 0, text: "周三发布。"),
+                                               TranscriptSegment(startMs: 900, text: "嗯")])
+        #expect(model.toast?.text == "已润色，可以随时恢复原文")
+        model.restoreOriginal()
+        #expect(model.transcript?.segments == raw && model.transcript?.isPolished == false)
+        #expect(model.toast?.text == "已恢复原文")
+        #expect(try f.library.transcript(recordingId: f.recording.id)?.segments == raw)
+    }
+
+    @Test func loopRangeAndSteps() {
+        let starts = [0, 1_000, 2_500]
+        #expect(RecordingDetailModel.loopRange(starts, index: 0, durationMs: 4_000) == 0..<1_000)
+        #expect(RecordingDetailModel.loopRange(starts, index: 2, durationMs: 4_000) == 2_500..<4_000)
+        #expect(RecordingDetailModel.loopRange(starts, index: 3, durationMs: 4_000) == nil)
+        #expect(RecordingDetailModel.loopRange([0, 0], index: 0, durationMs: 4_000) == nil)
+        let line = 1_000..<2_500
+        #expect(RecordingDetailModel.loopStep(positionMs: 1_200, range: line, finished: false) == .wait)
+        #expect(RecordingDetailModel.loopStep(positionMs: 2_500, range: line, finished: false) == .restart)
+        #expect(RecordingDetailModel.loopStep(positionMs: 2_700, range: line, finished: false) == .restart)
+        #expect(RecordingDetailModel.loopStep(positionMs: 0, range: line, finished: true) == .restart)
+        // Far outside the line: something else moved the playhead.
+        #expect(RecordingDetailModel.loopStep(positionMs: 9_000, range: line, finished: false) == .stop)
+        #expect(RecordingDetailModel.loopStep(positionMs: 0, range: 3_000..<4_000, finished: false) == .stop)
+    }
+
+    /// The first line plays again from its start after reaching the second; playing another line
+    /// or toggling the same one ends the loop.
+    @Test func loopsALine() async throws {
+        let f = try await DetailFixture()
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "t", language: "zh-CN",
+                                                segments: [TranscriptSegment(startMs: 0, text: "一"),
+                                                           TranscriptSegment(startMs: 800, text: "二")],
+                                                createdAt: Date()))
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        model.toggleLoop(lineAt: 0)
+        #expect(model.loopingIndex == 0)
+        await waitUntil("playing") { model.isPlaying }
+        f.player.volume = 0
+        await waitUntil("near the end of the line") { model.currentTime > 0.5 }
+        await waitUntil("back at the start") { model.currentTime < 0.3 }
+        #expect(model.loopingIndex == 0 && model.isPlaying)
+
+        model.toggleLoop(lineAt: 0)
+        #expect(model.loopingIndex == nil)
+        model.toggleLoop(lineAt: 1)
+        #expect(model.loopingIndex == 1)
+        model.play(from: TranscriptSegment(startMs: 0, text: "一"))
+        #expect(model.loopingIndex == nil)
+        model.leave()
+        f.player.stop()
+    }
+}
+
+/// Answers each request with one chat completion, per host so parallel tests do not share it.
+private final class HostReply: URLProtocol {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var replies: [String: String] = [:]
+
+    /// Registers `content` under a new host and returns a base URL on it.
+    static func register(_ content: String) -> String {
+        let host = "\(UUID().uuidString.lowercased()).stub.test"
+        lock.lock()
+        replies[host] = content
+        lock.unlock()
+        return "https://\(host)/v1"
+    }
+
+    static func session() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [HostReply.self]
+        return URLSession(configuration: configuration)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lock.lock()
+        let content = request.url?.host.flatMap { Self.replies[$0] }
+        Self.lock.unlock()
+        guard let content, let url = request.url else {
+            client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
+            return
+        }
+        let body = try? JSONSerialization.data(withJSONObject: [
+            "choices": [["message": ["role": "assistant", "content": content]]],
+        ])
+        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
                                        headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body ?? Data())

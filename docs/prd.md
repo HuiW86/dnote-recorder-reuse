@@ -214,7 +214,8 @@ CardService 的事件流只有一个消费者，SyncEngine 不直接订阅：由
 | `name` | TEXT | 显示名，默认取蓝牙名 |
 | `firmware` | TEXT | 最近一次读到的版本 |
 | `paired_at` | DATETIME | — |
-| `last_seen_at` | DATETIME | — |
+| `last_seen_at` | DATETIME | 每次同步开始、连到卡时写入 |
+| `last_synced_at` | DATETIME NULL | 一次同步完整跑完时写入（迁移 `v13`）；P08 显示「上次同步」，没有时退回 `last_seen_at` |
 | `battery` / `free_mb` / `total_mb` | INTEGER | 最近一次 `0x80` 的值 |
 | `remote_id` | TEXT NULL | M2 设备登记后的后端 id |
 
@@ -286,8 +287,11 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `recording_id` | UUID PK FK | — |
 | `engine` | TEXT | 谁生成的；本机识别为 `on-device` |
 | `language` | TEXT | 如 `zh-CN` |
-| `segments` | TEXT（JSON） | 每句 `{startMs, text}` |
+| `segments` | TEXT（JSON） | 每句 `{startMs, text}`；润色后是润色过的文字 |
 | `created_at` | DATETIME | — |
+| `original_segments` | TEXT（JSON），可空 | 逐句润色（#75，迁移 `v12`）前的原文，句数和时间与 `segments` 相同；从没润色过为空。再次润色保留第一次的原文；「恢复原文」把它写回 `segments` 并清空 |
+
+逐句润色把每句的文字（只发文字，不发音频）分批发给用户自配的 AI 服务，每批 40 句，回复的句数必须相同；对不上的那一批保持原文，全部对不上才报错。润色后改一句只改润色后的文字，恢复原文时这些修改一并丢弃。
 
 本机转写在 `Transcription` 模块里，用系统语音识别并强制离线（`requiresOnDeviceRecognition`），不联网，纳入 `scripts/check-m1-rules.sh` 的检查。设置里的开关默认关闭，质量由 #67 测量后再决定是否默认打开。
 
@@ -338,6 +342,18 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `created_at` | DATETIME | — |
 
 改一句时，去掉前后相同的部分得到改动的那段；不足 2 字时向后（没有就向前）补上未改的字，避免把单个字全局替换；纯插入、纯删除和整句改写不记。已有的文字稿不回头改。
+
+### 5.11 `tag_rule`（标签管理，迁移 `v14`，D1c）
+
+用户对标签做过的修改。标签本身只存在 `summary.tags` 里；重命名、合并、删除时先改掉所有纪要（含最近删除里的），再记一条规则，之后存入的纪要（新生成或重新生成）按规则处理，AI 不会把用户改掉的标签加回来。只在本机。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `tag` | TEXT PK | 被改掉的标签 |
+| `replacement` | TEXT NULL | 改成的名字；空表示删除 |
+| `created_at` | DATETIME | — |
+
+改名时去掉首尾空白和 `#`，空名字或同名不改；改成已有的名字时同一条纪要里只留一个（合并）。规则会接力：A 改成 B 之后再把 B 改成 C，A 的规则跟着变成 C；删除 C 时指向 C 的规则都变成删除。改回一个曾被改掉的名字时，那个名字自己的规则作废。规则只套一次，不递归。
 
 ## 6. App 错误码（M1）
 
