@@ -75,6 +75,9 @@ public struct CloudTranscriber: SpeechTranscribing {
             (data, response) = try await session.data(for: request)
         } catch {
             if Task.isCancelled { throw CancellationError() }
+            // No connection reads as advice (AssistantError.offline); anything else stays a failure.
+            let network = AssistantError.network(error)
+            if network == .offline { throw network }
             throw TranscriptionError.failed("连不上转写服务：\(error.localizedDescription)")
         }
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0

@@ -113,6 +113,14 @@ struct RecordingDetailModelTests {
         #expect(failing.toast?.text == "这部手机不支持离线识别这种语言")
         #expect(failing.transcript?.segments == segments)  // the earlier text stays
 
+        // X11: the user's service with no connection gives the advice, not "转写失败，请重试".
+        let offline = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                           transcriber: OfflineTranscriber())
+        offline.transcribe()
+        await waitUntil("offline toast") { offline.toast != nil }
+        #expect(offline.toast?.text == AssistantError.offlineAdvice)
+        #expect(offline.transcript?.segments == segments)
+
         // Removed with the recording.
         try f.library.deleteRecording(id: f.recording.id)
         #expect(try f.library.transcript(recordingId: f.recording.id) == nil)
@@ -287,6 +295,16 @@ private struct FakeTranscriber: SpeechTranscribing {
 
     func transcribe(_ recording: Recording, language: String) async throws -> [TranscriptSegment] {
         try result.get()
+    }
+}
+
+/// The user's own service on a phone with no connection.
+private struct OfflineTranscriber: SpeechTranscribing {
+    var engineName: String { "cloud" }
+    var usesNetwork: Bool { true }
+
+    func transcribe(_ recording: Recording, language: String) async throws -> [TranscriptSegment] {
+        throw AssistantError.offline
     }
 }
 

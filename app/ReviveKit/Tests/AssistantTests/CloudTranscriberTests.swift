@@ -37,6 +37,26 @@ struct CloudTranscriberTests {
         #expect(throws: TranscriptionError.self) { try CloudTranscriber.segments(from: Data("nope".utf8), durationMs: 1) }
     }
 
+    /// No connection reads as the same advice as for summaries, not as a failed transcription.
+    @Test func noConnectionIsOffline() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cloud-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let library = RecordingLibrary(database: try AppDatabase.inMemory(), store: try AudioStore(root: root))
+        let frames = try SyntheticOpus.sine(seconds: 1)
+        let ogg = OggOpus.wrap(frames)
+        let id = UUID()
+        let path = try library.store.storeAudio(ogg, id: id)
+        let recording = Recording(id: id, deviceId: nil, source: .card, cardFileName: "a.opus", cardFileSize: ogg.count,
+                                  startedAt: Date(), durationMs: frames.count * 20, audioPath: path, audioSha256: "",
+                                  title: "t", createdAt: Date(), updatedAt: Date())
+        let transcriber = CloudTranscriber(
+            library: library, config: ServiceConfig(baseURL: StubURLProtocol.offlineBase, model: "whisper-1", apiKey: ""),
+            session: StubURLProtocol.session())
+        await #expect(throws: AssistantError.offline) {
+            try await transcriber.transcribe(recording, language: "zh-CN")
+        }
+    }
+
     /// The upload goes to the user's service with its key, model and language; a service that
     /// rejects verbose_json gets a plain request.
     @Test func uploadsAndFallsBackToPlainText() async throws {

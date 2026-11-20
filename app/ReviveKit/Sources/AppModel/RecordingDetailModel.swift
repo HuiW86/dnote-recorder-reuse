@@ -196,6 +196,9 @@ public final class RecordingDetailModel {
                 succeeded = true
             } catch let error as TranscriptionError {
                 toast = Toast(Self.text(for: error))
+            } catch AssistantError.offline {
+                // Transcribing with the user's service, and the phone has no connection.
+                toast = Toast(AssistantError.offlineAdvice)
             } catch {
                 toast = Toast("转写失败，请重试")
             }

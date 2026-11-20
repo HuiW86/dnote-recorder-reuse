@@ -69,5 +69,6 @@ struct AssistantSettingsModelTests {
         #expect(AssistantSettingsModel.text(for: .http(401, "")) == "密钥无效或没有权限")
         #expect(AssistantSettingsModel.text(for: .http(500, "")) == "服务返回错误 500")
         #expect(AssistantSettingsModel.text(for: .unreachable("x")) == "连不上这个地址，请检查网络和地址")
+        #expect(AssistantSettingsModel.text(for: .offline) == AssistantError.offlineAdvice)
     }
 }

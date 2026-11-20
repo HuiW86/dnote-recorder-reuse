@@ -11,8 +11,11 @@ public enum AssistantError: Error, Equatable, Sendable {
     case http(Int, String)
     /// The service answered 200 but the reply could not be used.
     case badReply(String)
-    /// No answer: offline, DNS, TLS, timeout.
+    /// No answer: DNS, TLS, timeout, a host that does not answer.
     case unreachable(String)
+    /// This phone has no usable connection: no network at all, or 闻笺's 无线数据 turned off in
+    /// iOS Settings, which the app sees as the same error.
+    case offline
 }
 
 extension AssistantError: LocalizedError {
@@ -26,6 +29,26 @@ extension AssistantError: LocalizedError {
             return "AI 服务的回答看不懂：\(why)"
         case .unreachable(let why):
             return "连不上 AI 服务：\(why)"
+        case .offline:
+            return Self.offlineAdvice
+        }
+    }
+}
+
+extension AssistantError {
+    /// What to do without a connection. iPhones sold in mainland China ask once whether 闻笺 may
+    /// use 无线数据, and the release notes tell testers that "不允许" is fine for the card; an app
+    /// the user said no to gets the same error as a phone with no network, so the advice names
+    /// both. Short enough for a 2 s toast.
+    public static let offlineAdvice = "这部手机连不上网，请检查网络或「设置 › 闻笺 › 无线数据」"
+
+    /// A failed request as the user should read it: `.offline` for the URL errors that mean this
+    /// phone has no usable connection, otherwise `.unreachable` with the system's description (a
+    /// service that does not answer, DNS, TLS, timeout).
+    public static func network(_ error: Error) -> AssistantError {
+        switch (error as? URLError)?.code {
+        case .notConnectedToInternet?, .dataNotAllowed?, .internationalRoamingOff?: .offline
+        default: .unreachable(error.localizedDescription)
         }
     }
 }
@@ -55,7 +78,7 @@ public struct ChatClient: Sendable {
         } catch {
             // A cancelled task (the user left the page) is not a network failure.
             if Task.isCancelled { throw CancellationError() }
-            throw AssistantError.unreachable(error.localizedDescription)
+            throw AssistantError.network(error)
         }
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard code == 200 else {
@@ -128,7 +151,7 @@ public struct ChatClient: Sendable {
             (bytes, response) = try await session.bytes(for: request)
         } catch {
             if Task.isCancelled { throw CancellationError() }
-            throw AssistantError.unreachable(error.localizedDescription)
+            throw AssistantError.network(error)
         }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             var body = Data()
@@ -147,7 +170,7 @@ public struct ChatClient: Sendable {
             throw error
         } catch {
             if Task.isCancelled { throw CancellationError() }
-            throw AssistantError.unreachable(error.localizedDescription)
+            throw AssistantError.network(error)
         }
         #endif
         if let whole = try reader.finish() { onPiece(whole) }
@@ -162,7 +185,7 @@ public struct ChatClient: Sendable {
             return try await session.data(for: request)
         } catch {
             if Task.isCancelled { throw CancellationError() }
-            throw AssistantError.unreachable(error.localizedDescription)
+            throw AssistantError.network(error)
         }
     }
     #endif
