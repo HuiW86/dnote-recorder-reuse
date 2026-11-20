@@ -850,6 +850,11 @@ private struct AssistantOutputSheet: View {
     let output: AssistantOutput
     @Environment(\.dismiss) private var dismiss
 
+    private var dismissTitle: LocalizedStringKey {
+        if output.isStreaming { return "停止" }
+        return output.isCutOff ? "关闭" : "完成"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -878,7 +883,7 @@ private struct AssistantOutputSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(output.isStreaming ? "停止" : "完成") { dismiss() }
+                    Button(dismissTitle) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     if output.isStreaming {
