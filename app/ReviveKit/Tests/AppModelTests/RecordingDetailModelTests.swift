@@ -182,6 +182,10 @@ struct RecordingDetailModelTests {
         #expect(pdf.lastPathComponent == "周会.pdf")
         #expect(try Data(contentsOf: pdf).prefix(5) == Data("%PDF-".utf8))
         #endif
+        // J1: the Word document is a ZIP package named the same way.
+        let docx = try #require(model.exportDOCX())
+        #expect(docx.lastPathComponent == "周会.docx")
+        #expect(try Data(contentsOf: docx).prefix(4) == Data([0x50, 0x4B, 0x03, 0x04]))
         RecordingExporter.cleanUp()
     }
 

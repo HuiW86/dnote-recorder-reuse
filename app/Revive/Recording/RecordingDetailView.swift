@@ -229,6 +229,9 @@ private struct RecordingDetailContent: View {
                     Button("纪要和文字稿（PDF）", systemImage: "doc.richtext") {
                         shareURL = model.exportPDF()
                     }
+                    Button("纪要和文字稿（Word）", systemImage: "doc.text.fill") {
+                        shareURL = model.exportDOCX()
+                    }
                 }
                 if model.canExportMindMap {
                     Button("思维导图（OPML，可导入 XMind、幕布）", systemImage: "point.3.connected.trianglepath.dotted") {
