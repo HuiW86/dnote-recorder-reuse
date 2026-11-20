@@ -231,9 +231,9 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `card_file_name` | TEXT NULL | 卡上文件名 |
 | `card_file_size` | INTEGER NULL | 卡上文件大小（加密时含文件头） |
 | `started_at` | DATETIME | 从文件名解析，按设备时间；解析失败用同步时间。按同步时手机的当前时区解析：App 每次连接都用手机本地时间校时（`0x87`，不带时区），所以「上次连接后录的、手机换时区后才同步」的录音会偏差两地时差。只在跨时区出行时出现，有意不处理（#59） |
-| `duration_ms` | INTEGER | 由 OGG 帧数计算 |
-| `audio_path` | TEXT | 相对路径 |
-| `audio_sha256` | TEXT | OGG 文件的哈希 |
+| `duration_ms` | INTEGER | 由 OGG 帧数计算；导入的文字文件为 0 |
+| `audio_path` | TEXT | 相对路径；导入的文字文件为空字符串（E2，2026-11-20，见下） |
+| `audio_sha256` | TEXT | OGG 文件的哈希；导入的文字文件为空字符串 |
 | `title` | TEXT | 默认按开始时间生成 |
 | `created_at` / `updated_at` | DATETIME | — |
 | `folder_id` / `trashed_at` | — | M4 预留 |
@@ -354,6 +354,12 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `created_at` | DATETIME | — |
 
 改名时去掉首尾空白和 `#`，空名字或同名不改；改成已有的名字时同一条纪要里只留一个（合并）。规则会接力：A 改成 B 之后再把 B 改成 C，A 的规则跟着变成 C；删除 C 时指向 C 的规则都变成删除。改回一个曾被改掉的名字时，那个名字自己的规则作废。规则只套一次，不递归。
+
+### 5.2.1 没有音频的录音（E2 文字文件，2026-11-20）
+
+用户决定纯文字录音可以没有音频。从「文件」导入 `.txt`、`.md` 时插入一行 `recording`：`source = import`、`audio_path = ''`、`audio_sha256 = ''`、`duration_ms = 0`，标题取文件名；同一事务里插入 `transcript`：`engine = text`、`language = und`，每段一句、`startMs` 都是 0（长段落在句末断开，最长 200 字）。没有为此改表结构，`Recording.hasAudio`（`audio_path` 非空）是唯一判据。
+
+空的 `audio_path` 拼出来是音频目录本身，所以：`AudioStore.removeAudio` 只删 `audio/` 下的文件；播放、导出原始文件、M4A、WAV、解码都先查 `hasAudio`，没有就报 `audioMissing`；详情页不把它当成「找不到音频」。文本编码依次试 UTF-8（含 BOM）、带 BOM 的 UTF-16、GB 18030。
 
 ### 5.12 `word_list`（单词分级，迁移 `v15`，X20）
 

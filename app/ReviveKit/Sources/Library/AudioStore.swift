@@ -87,7 +87,12 @@ public struct AudioStore: Sendable {
         return "audio/\(name)"
     }
 
-    public func removeAudio(_ path: String) { try? FileManager.default.removeItem(at: url(forAudioPath: path)) }
+    /// Removes one audio file. Only a path inside `audio/` is touched: an empty path (a text-only
+    /// recording, features.md E2) would otherwise name the whole store.
+    public func removeAudio(_ path: String) {
+        guard path.hasPrefix("audio/"), path.count > "audio/".count, !path.contains("..") else { return }
+        try? FileManager.default.removeItem(at: url(forAudioPath: path))
+    }
 
     // MARK: Decoded copies (Player)
 

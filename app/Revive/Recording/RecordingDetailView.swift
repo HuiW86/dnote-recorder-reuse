@@ -216,7 +216,7 @@ private struct RecordingDetailContent: View {
                     .disabled(!model.canRetitle)
             }
             Menu("分享", systemImage: "square.and.arrow.up") {
-                if !model.audioMissing {
+                if model.hasAudio, !model.audioMissing {
                     Button("M4A（微信等大多数 App 可播放）", systemImage: "waveform") {
                         Task { shareURL = await model.exportM4A() }
                     }
@@ -313,9 +313,12 @@ private struct RecordingDetailContent: View {
         }
         // The player floats over the bottom of the page (design-spec.md §3).
         .safeAreaInset(edge: .bottom) {
-            PlayerCard(model: model)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+            // A text-only recording (features.md E2) has nothing to play.
+            if model.hasAudio {
+                PlayerCard(model: model)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
         }
     }
 
@@ -366,11 +369,15 @@ private struct RecordingDetailContent: View {
 
     private var infoSection: some View {
         Section {
-            LabeledContent("时长", value: model.durationText)
-            if let source = model.sourceText {
-                LabeledContent("来源", value: source)
+            if model.hasAudio {
+                LabeledContent("时长", value: model.durationText)
             }
-            LabeledContent("大小", value: model.sizeText)
+            if let source = model.sourceText {
+                LabeledContent("来源", value: model.hasAudio ? source : source + "（文字文件）")
+            }
+            if model.hasAudio {
+                LabeledContent("大小", value: model.sizeText)
+            }
         }
         .listRowBackground(Color.clear)
     }
@@ -541,9 +548,12 @@ extension RecordingDetailContent {
                     let looping = index == model.loopingIndex
                     Button { model.play(from: segment) } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Text(model.timeText(segment))
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(playing ? Theme.accent : Theme.inkMuted)
+                            // An imported text has no times (features.md E2).
+                            if model.hasAudio {
+                                Text(model.timeText(segment))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(playing ? Theme.accent : Theme.inkMuted)
+                            }
                             Text(segment.text)
                                 .foregroundStyle(Theme.ink)
                                 .multilineTextAlignment(.leading)
@@ -559,10 +569,12 @@ extension RecordingDetailContent {
                     .id(TranscriptLineID(index: index))
                     .listRowBackground(playing ? Theme.accentWash : Color.clear)
                     .accessibilityValue(looping ? "正在循环" : playing ? "正在播放" : "")
-                    .accessibilityHint("从这里播放")
+                    .accessibilityHint(model.hasAudio ? "从这里播放" : "")
                     .contextMenu {
-                        Button(looping ? "停止循环" : "单句循环", systemImage: "repeat.1") {
-                            model.toggleLoop(lineAt: index)
+                        if model.hasAudio {
+                            Button(looping ? "停止循环" : "单句循环", systemImage: "repeat.1") {
+                                model.toggleLoop(lineAt: index)
+                            }
                         }
                         if model.canRewrite {
                             Button("解释这一句", systemImage: "text.bubble") { model.explainLine(index) }
@@ -576,6 +588,7 @@ extension RecordingDetailContent {
                         }
                     }
                     .accessibilityAction(named: looping ? "停止循环" : "单句循环") {
+                        guard model.hasAudio else { return }
                         model.toggleLoop(lineAt: index)
                     }
                     .accessibilityAction(named: "解释这一句") {

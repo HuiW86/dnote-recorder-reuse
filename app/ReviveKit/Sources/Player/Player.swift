@@ -93,6 +93,8 @@ public final class RecordingPlayer: NSObject {
     private func load(_ recording: Recording) async throws {
         stop()
         let token = loadToken
+        // A text-only recording (features.md E2) has no file; its empty path names the store.
+        guard recording.hasAudio else { throw PlayerError.audioMissing }
         let url = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: url.path) else { throw PlayerError.audioMissing }
         let p: AVAudioPlayer
@@ -181,6 +183,7 @@ public enum RecordingExporter {
     /// `title` names the file; nil uses the stored title.
     public static func exportFile(for recording: Recording, library: RecordingLibrary,
                                   title: String? = nil) throws -> URL {
+        guard recording.hasAudio else { throw PlayerError.audioMissing }  // text only (E2)
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         // One directory per export so two recordings with the same title do not collide.
@@ -198,6 +201,7 @@ public enum RecordingExporter {
     /// The recording as a PCM file the system frameworks can read (the decoded copy the player
     /// also uses), made if it is not there yet. For speech recognition (features.md X9).
     public static func decodedPCM(for recording: Recording, library: RecordingLibrary) async throws -> URL {
+        guard recording.hasAudio else { throw PlayerError.audioMissing }  // text only (E2)
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         // A phone recording is already AAC, which the system reads as it is.
@@ -214,6 +218,7 @@ public enum RecordingExporter {
     /// `base` is where the export directory is made; the default is the one `cleanUp` empties.
     public static func exportM4A(for recording: Recording, library: RecordingLibrary,
                                  title: String? = nil, in base: URL? = nil) async throws -> URL {
+        guard recording.hasAudio else { throw PlayerError.audioMissing }  // text only (E2)
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))
@@ -241,6 +246,7 @@ public enum RecordingExporter {
     /// 16 kHz mono, so ten times the OGG. A phone recording's M4A is decoded the same way.
     public static func exportWAV(for recording: Recording, library: RecordingLibrary,
                                  title: String? = nil, in base: URL? = nil) async throws -> URL {
+        guard recording.hasAudio else { throw PlayerError.audioMissing }  // text only (E2)
         let source = library.store.url(forAudioPath: recording.audioPath)
         guard FileManager.default.fileExists(atPath: source.path) else { throw PlayerError.audioMissing }
         let dir = (base ?? FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true))

@@ -139,6 +139,28 @@ struct HomeModelTests {
         return (h, model)
     }
 
+    /// E2 文字文件: a .txt or .md picked in Files becomes a recording with no audio; an empty or
+    /// unreadable one is counted as failed.
+    @Test func importsTextFilesAsRecordingsWithoutAudio() async throws {
+        let (h, model) = try await home(FakeCard(paired: true))
+        await waitUntil("idle") { model.status == .idle }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("text-in-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let notes = dir.appendingPathComponent("会议记录.txt")
+        try Data("周三发布。\n\n测试通过以后上线。".utf8).write(to: notes)
+        let empty = dir.appendingPathComponent("空白.md")
+        try Data("   \n".utf8).write(to: empty)
+        #expect(HomeModel.textExtensions.contains("md"))
+
+        await model.importAudio([notes, empty])
+        #expect(model.toast?.text == "已导入 1 个，1 个无法识别")
+        let stored = try #require(try h.library.recordings().first { $0.title == "会议记录" })
+        #expect(!stored.hasAudio && stored.source == .import)
+        #expect(try h.library.transcript(recordingId: stored.id)?.segments.map(\.text) == ["周三发布。", "测试通过以后上线。"])
+        await waitUntil("listed") { model.recordings.contains { $0.id == stored.id } }
+    }
+
     @Test func listFollowsSyncNewestFirst() async throws {
         let card = FakeCard(files: [
             .init(name: "20261101090000.opus", content: Data(repeating: 0x08, count: 400)),

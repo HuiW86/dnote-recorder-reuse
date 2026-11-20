@@ -43,6 +43,10 @@ public struct Device: Codable, Equatable, Sendable, FetchableRecord, Persistable
 }
 
 public struct Recording: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    /// False for an imported text file (features.md E2): no audio, only its transcript.
+    /// `audioPath` is then empty, `durationMs` 0 and `audioSha256` empty.
+    public var hasAudio: Bool { !audioPath.isEmpty }
+
     public enum Source: String, Codable, Sendable {
         case card, `import`, realtime
         /// Recorded with the phone's microphone (features.md X18); stored as AAC `.m4a`.

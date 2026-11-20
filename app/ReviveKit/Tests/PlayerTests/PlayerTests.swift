@@ -194,6 +194,25 @@ struct PlayerTests {
         #expect(siblings == [url.lastPathComponent])
     }
 
+    /// E2 文字文件: a text-only recording is never played or exported as audio; its empty path
+    /// must not reach the file system (it would name the whole store).
+    @Test func textRecordingHasNoAudioToPlayOrExport() async throws {
+        let f = try Fixture()
+        let text = try #require(try f.library.addTextRecording(text: "一句话", title: "笔记", startedAt: Date()))
+        let player = RecordingPlayer(library: f.library)
+        await #expect(throws: PlayerError.audioMissing) { try await player.play(text) }
+        #expect(throws: PlayerError.audioMissing) { try RecordingExporter.exportFile(for: text, library: f.library) }
+        await #expect(throws: PlayerError.audioMissing) {
+            try await RecordingExporter.exportM4A(for: text, library: f.library)
+        }
+        await #expect(throws: PlayerError.audioMissing) {
+            try await RecordingExporter.exportWAV(for: text, library: f.library)
+        }
+        await #expect(throws: PlayerError.audioMissing) {
+            try await RecordingExporter.decodedPCM(for: text, library: f.library)
+        }
+    }
+
     /// E1c: the WAV copy is 16-bit PCM at the decoded rate, as long as the recording; a phone
     /// recording's M4A is decoded to WAV too.
     @Test func exportsWAV() async throws {
