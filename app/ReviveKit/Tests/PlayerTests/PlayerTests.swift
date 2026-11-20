@@ -63,7 +63,10 @@ struct PlayerTests {
         try await player.play(f.recording)
         player.volume = 0
         player.seek(to: player.duration - 0.1)
-        let deadline = ContinuousClock.now + .seconds(3)
+        // Patient, like `waitUntil` in AppModelTests: in a parallel run on CI the main actor,
+        // where the end of playback is handled, stays busy for seconds at the start; 3 s ran
+        // out there (PR #109, failed at 3.8 s). Playback that ends returns at once.
+        let deadline = ContinuousClock.now + .seconds(30)
         while player.state == .playing, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
