@@ -105,6 +105,32 @@ struct PhoneRecorderTests {
         #expect(try f.library.recordings().isEmpty)
     }
 
+    /// 标重点 while recording with the phone (X7): not while idle; a double tap within 2 s is one
+    /// mark; the marks are written next to the CAF, so a recovered recording keeps them.
+    @Test func marksAreKeptThroughRecovery() async throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        #expect(!f.recorder.markNow())
+        #expect(f.recorder.toast?.text == "现在还不能标重点")
+
+        let started = Date(timeIntervalSince1970: 1_800_000_000)
+        let caf = f.library.store.phoneDir.appendingPathComponent(PhoneRecorder.fileName(startedAt: started))
+        try Self.writeCutOffCAF(to: caf, seconds: 5)
+        f.recorder.state = .recording
+        #expect(f.recorder.addMark(atMs: 1_000, file: caf))
+        #expect(!f.recorder.addMark(atMs: 2_500, file: caf))  // a double tap
+        #expect(f.recorder.addMark(atMs: 4_000, file: caf))
+        #expect(f.recorder.marksMs == [1_000, 4_000])
+        #expect(PhoneRecorder.readMarks(for: caf) == [1_000, 4_000])
+
+        // Killed here; the next launch finds the CAF and its marks.
+        f.recorder.state = .idle
+        #expect(await f.recorder.recoverUnfinished() == 1)
+        let stored = try #require(try f.library.recordings().first)
+        #expect(try f.library.playbackMarks(for: stored).map(\.offsetMs) == [1_000, 4_000])
+        #expect(!FileManager.default.fileExists(atPath: PhoneRecorder.marksURL(for: caf).path))
+    }
+
     /// 16 kHz mono 16-bit PCM like the recorder's, then made to look as if the writer was killed:
     /// the data chunk's size is "unknown" (-1, which CAF allows for the last chunk) and the file
     /// ends in the middle of a sample.

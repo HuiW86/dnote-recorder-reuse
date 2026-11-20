@@ -29,6 +29,9 @@ public final class PhoneRecorder {
     public private(set) var interruptionNotice: String?
     /// Converting and storing after "停止"; a long recording takes a few seconds.
     public private(set) var isSaving = false
+    /// Points marked in the running recording, in ms (features.md X7). Also kept next to the CAF
+    /// (`marksURL`), so a recording recovered after the app was killed keeps its marks.
+    public private(set) var marksMs: [Int] = []
 
     /// The page's text while `interruptionNotice` is set.
     public static let interruptedText = "录音被来电或其他 App 打断，已经暂停。前面录的都在，点「继续」接着录。"
@@ -87,6 +90,7 @@ public final class PhoneRecorder {
             guard recorder.record() else { throw CocoaError(.fileWriteUnknown) }
             self.recorder = recorder
             startedAt = now
+            marksMs = []
             state = .recording
             return true
         } catch {
@@ -106,6 +110,37 @@ public final class PhoneRecorder {
         guard state == .paused, recorder?.record() == true else { return }
         state = .recording
         interruptionNotice = nil
+    }
+
+    /// "标重点": the current position of the running recording, as on the card's recording page
+    /// (features.md X7). Only while recording; a second mark within 2 s of one is dropped (a
+    /// double tap). Returns whether a mark was added.
+    @discardableResult
+    public func markNow() -> Bool {
+        guard state == .recording, let recorder else {
+            toast = Toast("现在还不能标重点")
+            return false
+        }
+        return addMark(atMs: Int((recorder.currentTime * 1000).rounded()), file: recorder.url)
+    }
+
+    func addMark(atMs offset: Int, file: URL) -> Bool {
+        guard !marksMs.contains(where: { abs($0 - offset) < 2000 }) else { return false }
+        marksMs.append(max(0, offset))
+        Self.writeMarks(marksMs, for: file)
+        return true
+    }
+
+    /// `phone-….caf.marks`: the marks of that CAF as a JSON array of ms.
+    static func marksURL(for caf: URL) -> URL { caf.appendingPathExtension("marks") }
+
+    static func readMarks(for caf: URL) -> [Int] {
+        (try? Data(contentsOf: marksURL(for: caf))).flatMap { try? JSONDecoder().decode([Int].self, from: $0) } ?? []
+    }
+
+    static func writeMarks(_ marks: [Int], for caf: URL) {
+        guard let data = try? JSONEncoder().encode(marks) else { return }
+        try? data.write(to: marksURL(for: caf), options: .atomic)
     }
 
     /// The audio session was taken while recording. What was recorded stays in the file; the
@@ -129,6 +164,7 @@ public final class PhoneRecorder {
         self.startedAt = nil
         state = .idle
         interruptionNotice = nil
+        marksMs = []
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
@@ -174,11 +210,14 @@ public final class PhoneRecorder {
             defer { try? FileManager.default.removeItem(at: prepared.file.deletingLastPathComponent()) }
             if skipEmpty, prepared.durationMs == 0 {
                 try? FileManager.default.removeItem(at: caf)
+                try? FileManager.default.removeItem(at: Self.marksURL(for: caf))
                 return nil
             }
             let stored = try library.addPhoneRecording(file: prepared.file, startedAt: startedAt,
-                                                       durationMs: prepared.durationMs)
+                                                       durationMs: prepared.durationMs,
+                                                       marksMs: Self.readMarks(for: caf))
             try? FileManager.default.removeItem(at: caf)
+            try? FileManager.default.removeItem(at: Self.marksURL(for: caf))
             return stored
         } catch {
             return nil

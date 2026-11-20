@@ -48,7 +48,8 @@ struct PhoneRecordingStage: View {
                     .padding(.horizontal, 32)
                     .padding(.top, 16)
                 Spacer(minLength: 16)
-                HStack(spacing: 48) {
+                HStack(spacing: 36) {
+                    if !saving { markControl(disabled: paused) }
                     if saving {
                         // Converting to M4A; a long recording takes a few seconds (X18).
                         ProgressView().tint(Theme.onDark).controlSize(.large).frame(height: 66)
@@ -75,6 +76,29 @@ struct PhoneRecordingStage: View {
         .onChange(of: recorder.interruptionNotice) { _, notice in
             if let notice { UIAccessibility.post(notification: .announcement, argument: notice) }
         }
+    }
+
+    /// "标重点", with the number of marks so far, as on the card's recording page (features.md X7).
+    private func markControl(disabled: Bool) -> some View {
+        let count = recorder.marksMs.count
+        let title = count == 0 ? "标重点" : "标重点 · \(count)"
+        return Button { recorder.markNow() } label: {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle().fill(Theme.onDark.opacity(0.14))
+                    Image(systemName: "bookmark.fill").font(.title2).foregroundStyle(Theme.onDark)
+                }
+                .frame(width: 66, height: 66)
+                Text(title)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.onDark.opacity(0.8))
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.4 : 1)
+        .sensoryFeedback(.impact, trigger: count)
+        .accessibilityLabel(count == 0 ? "标重点" : "标重点，已标 \(count) 处")
     }
 
     private func control(_ title: String, symbol: String, filled: Bool, action: @escaping () -> Void) -> some View {
