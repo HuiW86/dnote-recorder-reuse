@@ -195,6 +195,16 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        // 单词分级 (features.md X20): the graded words of a recording; removed with it.
+        migrator.registerMigration("v15") { db in
+            try db.create(table: "word_list") { t in
+                t.primaryKey("recording_id", .blob).references("recording", onDelete: .cascade)
+                t.column("words", .text).notNull()
+                t.column("model", .text).notNull()
+                t.column("created_at", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

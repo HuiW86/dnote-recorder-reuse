@@ -72,6 +72,8 @@ private struct RecordingDetailContent: View {
     @State private var shareURL: URL?
     /// 思维导图 (features.md G1) in a sheet.
     @State private var showsMindMap = false
+    /// 生词 (features.md X20 单词分级) in a sheet.
+    @State private var showsWords = false
     @State private var renaming = false
     @State private var question = ""
     @State private var newTitle = ""
@@ -152,6 +154,9 @@ private struct RecordingDetailContent: View {
             if let summary = model.summary {
                 MindMapSheet(title: model.title, outline: summary.outline)
             }
+        }
+        .sheet(isPresented: $showsWords) {
+            WordListSheet(model: model)
         }
         .sheet(item: $model.assistantOutput) { output in
             AssistantOutputSheet(output: output)
@@ -614,6 +619,19 @@ extension RecordingDetailContent {
                 } else if model.canPolish {
                     Button("润色文字稿（去掉语气词，句子和时间不变）") { model.polish() }
                 }
+                // 单词分级 (X20): for a transcript mostly in a foreign language.
+                if model.transcriptIsForeign {
+                    if model.isListingWords {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("正在用你的 AI 服务挑生词").font(.subheadline).foregroundStyle(Theme.inkMuted)
+                        }
+                    } else if let list = model.wordList {
+                        Button("生词 \(list.words.count) 个") { showsWords = true }
+                    } else if model.canListWords {
+                        Button("列出生词（按 A1～C2 分级）") { model.listWords() }
+                    }
+                }
                 if !model.isTranscribing, !model.canTranscribe, model.transcript == nil {
                     Text("在设置里打开本机转写，或者给你的 AI 服务填上转写模型，就能把这条录音转成文字。")
                         .font(.subheadline)
@@ -742,6 +760,74 @@ private struct PlayerCard: View {
     private static func clock(_ seconds: Double, hours: Bool) -> String {
         let s = max(0, Int(seconds))
         return hours ? RecordingText.clock(seconds: s) : String(format: "%02d:%02d", s / 60, s % 60)
+    }
+}
+
+/// 生词 (features.md X20 单词分级): the words of the recording from the hardest level down,
+/// filtered by a minimum level. Tapping one plays the line it was heard in.
+private struct WordListSheet: View {
+    @Bindable var model: RecordingDetailModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var minimum: WordLevel = .b1
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Picker("最低等级", selection: $minimum) {
+                        Text("全部").tag(WordLevel.a1)
+                        Text("B1 以上").tag(WordLevel.b1)
+                        Text("B2 以上").tag(WordLevel.b2)
+                        Text("C1 以上").tag(WordLevel.c1)
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .listRowBackground(Color.clear)
+                let groups = model.words(atLeast: minimum)
+                if groups.isEmpty {
+                    ContentUnavailableView("这个等级以上没有生词", systemImage: "character.book.closed")
+                        .listRowBackground(Color.clear)
+                }
+                ForEach(groups, id: \.level) { group in
+                    Section {
+                        ForEach(group.words, id: \.self) { word in
+                            Button {
+                                model.play(word: word)
+                                dismiss()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(word.word).font(.body.weight(.semibold)).foregroundStyle(Theme.ink)
+                                    if !word.meaning.isEmpty {
+                                        Text(word.meaning).font(.subheadline).foregroundStyle(Theme.inkMuted)
+                                    }
+                                }
+                            }
+                            .accessibilityHint("播放这个词所在的句子")
+                        }
+                    } header: {
+                        Text("\(group.level.rawValue) · \(group.words.count) 个").textCase(nil)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.paper)
+            .navigationTitle("生词")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("完成") { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    if model.canListWords {
+                        Button("重新列出") {
+                            model.listWords()
+                            dismiss()
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

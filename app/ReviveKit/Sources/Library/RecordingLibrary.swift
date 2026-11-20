@@ -599,6 +599,17 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Transcript.fetchOne($0, key: recordingId) }
     }
 
+    // MARK: Word lists (features.md X20 单词分级)
+
+    /// Stores the words of a recording, replacing an earlier list.
+    public func saveWordList(_ list: WordList) throws {
+        try database.writer.write { db in try list.save(db) }
+    }
+
+    public func wordList(recordingId: UUID) throws -> WordList? {
+        try database.writer.read { try WordList.fetchOne($0, key: recordingId) }
+    }
+
     // MARK: Summaries (features.md G1)
 
     /// Stores the summary of a recording, replacing an earlier one.

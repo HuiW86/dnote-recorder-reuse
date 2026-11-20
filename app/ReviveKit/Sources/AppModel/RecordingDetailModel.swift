@@ -54,6 +54,7 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let jobs: TranscriptionJobs
     @ObservationIgnored private let summarizer: Summarizer
     @ObservationIgnored private let polisher: Polisher
+    @ObservationIgnored private let grader: WordGrader
     @ObservationIgnored private let log = Logger(subsystem: "revive", category: "Detail")
 
     public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
@@ -69,9 +70,11 @@ public final class RecordingDetailModel {
         self.assistant = assistant
         self.summarizer = summarizer
         self.polisher = polisher ?? Polisher(client: summarizer.client)
+        grader = WordGrader(client: summarizer.client)
         self.jobs = jobs
         transcript = try? library.transcript(recordingId: recordingId)
         summary = try? library.summary(recordingId: recordingId)
+        wordList = try? library.wordList(recordingId: recordingId)
         recording = try? library.recording(id: recordingId)
         deviceNames = Dictionary(((try? library.pairedDevices()) ?? []).map { ($0.id, $0.name) },
                                  uniquingKeysWith: { a, _ in a })
@@ -388,6 +391,60 @@ public final class RecordingDetailModel {
         } catch {
             toast = Toast("保存失败，请重试")
         }
+    }
+
+    // MARK: - 单词分级 (features.md X20)
+
+    /// The graded words of this recording, once made.
+    public private(set) var wordList: WordList?
+    public private(set) var isListingWords = false
+
+    /// The transcript is mostly in a foreign language, so 「生词」 is offered.
+    public var transcriptIsForeign: Bool {
+        transcript.map { WordGrader.isForeign($0.segments.map(\.text)) } ?? false
+    }
+
+    /// 「列出生词」 needs a foreign-language transcript and a configured service.
+    public var canListWords: Bool { transcriptIsForeign && assistant?.current() != nil && !isListingWords }
+
+    /// Sends the transcript lines with Latin letters (text only) to the user's service and keeps
+    /// the words it picks, replacing an earlier list.
+    public func listWords() {
+        guard let transcript, let config = assistant?.current(), !isListingWords else { return }
+        isListingWords = true
+        let lines = transcript.segments.map(\.text)
+        Task {
+            defer { isListingWords = false }
+            do {
+                let words = try await grader.grade(lines, config: config)
+                let list = WordList(recordingId: recordingId, words: words, model: config.model)
+                try library.saveWordList(list)
+                wordList = list
+                toast = Toast(words.isEmpty ? "没有找到值得学的词" : "找到 \(words.count) 个生词")
+            } catch let error as AssistantError {
+                toast = Toast(AssistantSettingsModel.text(for: error))
+            } catch is CancellationError {
+                // Left the page.
+            } catch {
+                toast = Toast("列出生词失败，请重试")
+            }
+        }
+    }
+
+    /// The words at `minimum` or above, grouped by level from the hardest down.
+    public func words(atLeast minimum: WordLevel) -> [(level: WordLevel, words: [StudyWord])] {
+        let words = (wordList?.words ?? []).filter { $0.level >= minimum }
+        return WordLevel.allCases.reversed().compactMap { level -> (level: WordLevel, words: [StudyWord])? in
+            let group = words.filter { $0.level == level }
+            if group.isEmpty { return nil }
+            return (level: level, words: group)
+        }
+    }
+
+    /// Plays the line a word was heard in.
+    public func play(word: StudyWord) {
+        guard let segments = transcript?.segments, segments.indices.contains(word.segmentIndex) else { return }
+        play(from: segments[word.segmentIndex])
     }
 
     // MARK: - 逐句润色 (#75)
