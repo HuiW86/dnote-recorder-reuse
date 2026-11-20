@@ -53,6 +53,8 @@ struct RewriterTests {
         #expect(last["stream"] as? Bool == true)
         #expect((last["messages"] as? [[String: String]])?[1]["content"] == "材料：\n材料\n\n问题：几号发布？")
         for try await _ in rewriter.rewriteStream(material: "材料", style: .email, config: config) {}
+        #expect((log.entries.last?.json["messages"] as? [[String: String]])?[0]["content"]?
+            .contains(RewriteStyle.email.instruction) == true)
 
         // X20 难句解析: the line with its neighbours as context.
         for try await _ in rewriter.explainStream(line: "Let's ship it.", before: "Tests pass.", after: nil,
@@ -61,7 +63,5 @@ struct RewriterTests {
         #expect(explain[0]["content"] == Rewriter.explainPrompt)
         #expect(explain[1]["content"] == "上一句：Tests pass.\n要解释的句子：Let's ship it.")
         #expect(Rewriter.explainMessage(line: "b", before: nil, after: "c") == "要解释的句子：b\n下一句：c")
-        #expect((log.entries.last?.json["messages"] as? [[String: String]])?[0]["content"]?
-            .contains(RewriteStyle.email.instruction) == true)
     }
 }
