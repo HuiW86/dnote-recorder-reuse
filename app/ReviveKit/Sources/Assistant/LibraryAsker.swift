@@ -75,6 +75,17 @@ public struct LibraryAsker: Sendable {
         return LibraryAnswer(text: text, cited: Self.citations(in: text, count: used))
     }
 
+    /// `answer` as it is written (features.md G3 "SSE 流式"): raw pieces, and how many sources
+    /// were sent. Show `ChatClient.visibleText` of the pieces so far; find the citations with
+    /// `citations(in:count:)` once the reply is complete.
+    public func answerStream(question: String, sources: [LibrarySource],
+                             config: ServiceConfig) throws -> (pieces: AsyncThrowingStream<String, Error>, used: Int) {
+        guard config.isComplete else { throw AssistantError.notConfigured }
+        let (material, used) = Self.material(sources)
+        guard used > 0 else { throw AssistantError.badReply("没有可以参考的纪要") }
+        return (client.stream(config, system: Self.systemPrompt, user: "纪要：\n\(material)\n\n问题：\(question)"), used)
+    }
+
     /// The `[n]` marks in `text` that name one of `count` sources, in order of first use.
     public static func citations(in text: String, count: Int) -> [Int] {
         var seen: [Int] = []

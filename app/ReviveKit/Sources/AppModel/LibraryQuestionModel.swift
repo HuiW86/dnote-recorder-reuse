@@ -10,10 +10,27 @@ import Observation
 @Observable
 public final class LibraryQuestionModel {
     /// The answer and the recordings it cited, in order of first use.
-    public struct Answer: Equatable, Sendable {
+    public struct Answer: Equatable, Sendable, Identifiable {
+        public let id: UUID
         public let question: String
-        public let text: String
-        public let sources: [SummarizedRecording]
+        /// What has arrived so far, without the model's `<think>` part.
+        public var text: String
+        /// Filled in when the whole answer is in: its `[n]` marks are read then.
+        public var sources: [SummarizedRecording]
+        /// More is still coming (features.md G3 "SSE 流式").
+        public var isStreaming: Bool
+        /// The reply stopped part way; `text` is what arrived.
+        public var isCutOff: Bool
+
+        public init(id: UUID = UUID(), question: String, text: String, sources: [SummarizedRecording] = [],
+                    isStreaming: Bool = false, isCutOff: Bool = false) {
+            self.id = id
+            self.question = question
+            self.text = text
+            self.sources = sources
+            self.isStreaming = isStreaming
+            self.isCutOff = isCutOff
+        }
     }
 
     public private(set) var answer: Answer?
@@ -26,6 +43,7 @@ public final class LibraryQuestionModel {
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private let assistant: AssistantConfigSource?
     @ObservationIgnored private let asker: LibraryAsker
+    @ObservationIgnored private var askTask: Task<Void, Never>?
 
     public init(library: RecordingLibrary, assistant: AssistantConfigSource?, asker: LibraryAsker = LibraryAsker()) {
         self.library = library
@@ -49,25 +67,63 @@ public final class LibraryQuestionModel {
             toast = Toast("还没有整理好的纪要可以参考")
             return
         }
-        let sources = items.map(Self.source)
+        let started: (pieces: AsyncThrowingStream<String, Error>, used: Int)
+        do {
+            started = try asker.answerStream(question: question, sources: items.map(Self.source), config: config)
+        } catch {
+            toast = Toast(Self.text(for: error))
+            return
+        }
+        // The answer shows as it arrives; the recordings it cites are listed once it is complete.
+        let current = Answer(question: question, text: "", isStreaming: true)
+        answer = current
         isAsking = true
-        Task {
+        askTask = Task {
             defer { isAsking = false }
+            var raw = ""
+            var shown: Bool { answer?.id == current.id }
             do {
-                let reply = try await asker.answer(question: question, sources: sources, config: config)
-                answer = Answer(question: question, text: reply.text,
-                                sources: reply.cited.map { items[$0 - 1] })
-            } catch let error as AssistantError {
-                toast = Toast(AssistantSettingsModel.text(for: error))
+                for try await piece in started.pieces {
+                    raw += piece
+                    guard shown else { return }
+                    answer?.text = ChatClient.visibleText(raw)
+                }
+                guard shown else { return }
+                let text = ChatClient.visibleText(raw)
+                guard !text.isEmpty else {
+                    answer = nil
+                    toast = Toast(AssistantSettingsModel.text(for: .badReply("回复是空的")))
+                    return
+                }
+                answer?.text = text
+                answer?.sources = LibraryAsker.citations(in: text, count: started.used).map { items[$0 - 1] }
+                answer?.isStreaming = false
             } catch is CancellationError {
-                // Left the page.
+                // Cleared, or left the page.
             } catch {
-                toast = Toast("提问失败，请重试")
+                guard shown else { return }
+                if ChatClient.visibleText(raw).isEmpty {
+                    answer = nil
+                    toast = Toast(Self.text(for: error))
+                } else {
+                    answer?.isStreaming = false
+                    answer?.isCutOff = true
+                    toast = Toast("回答没有收完整：" + Self.text(for: error))
+                }
             }
         }
     }
 
-    public func clear() { answer = nil }
+    /// Clears the answer; one still arriving stops.
+    public func clear() {
+        askTask?.cancel()
+        askTask = nil
+        answer = nil
+    }
+
+    private static func text(for error: Error) -> String {
+        (error as? AssistantError).map(AssistantSettingsModel.text(for:)) ?? "提问失败，请重试"
+    }
 
     /// What the service reads for one recording: summary, sections and todos.
     static func source(_ item: SummarizedRecording) -> LibrarySource {

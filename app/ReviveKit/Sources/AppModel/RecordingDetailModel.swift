@@ -31,8 +31,11 @@ public final class RecordingDetailModel {
     /// The stored summary (features.md G1), if one was made.
     public private(set) var summary: Summary?
     public private(set) var isSummarizing = false
-    /// Result of the last rewrite or question (features.md X15, G3); shown in a sheet.
-    public var assistantOutput: AssistantOutput?
+    /// Result of the last rewrite or question (features.md X15, G3); shown in a sheet while it
+    /// is still arriving. Closing the sheet (setting nil) stops the request.
+    public var assistantOutput: AssistantOutput? {
+        didSet { if assistantOutput == nil { askTask?.cancel() } }
+    }
     public private(set) var isAsking = false
     /// Set after a delete; the page closes.
     public private(set) var isDeleted = false
@@ -41,6 +44,7 @@ public final class RecordingDetailModel {
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private let deviceNames: [UUID: String]
     @ObservationIgnored private var playTask: Task<Void, Never>?
+    @ObservationIgnored private var askTask: Task<Void, Never>?
     /// Read on every use, so turning transcription on or off in settings applies to a page that
     /// is already open (#85). Nil while transcription is switched off.
     @ObservationIgnored private let transcriberSource: @MainActor () -> (any SpeechTranscribing)?
@@ -277,7 +281,7 @@ public final class RecordingDetailModel {
 
     public func rewrite(_ style: RewriteStyle, extra: String = "") {
         run(title: style.name) { config, material, rewriter in
-            try await rewriter.rewrite(material: material, style: style, extra: extra, config: config)
+            rewriter.rewriteStream(material: material, style: style, extra: extra, config: config)
         }
     }
 
@@ -285,27 +289,65 @@ public final class RecordingDetailModel {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         run(title: trimmed) { config, material, rewriter in
-            try await rewriter.answer(question: trimmed, material: material, config: config)
+            rewriter.answerStream(question: trimmed, material: material, config: config)
         }
     }
 
+    /// 「解释这一句」(features.md X20 难句解析): the line, with its neighbours as context, explained
+    /// by the user's service in the same sheet as a rewrite. Only those lines are sent.
+    public func explainLine(_ index: Int) {
+        guard let segments = transcript?.segments, segments.indices.contains(index) else { return }
+        let line = segments[index].text
+        let before = index > 0 ? segments[index - 1].text : nil
+        let after = index + 1 < segments.count ? segments[index + 1].text : nil
+        run(title: "解释这一句") { config, _, rewriter in
+            rewriter.explainStream(line: line, before: before, after: after, config: config)
+        }
+    }
+
+    /// Opens the sheet at once and fills it as the reply arrives (features.md G3 "SSE 流式").
+    /// A reply cut off part way keeps what arrived and says so; one with nothing closes the sheet.
     private func run(title: String,
-                     _ work: @escaping @Sendable (ServiceConfig, String, Rewriter) async throws -> String) {
+                     _ stream: @escaping (ServiceConfig, String, Rewriter) -> AsyncThrowingStream<String, Error>) {
         guard let config = assistant?.current(), !isAsking else { return }
         let material = Rewriter.material(summary: summary, transcript: transcript)
         guard !material.isEmpty else { return }
         isAsking = true
         let rewriter = Rewriter(client: summarizer.client)
-        Task {
+        let output = AssistantOutput(title: title, text: "", isStreaming: true)
+        assistantOutput = output
+        let pieces = stream(config, material, rewriter)
+        askTask = Task {
             defer { isAsking = false }
+            var raw = ""
+            /// Still the sheet this request fills (not closed, not replaced).
+            var shown: Bool { assistantOutput?.id == output.id }
             do {
-                let text = try await work(config, material, rewriter)
-                assistantOutput = AssistantOutput(title: title, text: text)
-            } catch let error as AssistantError {
-                toast = Toast(AssistantSettingsModel.text(for: error))
+                for try await piece in pieces {
+                    raw += piece
+                    guard shown else { return }
+                    assistantOutput?.text = ChatClient.visibleText(raw)
+                }
+                guard shown else { return }
+                if ChatClient.visibleText(raw).isEmpty {
+                    assistantOutput = nil
+                    toast = Toast(AssistantSettingsModel.text(for: .badReply("回复是空的")))
+                } else {
+                    assistantOutput?.isStreaming = false
+                }
             } catch is CancellationError {
+                // The sheet was closed.
             } catch {
-                toast = Toast("请求失败，请重试")
+                guard shown else { return }
+                let why = (error as? AssistantError).map(AssistantSettingsModel.text(for:)) ?? "请求失败，请重试"
+                if ChatClient.visibleText(raw).isEmpty {
+                    assistantOutput = nil
+                    toast = Toast(why)
+                } else {
+                    assistantOutput?.isStreaming = false
+                    assistantOutput?.isCutOff = true
+                    toast = Toast("回答没有收完整：" + why)
+                }
             }
         }
     }
@@ -657,6 +699,17 @@ public final class RecordingDetailModel {
     }
     #endif
 
+    /// The summary has an outline to export as a mind map (features.md J1).
+    public var canExportMindMap: Bool { !(summary?.outline.isEmpty ?? true) }
+
+    /// The outline as `<title>.opml` for XMind, 幕布 and other outliners (features.md J1 思维导图).
+    public func exportMindMap() -> URL? {
+        guard let summary, !summary.outline.isEmpty else { return nil }
+        let heading = summary.title.isEmpty ? title : summary.title
+        return writeExport(Data(MindMapExport.opml(title: heading, outline: summary.outline).utf8),
+                           fileExtension: "opml")
+    }
+
     /// `<title>.<ext>` in its own directory under the export folder `RecordingExporter.cleanUp`
     /// empties; nil with a toast on failure.
     private func writeExport(_ data: Data, fileExtension: String) -> URL? {
@@ -750,7 +803,19 @@ public final class RecordingDetailModel {
 
 /// Text the user's service wrote for this recording: a rewrite or an answer.
 public struct AssistantOutput: Equatable, Identifiable, Sendable {
-    public let id = UUID()
+    public let id: UUID
     public let title: String
-    public let text: String
+    /// What has arrived so far, without the model's `<think>` part.
+    public var text: String
+    /// More is still coming.
+    public var isStreaming: Bool
+    /// The reply stopped part way (lost connection, service error); `text` is what arrived.
+    public var isCutOff = false
+
+    public init(id: UUID = UUID(), title: String, text: String, isStreaming: Bool = false) {
+        self.id = id
+        self.title = title
+        self.text = text
+        self.isStreaming = isStreaming
+    }
 }

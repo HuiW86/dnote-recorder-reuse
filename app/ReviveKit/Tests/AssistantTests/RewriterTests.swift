@@ -42,5 +42,26 @@ struct RewriterTests {
         #expect(messages[1][0]["content"]?.contains("没有记录到") == true)
         #expect(messages[1][1]["content"] == "材料：\n材料\n\n问题：几号发布？")
         #expect(log.entries.allSatisfy { $0.json["response_format"] == nil })  // plain text, not JSON
+
+        // G3: the streamed versions send the same prompts, asking for a stream.
+        var streamed = ""
+        for try await piece in rewriter.answerStream(question: "几号发布？", material: "材料", config: config) {
+            streamed += piece
+        }
+        #expect(ChatClient.visibleText(streamed) == "成品")
+        let last = try #require(log.entries.last?.json)
+        #expect(last["stream"] as? Bool == true)
+        #expect((last["messages"] as? [[String: String]])?[1]["content"] == "材料：\n材料\n\n问题：几号发布？")
+        for try await _ in rewriter.rewriteStream(material: "材料", style: .email, config: config) {}
+        #expect((log.entries.last?.json["messages"] as? [[String: String]])?[0]["content"]?
+            .contains(RewriteStyle.email.instruction) == true)
+
+        // X20 难句解析: the line with its neighbours as context.
+        for try await _ in rewriter.explainStream(line: "Let's ship it.", before: "Tests pass.", after: nil,
+                                                  config: config) {}
+        let explain = try #require(log.entries.last?.json["messages"] as? [[String: String]])
+        #expect(explain[0]["content"] == Rewriter.explainPrompt)
+        #expect(explain[1]["content"] == "上一句：Tests pass.\n要解释的句子：Let's ship it.")
+        #expect(Rewriter.explainMessage(line: "b", before: nil, after: "c") == "要解释的句子：b\n下一句：c")
     }
 }

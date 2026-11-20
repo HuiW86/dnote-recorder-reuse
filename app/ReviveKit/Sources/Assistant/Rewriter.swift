@@ -62,26 +62,73 @@ public struct Rewriter: Sendable {
 
     public func rewrite(material: String, style: RewriteStyle, extra: String = "",
                         config: ServiceConfig) async throws -> String {
-        let extraLine = extra.trimmingCharacters(in: .whitespacesAndNewlines)
-        let system = """
-            你是一位文字编辑。下面是一段录音的内容，请按要求改写。
-            要求：\(style.instruction)\(extraLine.isEmpty ? "" : "\n补充要求：\(extraLine)")
-            只用录音里有的事实、观点和例子，不要编造数据或经历。录音里的口语垫词不要带进成品。
-            直接输出成品，不要解释你做了什么。用简体中文。
-            """
-        let reply = try await client.complete(config, system: system, user: material, json: false)
+        let reply = try await client.complete(config, system: Self.rewritePrompt(style, extra: extra), user: material,
+                                              json: false)
         guard !reply.isEmpty else { throw AssistantError.badReply("回复是空的") }
         return reply
     }
 
     public func answer(question: String, material: String, config: ServiceConfig) async throws -> String {
-        let system = """
-            你根据用户自己的这条录音回答问题。只用下面给出的材料，材料里没有就直说没有记录到，不要编。
-            回答简洁，用提问所用的语言回答。
-            """
-        let reply = try await client.complete(config, system: system,
-                                              user: "材料：\n\(material)\n\n问题：\(question)", json: false)
+        let reply = try await client.complete(config, system: Self.answerPrompt,
+                                              user: Self.answerMessage(question: question, material: material),
+                                              json: false)
         guard !reply.isEmpty else { throw AssistantError.badReply("回复是空的") }
         return reply
+    }
+
+    /// `rewrite` as it is written (G3 "SSE 流式"): raw pieces; show `ChatClient.visibleText`.
+    public func rewriteStream(material: String, style: RewriteStyle, extra: String = "",
+                              config: ServiceConfig) -> AsyncThrowingStream<String, Error> {
+        client.stream(config, system: Self.rewritePrompt(style, extra: extra), user: material)
+    }
+
+    /// `answer` as it is written: raw pieces; show `ChatClient.visibleText`.
+    public func answerStream(question: String, material: String,
+                             config: ServiceConfig) -> AsyncThrowingStream<String, Error> {
+        client.stream(config, system: Self.answerPrompt, user: Self.answerMessage(question: question, material: material))
+    }
+
+    /// One transcript line explained for a learner (features.md X20 难句解析): translation, the
+    /// hard words, and how the sentence is built. `before` and `after` are the neighbouring lines,
+    /// for context only.
+    public func explainStream(line: String, before: String?, after: String?,
+                              config: ServiceConfig) -> AsyncThrowingStream<String, Error> {
+        client.stream(config, system: Self.explainPrompt,
+                      user: Self.explainMessage(line: line, before: before, after: after))
+    }
+
+    static let explainPrompt = """
+        你在帮用户逐句听懂一段录音。解释用户指定的那一句：
+        - 先给翻译：外语句子译成简体中文；中文句子译成英文
+        - 再列出句中较难的词或短语，每个一行，写清意思和在这里的用法
+        - 最后用一两句话说明句子结构或语气；句子听起来像识别错了时，指出可能原本是什么
+        上下文只用来理解意思，不要解释上下文。简洁，用简体中文讲解。
+        """
+
+    static func explainMessage(line: String, before: String?, after: String?) -> String {
+        var parts: [String] = []
+        if let before, !before.isEmpty { parts.append("上一句：\(before)") }
+        parts.append("要解释的句子：\(line)")
+        if let after, !after.isEmpty { parts.append("下一句：\(after)") }
+        return parts.joined(separator: "\n")
+    }
+
+    static func rewritePrompt(_ style: RewriteStyle, extra: String) -> String {
+        let extraLine = extra.trimmingCharacters(in: .whitespacesAndNewlines)
+        return """
+            你是一位文字编辑。下面是一段录音的内容，请按要求改写。
+            要求：\(style.instruction)\(extraLine.isEmpty ? "" : "\n补充要求：\(extraLine)")
+            只用录音里有的事实、观点和例子，不要编造数据或经历。录音里的口语垫词不要带进成品。
+            直接输出成品，不要解释你做了什么。用简体中文。
+            """
+    }
+
+    static let answerPrompt = """
+        你根据用户自己的这条录音回答问题。只用下面给出的材料，材料里没有就直说没有记录到，不要编。
+        回答简洁，用提问所用的语言回答。
+        """
+
+    static func answerMessage(question: String, material: String) -> String {
+        "材料：\n\(material)\n\n问题：\(question)"
     }
 }
