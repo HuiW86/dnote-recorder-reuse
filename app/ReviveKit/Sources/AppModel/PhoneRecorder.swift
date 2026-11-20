@@ -12,15 +12,25 @@ public final class PhoneRecorder {
         case idle, recording, paused
     }
 
-    public private(set) var state: State = .idle
+    /// Internal set for tests, which cannot start the microphone.
+    public internal(set) var state: State = .idle
     public var toast: Toast?
+    /// Why recording paused on its own: a call, Siri or another app took the microphone. iOS
+    /// pauses the recorder then and never resumes it, so without this the page kept saying
+    /// "录音中" over a frozen timer while nothing was recorded. Cleared by resuming or stopping.
+    public private(set) var interruptionNotice: String?
+
+    /// The page's text while `interruptionNotice` is set.
+    public static let interruptedText = "录音被来电或其他 App 打断，已经暂停。前面录的都在，点「继续」接着录。"
 
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private var recorder: AVAudioRecorder?
     @ObservationIgnored private var startedAt: Date?
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
 
     public init(library: RecordingLibrary) {
         self.library = library
+        observeSession()
     }
 
     /// Seconds recorded so far, for the timer.
@@ -67,6 +77,29 @@ public final class PhoneRecorder {
     public func resume() {
         guard state == .paused, recorder?.record() == true else { return }
         state = .recording
+        interruptionNotice = nil
+    }
+
+    /// The audio session was taken while recording. What was recorded stays in the file; the
+    /// state becomes paused so the page and its timer tell the truth, and the user decides when
+    /// to go on (as the player does, nothing resumes on its own).
+    func interruptionBegan() {
+        guard state == .recording else { return }
+        recorder?.pause()
+        state = .paused
+        interruptionNotice = Self.interruptedText
+    }
+
+    private func observeSession() {
+        #if os(iOS)
+        observers.append(NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
+            let type = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
+                .flatMap(AVAudioSession.InterruptionType.init)
+            guard type == .began else { return }
+            MainActor.assumeIsolated { self?.interruptionBegan() }
+        })
+        #endif
     }
 
     /// Stops and keeps the recording in the library. Returns it, or nil when it could not be kept.
@@ -79,6 +112,7 @@ public final class PhoneRecorder {
         self.recorder = nil
         self.startedAt = nil
         state = .idle
+        interruptionNotice = nil
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif

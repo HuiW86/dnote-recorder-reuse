@@ -10,6 +10,7 @@ public final class Preferences {
     private enum Key {
         static let currentDevice = "revive.currentDevice"
         static let recordingConsent = "revive.recordingConsent"
+        static let usesWithoutCard = "revive.usesWithoutCard"
         static let syncNotifications = "revive.syncNotifications"
         static let onDeviceTranscript = "revive.onDeviceTranscript"
         static let appearance = "revive.appearance"
@@ -48,6 +49,19 @@ public final class Preferences {
     public var recordingConsentGiven: Bool {
         get { defaults.bool(forKey: Key.recordingConsent) }
         set { defaults.set(newValue, forKey: Key.recordingConsent) }
+    }
+
+    /// "先不连卡，直接用" on P01 (product-spec.md §2.1): the tabs open without a paired card, also
+    /// after a relaunch. Cleared by "添加录音卡" while no Bluetooth stack exists, which goes back
+    /// to P01. Observed, so the root view switches at once.
+    public var usesWithoutCard: Bool {
+        get {
+            access(keyPath: \.usesWithoutCard)
+            return defaults.bool(forKey: Key.usesWithoutCard)
+        }
+        set {
+            withMutation(keyPath: \.usesWithoutCard) { defaults.set(newValue, forKey: Key.usesWithoutCard) }
+        }
     }
 
     /// "同步完成时通知": a local notification after a background sync stored recordings

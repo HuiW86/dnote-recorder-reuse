@@ -55,8 +55,12 @@ final class AppEnvironment {
     /// Nil until Bluetooth is started: creating the stack is what shows the permission prompt,
     /// so first use waits for "继续" on P01 (product-spec.md §3.1).
     private(set) var session: CardSession?
-    /// At least one card paired from this phone; false shows the first-use flow.
+    /// At least one card paired from this phone; false shows the first-use flow, unless the
+    /// user chose 先不连卡 (`Preferences.usesWithoutCard`).
     private(set) var hasPairedDevice: Bool
+    /// The tabs' session for 先不连卡 while Bluetooth was never asked about: no CoreBluetooth
+    /// behind it (`NoCardLink`), so iOS shows no prompt before P01 has explained it.
+    @ObservationIgnored private var cardlessSession: CardSession?
     /// One player for the whole app, so leaving a page does not cut playback off.
     let player: RecordingPlayer?
     /// The phone's microphone, for when no card is at hand (features.md X18).
@@ -123,7 +127,7 @@ final class AppEnvironment {
         var link: any CardLink
         #if DEBUG
         if LaunchOptions.demoLibrary {
-            link = DemoCardLink()
+            link = NoCardLink()
         } else {
             let bluetooth = BluetoothCardLink()
             bluetooth.onRestore = { [debugLog] in debugLog.add($0) }
@@ -147,10 +151,37 @@ final class AppEnvironment {
         return session
     }
 
+    /// The session the tabs run on. The real Bluetooth stack whenever it exists, a card is
+    /// paired, or iOS has already answered about Bluetooth (starting it then shows no prompt);
+    /// otherwise, for 先不连卡, a session over `NoCardLink`.
+    func mainSession() -> CardSession? {
+        if session != nil || hasPairedDevice || Self.bluetoothAuthorization != .notDetermined {
+            return startBluetooth()
+        }
+        if let cardlessSession { return cardlessSession }
+        guard let library else { return nil }
+        cardlessSession = try? CardSession(link: NoCardLink(), bondStore: KeychainBondStore(), library: library,
+                                           diagnostics: diagnostics)
+        return cardlessSession
+    }
+
+    /// The tabs run without a Bluetooth stack (先不连卡); adding a card then goes through P01.
+    var isCardless: Bool { session == nil }
+
+    /// "添加录音卡" while `isCardless`: back to the first-use flow, where P01 says what Bluetooth
+    /// is for before iOS asks (product-spec.md §3.1). Its own "先不连卡" comes back here.
+    func addFirstCard() {
+        diagnostics.add("app", "add first card from 先不连卡")
+        preferences.usesWithoutCard = false
+    }
+
     /// Re-reads whether any card is paired, after pairing or unpairing.
     func refreshDevices() {
         session?.refreshDevices()
         hasPairedDevice = ((try? library?.pairedDevices()) ?? []).isEmpty == false
+        // Paired now: unpairing the last card goes back to P01 as for everyone else (§2.1), and
+        // P01 offers 先不连卡 again.
+        if hasPairedDevice { preferences.usesWithoutCard = false }
     }
 
     static var bluetoothAuthorization: BluetoothAuthorization {

@@ -1,7 +1,7 @@
 import AppModel
 import SwiftUI
 
-/// First use until a card is paired, then the home screen (product-spec.md §2.1).
+/// First use until a card is paired or the user chose 先不连卡, then the tabs (product-spec.md §2.1).
 struct RootView: View {
     let env: AppEnvironment
     @Environment(\.scenePhase) private var scenePhase
@@ -17,7 +17,8 @@ struct RootView: View {
                     ShareLink(item: error) { Text("导出诊断信息") }
                 }
                 .paperPage()
-            } else if env.hasPairedDevice {
+            } else if env.hasPairedDevice || env.preferences.usesWithoutCard {
+                // 先不连卡 (P01) opens the tabs without a card.
                 MainView(env: env)
             } else {
                 OnboardingFlow(env: env)

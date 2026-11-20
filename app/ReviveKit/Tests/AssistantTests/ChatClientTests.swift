@@ -82,6 +82,33 @@ struct ChatClientTests {
         }
     }
 
+    /// No connection (or 无线数据 turned off for 闻笺) is advice, not a raw system error, on both
+    /// the whole-reply and the streamed path.
+    @Test func noConnectionIsOffline() async throws {
+        let client = ChatClient(session: StubURLProtocol.session())
+        let config = ServiceConfig(baseURL: StubURLProtocol.offlineBase, model: "m", apiKey: "")
+        await #expect(throws: AssistantError.offline) {
+            try await client.complete(config, system: "s", user: "u", json: false)
+        }
+        await #expect(throws: AssistantError.offline) {
+            for try await _ in client.stream(config, system: "s", user: "u") {}
+        }
+        #expect(AssistantError.offline.errorDescription == AssistantError.offlineAdvice)
+        #expect(AssistantError.offlineAdvice.contains("无线数据"))
+    }
+
+    @Test func onlyConnectionErrorsCountAsOffline() {
+        for code in [URLError.Code.notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff] {
+            #expect(AssistantError.network(URLError(code)) == .offline)
+        }
+        for code in [URLError.Code.cannotConnectToHost, .timedOut, .cannotFindHost, .secureConnectionFailed] {
+            guard case .unreachable = AssistantError.network(URLError(code)) else {
+                Issue.record("\(code) should stay unreachable")
+                continue
+            }
+        }
+    }
+
     @Test func incompleteConfigIsNotConfigured() async throws {
         let client = ChatClient(session: StubURLProtocol.session())
         for config in [ServiceConfig(baseURL: "", model: "m", apiKey: ""),

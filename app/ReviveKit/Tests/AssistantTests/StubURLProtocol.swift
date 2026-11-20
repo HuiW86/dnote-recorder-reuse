@@ -23,10 +23,18 @@ final class StubURLProtocol: URLProtocol {
         return "https://\(host)/v1"
     }
 
+    /// A base URL whose requests fail as they do on a phone with no connection, or with 闻笺's
+    /// 无线数据 turned off in iOS Settings.
+    static let offlineBase = "https://offline.stub.test/v1"
+
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        if request.url?.host == "offline.stub.test" {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
         guard let url = request.url, let host = url.host, let handler = Self.registry.handler(for: host) else {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
             return

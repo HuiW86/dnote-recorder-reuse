@@ -161,6 +161,7 @@ public final class AutoProcessor {
         case AssistantError.http(let code, _): "http \(code)"
         case AssistantError.badReply: "bad reply"
         case AssistantError.unreachable: "unreachable"
+        case AssistantError.offline: "offline"
         case TranscriptionError.permissionDenied: "permission denied"
         case TranscriptionError.unsupportedLanguage: "unsupported language"
         case TranscriptionError.noSpeech: "no speech"

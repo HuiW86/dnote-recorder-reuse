@@ -29,7 +29,13 @@ struct DeviceSwitcherSheet: View {
                 .surfaceRows()
                 Section {
                     Button {
-                        path.append(.connectGuide)
+                        if env.isCardless {
+                            // 先不连卡: pair through P01, which explains Bluetooth before iOS asks.
+                            dismiss()
+                            env.addFirstCard()
+                        } else {
+                            path.append(.connectGuide)
+                        }
                     } label: {
                         Label("添加录音卡", systemImage: "plus")
                     }
