@@ -17,7 +17,8 @@ struct RootView: View {
                     ShareLink(item: error) { Text("导出诊断信息") }
                 }
                 .paperPage()
-            } else if env.hasPairedDevice || env.preferences.usesWithoutCard {
+            } else if BluetoothStart.showsTabs(hasPairedCard: env.hasPairedDevice,
+                                               usesWithoutCard: env.preferences.usesWithoutCard) {
                 // 先不连卡 (P01) opens the tabs without a card.
                 MainView(env: env)
             } else {
