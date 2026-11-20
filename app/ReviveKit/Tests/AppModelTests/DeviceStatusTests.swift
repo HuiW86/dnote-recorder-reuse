@@ -160,6 +160,28 @@ struct RecordingControlTests {
         }
     }
 
+    /// #53: a 0x80 handled while the reconnect's 0x56 is out overtakes the answer, but an answer
+    /// that names the same state still brings the card's own recorded time.
+    @Test func overtakenStatusAnswerStillRestoresTimer() async throws {
+        let (h, id) = try await pairedHarness()
+        await waitUntil("idle") { h.session.status(of: id) == .idle }
+        await h.session.syncEngine.idle()
+        h.card.pressButtonToRecord()
+        await waitUntil("recording") { h.session.status(of: id) == .recording }
+        h.card.dropLink()
+        h.card.recordedMs = 34_000
+        h.card.faults = [.delayReply(.recordingStatus, milliseconds: 300)]
+        let reads = h.sent(.recordingStatus)
+        h.card.advertise()
+        await waitUntil("0x56 sent") { h.sent(.recordingStatus) > reads }
+        #expect(h.session.recordedMs == nil)  // 0x80 gave the state, not recd
+        h.card.pushDeviceInfo()               // agrees: recording
+        await waitUntil("recd from the overtaken answer") {
+            h.session.status(of: id) == .recording && h.session.recordedMs == 34_000
+        }
+        #expect(h.session.recordingName != nil)
+    }
+
     /// 0x56 not answering must not leave the card stuck as connecting: 0x80 already gave the state.
     @Test func statusFromDeviceInfoWhenRecordingStatusFails() async throws {
         let (h, id) = try await pairedHarness()

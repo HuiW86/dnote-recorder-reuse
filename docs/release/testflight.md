@@ -27,7 +27,7 @@
 
 - 没有后端，也没有第三方 SDK；设备模块（配对、录音控制、同步、播放、导出）不使用联网 API，由 `scripts/check-m1-rules.sh` 在 CI 中检查
 - 录音、数据库、诊断日志都只在本机；诊断日志只有用户主动分享时才离开手机，去向由用户在系统分享面板里选择
-- 唯一联网的是自配 AI 服务（X11，`Assistant` 模块）：地址、模型和密钥都由用户自己填，App 不内置任何服务商密钥；只在用户点了某个 AI 功能时，把文字稿、纪要或（「转成文字」时）音频从手机直接发给那个服务。开发者收不到这些内容，那个服务也不是开发者的合作方，所以按上面的定义不算开发者「收集」
+- 唯一联网的是自配 AI 服务（X11，`Assistant` 模块）：地址、模型和密钥都由用户自己填，App 不内置任何服务商密钥；只在用户点了某个 AI 功能、或自己打开了「录完自动整理」（X22）时，把文字稿、纪要或（「转成文字」时）音频从手机直接发给那个服务。开发者收不到这些内容，那个服务也不是开发者的合作方，所以按上面的定义不算开发者「收集」
 
 **【待核对】**
 - TestFlight 的崩溃报告和测试员反馈由 Apple 收集，一般不算开发者「从此 App 收集」，提交前对照 Apple 当前说明确认
@@ -72,9 +72,9 @@
 
 > This app is a companion for the D·NOTE voice recorder card, a Bluetooth hardware device. Without the card, the app shows the onboarding and pairing screens; the main screens (recording, syncing, playback, export) open after a card is paired. A video of the full flow on a real card is here: 【演示视频链接】.
 >
-> There is no account, no developer server and no third-party SDK. The optional AI features (summaries, rewriting, questions) use an OpenAI-compatible service that the user configures with their own address and API key; the app contacts only that service, only when the user taps an AI feature, and ships with no key of ours. Everything else works offline. On some iPhones, iOS shows a "wireless data" permission prompt on first launch; choosing "Don't Allow" does not affect the card, recording, playback or export.
+> There is no account, no developer server and no third-party SDK. The optional AI features (summaries, rewriting, questions) use an OpenAI-compatible service that the user configures with their own address and API key; the app contacts only that service, only when the user taps an AI feature or turns on automatic processing of new recordings, and ships with no key of ours. Everything else works offline. On some iPhones, iOS shows a "wireless data" permission prompt on first launch; choosing "Don't Allow" does not affect the card, recording, playback or export.
 >
-> 本 App 用于配合 D·NOTE 录音卡（蓝牙硬件）。没有录音卡时可以看到引导和配对页面；配对一张卡之后才进入主界面（录音、同步、播放、导出）。真卡全流程演示视频：【演示视频链接】。没有账号、开发者服务器和第三方 SDK。可选的 AI 功能（纪要、改写、提问）使用用户自己填写地址和密钥的兼容 OpenAI 接口的服务，只在用户点了 AI 功能时联系那个服务，App 不内置我们的密钥；其余功能都不联网。部分 iPhone 首次启动时系统会弹出「无线数据」权限询问，选「不允许」不影响录音卡、录音、播放和导出。
+> 本 App 用于配合 D·NOTE 录音卡（蓝牙硬件）。没有录音卡时可以看到引导和配对页面；配对一张卡之后才进入主界面（录音、同步、播放、导出）。真卡全流程演示视频：【演示视频链接】。没有账号、开发者服务器和第三方 SDK。可选的 AI 功能（纪要、改写、提问）使用用户自己填写地址和密钥的兼容 OpenAI 接口的服务，只在用户点了 AI 功能或自己打开「录完自动整理」时联系那个服务，App 不内置我们的密钥；其余功能都不联网。部分 iPhone 首次启动时系统会弹出「无线数据」权限询问，选「不允许」不影响录音卡、录音、播放和导出。
 
 **【待核对】** 需要硬件的 App，审核员手上没有设备时，常见做法是提供一段演示视频。演示视频用真卡录：从配对到导出 M4A 走一遍，最好和 T-M1-50 一起录。画面里不要出现完整的 `sn` 或蓝牙地址（硬规则 4）。
 
@@ -95,7 +95,7 @@
 - [ ] 多卡回归：至少 3 张卡（#8，硬规则 7）
 - [ ] 隐私政策已托管（§1），占位符已填，与 App 内 P11 一致（含「AI 服务」一节）
 - [ ] App 隐私已回答（§2），自配 AI 服务那条已按 Apple 当时的说明核对
-- [ ] 真机：系统设置里关掉闻笺的「无线数据」后，录音卡、录音、同步、播放、导出都正常；点「生成纪要」时 Toast 指向「设置 › 闻笺 › 无线数据」（T-M2-09）
+- [ ] 真机：系统设置里关掉闻笺的「无线数据」后，录音卡、录音、同步、播放、导出都正常；点「生成纪要」时 Toast 指向「设置 › 闻笺 › 无线数据」（T-M2-10）
 - [ ] 测试信息已填写（§3），演示视频已上传
 - [ ] 提交 Beta 版 App 审核；通过后建外部群组、发公开链接
 - [ ] `features.md` M1 条目状态更新为 verified

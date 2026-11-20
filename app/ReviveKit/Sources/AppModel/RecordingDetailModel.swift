@@ -30,7 +30,8 @@ public final class RecordingDetailModel {
     public var transcriptionRemainingText: String? { jobs.remainingText(recordingId) }
     /// The stored summary (features.md G1), if one was made.
     public private(set) var summary: Summary?
-    public private(set) var isSummarizing = false
+    /// A summary of this recording is being made, from this page or by 录完自动整理.
+    public var isSummarizing: Bool { jobs.summarizing.contains(recordingId) }
     /// Result of the last rewrite or question (features.md X15, G3); shown in a sheet while it
     /// is still arriving. Closing the sheet (setting nil) stops the request.
     public var assistantOutput: AssistantOutput? {
@@ -231,11 +232,11 @@ public final class RecordingDetailModel {
     /// `scene` is the template the user picked ("按场景重新生成", features.md G2a); nil lets the
     /// model choose. The summary's title becomes the recording's unless the user renamed it (G1).
     public func summarize(scene: RecordingScene? = nil) {
-        guard let transcript, let recording, let config = assistant?.current(), !isSummarizing else { return }
-        isSummarizing = true
+        guard let transcript, let recording, let config = assistant?.current(),
+              jobs.beginSummary(recording.id) else { return }
         let material = Summarizer.material(from: transcript)
-        Task {
-            defer { isSummarizing = false }
+        Task { [jobs] in
+            defer { jobs.endSummary(recording.id) }
             do {
                 let draft = try await summarizer.summarize(transcript: material, durationMs: recording.durationMs,
                                                            config: config, fixedScene: scene)
@@ -378,6 +379,12 @@ public final class RecordingDetailModel {
     /// "会议", "访谈"… for the stored scene code.
     public var sceneName: String? {
         summary.flatMap { RecordingScene(rawValue: $0.scene)?.name }
+    }
+
+    /// Re-reads the summary and the title, after one was made elsewhere (录完自动整理).
+    public func reloadSummary() {
+        summary = try? library.summary(recordingId: recordingId)
+        if let fresh = try? library.recording(id: recordingId) { recording = fresh }
     }
 
     /// Reads the stored transcript again: a transcription started from an earlier page may

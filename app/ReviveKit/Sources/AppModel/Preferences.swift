@@ -17,6 +17,7 @@ public final class Preferences {
         static let assistantModel = Preferences.assistantModelKey
         static let assistantTranscriptionModel = Preferences.assistantTranscriptionModelKey
         static let assistantProfession = Preferences.assistantProfessionKey
+        static let autoProcessSince = "revive.autoProcessSince"
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
     }
 
@@ -95,8 +96,7 @@ public final class Preferences {
         }
     }
 
-    /// Transcription model on the same service, such as "whisper-1"; empty means the service is
-    /// not used for transcription (the audio then never leaves the phone).
+    /// The user's job (features.md G1 职业设定); empty when not given.
     public var assistantProfession: String {
         get {
             access(keyPath: \.assistantProfession)
@@ -109,6 +109,8 @@ public final class Preferences {
         }
     }
 
+    /// Transcription model on the same service, such as "whisper-1"; empty means the service is
+    /// not used for transcription (the audio then never leaves the phone).
     public var assistantTranscriptionModel: String {
         get {
             access(keyPath: \.assistantTranscriptionModel)
@@ -119,6 +121,27 @@ public final class Preferences {
                 defaults.set(newValue, forKey: Key.assistantTranscriptionModel)
             }
         }
+    }
+
+    /// "录完自动整理" (features.md X22): a recording that reaches the phone is transcribed and
+    /// summarized without a tap. Off by default, as it sends every new recording to the
+    /// services the user configured.
+    public var autoProcessEnabled: Bool {
+        get { autoProcessSince != nil }
+        set {
+            guard newValue != autoProcessEnabled else { return }
+            withMutation(keyPath: \.autoProcessSince) {
+                defaults.set(newValue ? Date().timeIntervalSince1970 : nil, forKey: Key.autoProcessSince)
+            }
+        }
+    }
+
+    /// When "录完自动整理" was turned on; nil while it is off. Only recordings stored since then
+    /// are processed, so turning it on does not send the whole library.
+    public var autoProcessSince: Date? {
+        access(keyPath: \.autoProcessSince)
+        let seconds = defaults.double(forKey: Key.autoProcessSince)
+        return seconds > 0 ? Date(timeIntervalSince1970: seconds) : nil
     }
 
     /// 外观 in settings (#89): follow the system, or always light or dark.

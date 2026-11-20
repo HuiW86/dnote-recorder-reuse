@@ -80,12 +80,8 @@ public final class CardSession {
 
     @ObservationIgnored private var listeners: [UUID: (CardEvent) -> Void] = [:]
     @ObservationIgnored private let now: () -> Date
-    /// A recording command is waiting for its reply or for the `0x56` read after a timeout.
-    @ObservationIgnored private var commandRunning = false
-    /// Bumped on every recording state change, so a late fallback can tell it is stale.
-    @ObservationIgnored private var stateRevision = 0
-    /// Counts `0x80`s of the connected card; a newer one supersedes an older one's fallback.
-    @ObservationIgnored private var deviceInfoCount = 0
+    /// Which recording-state observation wins when they are handled out of order (#53).
+    @ObservationIgnored private var order = RecordingStateOrder()
     /// When the sync pass being logged started.
     @ObservationIgnored private var passStartedAt: Date?
     /// The card file that was recording when the link dropped. If the card comes back stopped,
@@ -224,15 +220,15 @@ public final class CardSession {
 
     public func startRecording() async throws {
         try await recordingCommand {
-            recordingName = try await service.startRecording()
-            setRecording(.recording, ms: 0)
+            let name = try await service.startRecording()
+            apply(.command, .recording, ms: 0, name: name)
         }
     }
 
     public func pauseRecording() async throws {
         try await recordingCommand {
             try await service.pause()
-            setRecording(.paused, ms: recordedMs.map { _ in elapsedMs(at: now()) })
+            apply(.command, .paused, ms: recordedMs.map { _ in elapsedMs(at: now()) })
             await readRecordingStatus()
         }
     }
@@ -240,7 +236,7 @@ public final class CardSession {
     public func resumeRecording() async throws {
         try await recordingCommand {
             try await service.resume()
-            setRecording(.recording, ms: recordedMs)
+            apply(.command, .recording, ms: recordedMs)
             await readRecordingStatus()
         }
     }
@@ -248,7 +244,7 @@ public final class CardSession {
     public func stopRecording() async throws {
         try await recordingCommand {
             try await service.stopRecording()
-            setRecording(.idle, ms: nil)
+            apply(.command, .idle, ms: nil)
         }
     }
 
@@ -256,8 +252,8 @@ public final class CardSession {
     /// reply lost, so `0x56` then decides the state (#47); the timeout is passed on only when
     /// `0x56` cannot be read either. The command is never sent again.
     private func recordingCommand(_ body: () async throws -> Void) async throws {
-        commandRunning = true
-        defer { commandRunning = false }
+        order.commandStarted()
+        defer { order.commandEnded() }
         do {
             try await body()
         } catch CardServiceError.requestTimeout(let command) {
@@ -310,18 +306,16 @@ public final class CardSession {
                 identify(info)
             } else if connectedDevice != nil {
                 cardInfo = info
-                deviceInfoCount += 1
+                // Newer than any 0x56 answer still on its way, even when it agrees (#53).
+                order.observed()
                 correctRecordingState(info.recordingState)
             }
         case .recordingStarted(let name):
             diagnostics?.add("card", "recording started \(name)")
-            if connectedDevice != nil {
-                recordingName = name
-                setRecording(.recording, ms: 0)
-            }
+            if connectedDevice != nil { apply(.push, .recording, ms: 0, name: name) }
         case .recordingStopped:
             diagnostics?.add("card", "recording stopped")
-            if connectedDevice != nil { setRecording(.idle, ms: nil) }
+            if connectedDevice != nil { apply(.push, .idle, ms: nil) }
         case .firmwareUnverified(let version):
             diagnostics?.add("card", "firmware \(version) not verified")
         default:
@@ -348,7 +342,7 @@ public final class CardSession {
         syncEngine.options.deleteAfterSync = deleteAfterSync(device.id)
         // 0x80 carries the recording state too; 0x56 then adds recd. Without this, a failed 0x56
         // would leave the card showing as connecting with recording disabled until a reconnect.
-        if case .unknown = info.recordingState {} else { setRecording(info.recordingState, ms: nil) }
+        if case .unknown = info.recordingState {} else { apply(.connectInfo, info.recordingState, ms: nil) }
         // The DEBUG card screen sends its own requests; stay silent while it is open.
         guard autoSyncEnabled else { return }
         Task { [weak self] in await self?.catchUp(device) }
@@ -391,7 +385,7 @@ public final class CardSession {
         if isActive, let name = recordingName, let device = connectedDevice {
             interrupted = (device.id, name)
         }
-        stateRevision += 1
+        order.observed()
         connectedDevice = nil
         cardInfo = nil
         recordingName = nil
@@ -400,21 +394,15 @@ public final class CardSession {
         recordedAt = nil
     }
 
-    /// Reads `0x56` and applies it; false when the card did not answer or has left the link.
-    /// The answer may be handled after a newer push (a button press): when the state changed
-    /// during the read, it is dropped, and so it is when a command started if asked (still true,
-    /// the card did answer).
+    /// Reads `0x56` and hands the answer to `apply`; false when the card did not answer or has
+    /// left the link. True even when the answer was overtaken and dropped: the card did answer.
     @discardableResult
-    private func readRecordingStatus(droppedIfCommandStarts: Bool = false) async -> Bool {
-        let revision = stateRevision
+    private func readRecordingStatus() async -> Bool {
+        let ticket = order.ticket(for: connectedDevice?.id)
         guard let status = try? await service.recordingStatus(), connectedDevice != nil else { return false }
-        if stateRevision != revision || droppedIfCommandStarts && commandRunning { return true }
         // Without `recd`, keep counting locally rather than dropping the timer.
-        let ms = status.recordedMs ?? recordedMs.map { _ in elapsedMs(at: now()) }
-        if !status.name.isEmpty { recordingName = status.name }
-        let stopped = isActive && status.state == .idle
-        setRecording(status.state, ms: status.state == .idle ? nil : ms)
-        if stopped { syncAfterRecoveredStop() }
+        let ms: Int? = status.state == .idle ? nil : status.recordedMs ?? recordedMs.map { _ in elapsedMs(at: now()) }
+        apply(.statusRead(ticket), status.state, ms: ms, name: status.name)
         return true
     }
 
@@ -423,18 +411,75 @@ public final class CardSession {
     /// after a newer command reply, so `0x56` decides; the `0x80` state only when that fails.
     /// Not while the DEBUG card screen is open: it sends its own requests only.
     private func correctRecordingState(_ state: RecordingState) {
-        guard autoSyncEnabled, !commandRunning, state != recordingState, !state.isUnknown else { return }
+        guard autoSyncEnabled, !order.commandRunning, state != recordingState, !state.isUnknown else { return }
         diagnostics?.add("card", "0x80 says \(state), reading 0x56")
-        let revision = stateRevision, infoCount = deviceInfoCount
+        let ticket = order.ticket(for: connectedDevice?.id)
         Task { [weak self] in
-            // Anything newer that arrived during the read (a push, a command) beats this 0x80.
-            guard let self, await !self.readRecordingStatus(droppedIfCommandStarts: true),
-                  self.stateRevision == revision, self.deviceInfoCount == infoCount,
-                  !self.commandRunning else { return }
-            let stopped = self.isActive && state == .idle
-            self.setRecording(state, ms: state == .idle ? nil : self.recordedMs.map { _ in self.elapsedMs(at: self.now()) })
-            if stopped { self.syncAfterRecoveredStop() }
+            guard let self, await !self.readRecordingStatus() else { return }
+            let ms: Int? = state == .idle ? nil : self.recordedMs.map { _ in self.elapsedMs(at: self.now()) }
+            self.apply(.deviceInfoFallback(ticket), state, ms: ms)
         }
+    }
+
+    // MARK: - Recording state (prd.md §2.5, #53)
+
+    /// Where a recording state comes from.
+    private enum StateSource {
+        /// Reply to a recording command (`0x50`–`0x53`).
+        case command
+        /// Pushed by the card: `0x54` started, `0x56 {rec:0}` / `0x55` stopped.
+        case push
+        /// The `0x80` that names the card after connecting.
+        case connectInfo
+        /// Answer to a `0x56` read sent at `ticket`.
+        case statusRead(RecordingStateOrder.Ticket)
+        /// A disagreeing `0x80` handled at `ticket`, used because its `0x56` read got no answer.
+        case deviceInfoFallback(RecordingStateOrder.Ticket)
+    }
+
+    /// The one entry for every recording state change (#53): decides by source and order whether
+    /// `state` is applied (`RecordingStateOrder`). Returns whether it was.
+    @discardableResult
+    private func apply(_ source: StateSource, _ state: RecordingState, ms: Int?, name: String? = nil) -> Bool {
+        let recovered: Bool
+        switch source {
+        case .command, .push, .connectInfo:
+            recovered = false
+        case .statusRead(let ticket):
+            guard order.isCurrent(ticket) else {
+                if state == recordingState, ticket.deviceId == connectedDevice?.id, isSameRecording(name) {
+                    refine(ms: ms, name: name)
+                } else {
+                    diagnostics?.add("card", "0x56 \(state) overtaken by a newer state, dropped")
+                }
+                return false
+            }
+            recovered = true
+        case .deviceInfoFallback(let ticket):
+            guard order.isCurrent(ticket) else { return false }
+            recovered = true
+        }
+        // A stop found by reading the state, not from the card's pushes that start the sync.
+        let stopped = recovered && isActive && state == .idle
+        if let name, !name.isEmpty { recordingName = name }
+        setRecording(state, ms: ms)
+        if stopped { syncAfterRecoveredStop() }
+        return true
+    }
+
+    /// Whether a `0x56` answer naming `name` is about the recording on screen.
+    private func isSameRecording(_ name: String?) -> Bool {
+        guard let name, !name.isEmpty, let recordingName else { return true }
+        return name == recordingName
+    }
+
+    /// Details of an overtaken `0x56` answer that agrees with the state on screen: the card's
+    /// own recorded time and the file name. The state itself and the order stay as they are.
+    private func refine(ms: Int?, name: String?) {
+        if let name, !name.isEmpty { recordingName = name }
+        guard let ms, recordingState != .idle else { return }
+        recordedMs = ms
+        recordedAt = now()
     }
 
     private var isActive: Bool { recordingState != nil && recordingState != .idle }
@@ -447,8 +492,9 @@ public final class CardSession {
         syncEngine.requestSync(.recordingStopped)
     }
 
+    /// Applies a state `apply` has admitted. Nothing else calls it.
     private func setRecording(_ state: RecordingState, ms: Int?) {
-        stateRevision += 1
+        order.observed()
         if let pending = interrupted, let device = connectedDevice, device.id == pending.deviceId {
             switch state {
             case .idle:
