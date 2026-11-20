@@ -232,6 +232,59 @@ public struct OutlineItem: Codable, Equatable, Sendable {
     }
 }
 
+/// A CEFR level, A1 (easiest) to C2 (hardest), for 单词分级 (features.md X20).
+public enum WordLevel: String, Codable, CaseIterable, Comparable, Sendable {
+    case a1 = "A1", a2 = "A2", b1 = "B1", b2 = "B2", c1 = "C1", c2 = "C2"
+
+    public static func < (a: WordLevel, b: WordLevel) -> Bool {
+        allCases.firstIndex(of: a)! < allCases.firstIndex(of: b)!
+    }
+
+    /// "B2", " b2 ", "B2 中高级" → .b2; nil when no level is named.
+    public init?(loosely text: String) {
+        let upper = text.uppercased()
+        guard let level = Self.allCases.first(where: { upper.contains($0.rawValue) }) else { return nil }
+        self = level
+    }
+}
+
+/// One word worth learning in a foreign-language transcript (features.md X20 单词分级).
+public struct StudyWord: Codable, Equatable, Hashable, Sendable {
+    public var word: String
+    public var level: WordLevel
+    /// What it means here, in Simplified Chinese.
+    public var meaning: String
+    /// The transcript line it was heard in.
+    public var segmentIndex: Int
+
+    public init(word: String, level: WordLevel, meaning: String, segmentIndex: Int) {
+        self.word = word
+        self.level = level
+        self.meaning = meaning
+        self.segmentIndex = segmentIndex
+    }
+}
+
+/// The words of one recording (migration v15), made once by the user's service and kept;
+/// removed with the recording. `words` is JSON.
+public struct WordList: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public var recordingId: UUID
+    public var words: [StudyWord]
+    public var model: String
+    public var createdAt: Date
+
+    public init(recordingId: UUID, words: [StudyWord], model: String, createdAt: Date = Date()) {
+        self.recordingId = recordingId
+        self.words = words
+        self.model = model
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "word_list"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+}
+
 /// The summary of a recording (features.md G1, G2a). One per recording; removed with it.
 /// `sections`, `todos`, `tags`, `people`, `outline` and `quotes` are stored as JSON.
 public struct Summary: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {

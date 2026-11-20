@@ -564,6 +564,37 @@ struct RecordingLibraryTests {
         #expect(try lib.summary(recordingId: again)?.tags == ["计划"])
     }
 
+    /// X20 单词分级: a word list is stored, replaced and removed with its recording.
+    @Test func wordListFollowsTheRecording() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID()
+        let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+        var r = recording(id, device: UUID(), path: path)
+        r.deviceId = nil
+        try lib.database.writer.write { db in try r.insert(db) }
+        #expect(try lib.wordList(recordingId: id) == nil)
+        let created = Date(timeIntervalSince1970: 1_800_000_000)
+        let list = WordList(recordingId: id, words: [StudyWord(word: "mitigate", level: .c1, meaning: "缓解",
+                                                               segmentIndex: 3)],
+                            model: "m", createdAt: created)
+        try lib.saveWordList(list)
+        #expect(try lib.wordList(recordingId: id) == list)
+        let again = WordList(recordingId: id, words: [], model: "m2", createdAt: created)
+        try lib.saveWordList(again)
+        #expect(try lib.wordList(recordingId: id) == again)
+        try lib.database.writer.write { db in _ = try Recording.deleteOne(db, key: id) }
+        #expect(try lib.wordList(recordingId: id) == nil)
+    }
+
+    @Test func v14LibraryUpgradesToV15() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v14")
+        #expect(try queue.read { try $0.tableExists("word_list") } == false)
+        let db = try AppDatabase(queue)
+        #expect(try db.writer.read { try $0.tableExists("word_list") })
+    }
+
     @Test func v13LibraryUpgradesToV14() throws {
         let queue = try DatabaseQueue()
         try AppDatabase.migrator.migrate(queue, upTo: "v13")

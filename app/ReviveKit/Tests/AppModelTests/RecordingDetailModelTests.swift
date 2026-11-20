@@ -371,6 +371,37 @@ struct PolishAndLoopTests {
         #expect(model.assistantOutput == nil)
     }
 
+    /// X20 单词分级: offered for a foreign transcript with a service; the list is kept, grouped
+    /// from the hardest level down, and a word plays its line.
+    @Test func listsWordsByLevel() async throws {
+        let f = try await DetailFixture()
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "t", language: "en-US",
+                                                segments: [TranscriptSegment(startMs: 0, text: "The rollout is next week."),
+                                                           TranscriptSegment(startMs: 900, text: "We must mitigate the risk.")],
+                                                createdAt: Date()))
+        let none = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(none.transcriptIsForeign && !none.canListWords)
+        let reply = #"{"words":[{"word":"rollout","level":"B2","meaning":"上线","line":1},{"word":"mitigate","level":"C1","meaning":"缓解","line":2}]}"#
+        let base = HostReply.register(reply)
+        let config = ServiceConfig(baseURL: base, model: "m", apiKey: "")
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         assistant: AssistantConfigSource { config },
+                                         summarizer: Summarizer(client: ChatClient(session: HostReply.session())))
+        #expect(model.canListWords && model.wordList == nil)
+        model.listWords()
+        await waitUntil("listed") { model.wordList != nil && !model.isListingWords }
+        #expect(model.toast?.text == "找到 2 个生词")
+        #expect(model.words(atLeast: .a1).map(\.level) == [.c1, .b2])
+        #expect(model.words(atLeast: .c1).flatMap { $0.words.map(\.word) } == ["mitigate"])
+        let reopened = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(reopened.wordList?.words.count == 2)
+        model.play(word: try #require(model.wordList?.words.last))
+        await waitUntil("playing") { model.isPlaying }
+        f.player.volume = 0
+        model.leave()
+        f.player.stop()
+    }
+
     /// X20 难句解析: 「解释这一句」 opens the same sheet, titled for it; out of range does nothing.
     @Test func explainsALine() async throws {
         let f = try await DetailFixture()
