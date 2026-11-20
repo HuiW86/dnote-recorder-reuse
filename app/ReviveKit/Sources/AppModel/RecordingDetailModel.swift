@@ -699,6 +699,14 @@ public final class RecordingDetailModel {
     }
     #endif
 
+    /// The same content as the PDF, as a Word document to keep editing (features.md J1).
+    public func exportDOCX() -> URL? {
+        guard let recording else { return nil }
+        let data = DOCXExport.docx(title: title, recording: recording, sceneName: sceneName,
+                                   summary: summary, transcript: transcript)
+        return writeExport(data, fileExtension: "docx")
+    }
+
     /// The summary has an outline to export as a mind map (features.md J1).
     public var canExportMindMap: Bool { !(summary?.outline.isEmpty ?? true) }
 
