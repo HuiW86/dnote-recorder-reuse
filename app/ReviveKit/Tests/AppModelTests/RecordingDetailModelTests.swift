@@ -375,8 +375,7 @@ struct PolishAndLoopTests {
     /// export as audio, and never counts as missing its audio.
     @Test func textOnlyRecordingHasNoAudio() async throws {
         let f = try await DetailFixture()
-        let text = try #require(try f.library.addTextRecording(text: "周三发布。
-测试通过以后上线。", title: "会议记录",
+        let text = try #require(try f.library.addTextRecording(text: "周三发布。\n测试通过以后上线。", title: "会议记录",
                                                                startedAt: Date()))
         let fake = FakeTranscriber(result: .success([]))
         let model = RecordingDetailModel(recordingId: text.id, library: f.library, player: f.player, transcriber: fake)
