@@ -14,10 +14,45 @@ struct PhoneRecorderTests {
         let root: URL
     }
 
-    private func fixture() throws -> Fixture {
+    /// Free space the recorder sees, changed by a test.
+    private final class Space: @unchecked Sendable {
+        var bytes: Int64 = 10_000_000_000
+    }
+
+    private func fixture(space: Space = Space()) throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("phone-\(UUID().uuidString)")
         let library = RecordingLibrary(database: try AppDatabase.inMemory(), store: try AudioStore(root: root))
-        return Fixture(recorder: PhoneRecorder(library: library), library: library, root: root)
+        return Fixture(recorder: PhoneRecorder(library: library, freeSpace: { space.bytes }), library: library, root: root)
+    }
+
+    /// A nearly full phone: recording does not start (and the microphone is not asked for), and
+    /// no file is left behind.
+    @Test func startNeedsRoom() async throws {
+        let space = Space()
+        space.bytes = PhoneRecorder.minimumFreeBytesToStart - 1
+        let f = try fixture(space: space)
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        #expect(await f.recorder.start() == false)
+        #expect(f.recorder.state == .idle)
+        #expect(f.recorder.toast?.text == PhoneRecorder.noSpaceText)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: f.library.store.phoneDir.path).isEmpty)
+    }
+
+    /// Running out of space while recording or paused stops the recording before the phone is
+    /// full; with room, or when not recording, nothing happens.
+    @Test func lowSpaceOnlyMattersWhileRecording() throws {
+        let space = Space()
+        let f = try fixture(space: space)
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        space.bytes = 1_000_000
+        #expect(!f.recorder.spaceIsLow())  // not recording
+        f.recorder.state = .recording
+        space.bytes = PhoneRecorder.minimumFreeBytesWhileRecording
+        #expect(!f.recorder.spaceIsLow())
+        space.bytes = PhoneRecorder.minimumFreeBytesWhileRecording - 1
+        #expect(f.recorder.spaceIsLow())
+        f.recorder.state = .paused
+        #expect(f.recorder.spaceIsLow())
     }
 
     /// iOS pauses the recorder on an interruption and never resumes it: the state must say paused,

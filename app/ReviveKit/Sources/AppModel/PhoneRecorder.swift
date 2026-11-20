@@ -38,15 +38,28 @@ public final class PhoneRecorder {
     /// Stopping could not store the recording; its CAF stays for the next launch.
     public static let saveFailedText = "这次没能保存。录音还在这部手机上，下次打开闻笺时会再保存一次"
 
+    /// Free space needed to start: the CAF grows by about 115 MB an hour, and stopping needs room
+    /// for the M4A next to it.
+    public static let minimumFreeBytesToStart: Int64 = 100_000_000
+    /// Below this while recording, the recording is stopped and stored before the phone is full:
+    /// a full phone makes the recorder stop writing without a word while the page says 录音中.
+    public static let minimumFreeBytesWhileRecording: Int64 = 30_000_000
+    public static let noSpaceText = "手机存储空间不足 100 MB，先清理一些空间再录"
+    public static let spaceRanOutText = "手机存储空间快满了，录音已自动停止并保存"
+
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private var recorder: AVAudioRecorder?
     @ObservationIgnored private var startedAt: Date?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     /// CAF files being converted and stored, so a stop and a recovery never store one twice.
     @ObservationIgnored private var storing: Set<URL> = []
+    /// Bytes free for the library; tests pass a fixed number.
+    @ObservationIgnored private let freeSpace: () -> Int64
+    @ObservationIgnored private var spaceWatch: Task<Void, Never>?
 
-    public init(library: RecordingLibrary) {
+    public init(library: RecordingLibrary, freeSpace: (() -> Int64)? = nil) {
         self.library = library
+        self.freeSpace = freeSpace ?? { library.store.availableCapacity() }
         observeSession()
     }
 
@@ -74,6 +87,10 @@ public final class PhoneRecorder {
     @discardableResult
     public func start() async -> Bool {
         guard state == .idle, !isSaving else { return false }
+        guard freeSpace() >= Self.minimumFreeBytesToStart else {
+            toast = Toast(Self.noSpaceText)
+            return false
+        }
         guard await AVAudioApplication.requestRecordPermission() else {
             toast = Toast("没有麦克风权限，请到系统「设置」里为闻笺打开")
             return false
@@ -92,6 +109,7 @@ public final class PhoneRecorder {
             startedAt = now
             marksMs = []
             state = .recording
+            watchSpace()
             return true
         } catch {
             try? FileManager.default.removeItem(at: url)
@@ -157,21 +175,52 @@ public final class PhoneRecorder {
     /// not be stored; its CAF then stays and is stored on the next launch.
     @discardableResult
     public func stop() async -> Recording? {
+        await finish(savedText: "已保存到录音列表")
+    }
+
+    /// Recording or paused with less than `minimumFreeBytesWhileRecording` free.
+    func spaceIsLow() -> Bool {
+        state != .idle && freeSpace() < Self.minimumFreeBytesWhileRecording
+    }
+
+    /// Every 10 s while recording: stops and stores before the phone is full.
+    private func watchSpace() {
+        spaceWatch?.cancel()
+        spaceWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                guard let self, !Task.isCancelled, self.state != .idle else { return }
+                if self.spaceIsLow() {
+                    // Not cancelled by `finish`: the store that follows runs in this task.
+                    self.spaceWatch = nil
+                    await self.finish(savedText: Self.spaceRanOutText)
+                    return
+                }
+            }
+        }
+    }
+
+    /// `savedText` is the toast once stored; the toast is set before `isSaving` goes back to
+    /// false, which is when the recording page closes.
+    @discardableResult
+    private func finish(savedText: String) async -> Recording? {
         guard state != .idle, let recorder, let startedAt else { return nil }
+        spaceWatch?.cancel()
+        spaceWatch = nil
         let url = recorder.url
         recorder.stop()
         self.recorder = nil
         self.startedAt = nil
+        isSaving = true
         state = .idle
         interruptionNotice = nil
         marksMs = []
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
-        isSaving = true
         defer { isSaving = false }
         let stored = await store(url, startedAt: startedAt)
-        toast = Toast(stored != nil ? "已保存到录音列表" : Self.saveFailedText)
+        toast = Toast(stored != nil ? savedText : Self.saveFailedText)
         return stored
     }
 
