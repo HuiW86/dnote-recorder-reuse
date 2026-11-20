@@ -4,8 +4,9 @@
 // The prompts, the long-transcript chunking and the reply rules are adapted from
 // andyhuo520/beanpod, commit 0d00fab, Shared/Analyzer.swift (`analyze`, `parse`, `fallback`,
 // `split`), MIT License, Copyright (c) 2026 berryxia. See NOTICE at the repository root.
-// Changes: no profession or notes-language settings (always Simplified Chinese), durations in
-// milliseconds, todos become `SummaryTodo` rows.
+// Changes: no notes-language setting (always Simplified Chinese), durations in milliseconds,
+// todos become `SummaryTodo` rows. The profession line (`professionRule`) was written later for
+// this project, not adapted.
 
 import Foundation
 import Library
