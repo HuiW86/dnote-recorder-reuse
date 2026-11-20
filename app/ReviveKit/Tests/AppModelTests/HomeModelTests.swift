@@ -372,6 +372,27 @@ struct HomeModelTests {
         #expect(model.status == .recording)
     }
 
+    /// #53, the case left over from PR #51: a 0x80 that agrees with the app arrives while a 0x56
+    /// read is out. It is newer than that read's answer, so the answer is dropped.
+    @Test func agreeingDeviceInfoBeatsALateStatusAnswer() async throws {
+        let (h, model) = try await recordingHome()
+        h.shortenRequestTimeouts()
+        h.card.faults = [.dropReply(.pauseRecording), .noResponse(.recordingStatus)]
+        model.pause()
+        await waitUntil("toast") { model.toast != nil && model.pendingCommand == nil }
+        #expect(model.status == .recording)
+
+        h.card.faults = [.delayReply(.recordingStatus, milliseconds: 300)]
+        let reads = h.sent(.recordingStatus)
+        h.card.pushDeviceInfo()                      // says paused; 0x56 answers paused, late
+        await waitUntil("0x56 sent") { h.sent(.recordingStatus) > reads }
+        h.card.recordingCodeOverride = 1
+        h.card.pushDeviceInfo()                      // newer: says recording, as the app shows
+        try await Task.sleep(for: .milliseconds(500)) // past the late answer
+        #expect(model.status == .recording)
+        #expect(h.sent(.recordingStatus) == reads + 1)  // the agreeing 0x80 reads nothing
+    }
+
     /// #47: a start confirmed by 0x56 after a lost reply still gets its stop reported, which
     /// is what starts the sync after recording.
     @Test func stopAfterARecoveredStartIsReported() async throws {

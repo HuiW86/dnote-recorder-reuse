@@ -89,6 +89,7 @@
 | T-M1-31 | 分片返回 `0xF0` 文件不存在 | `fileNotFound`；重新列表 |
 | T-M1-32 | 在 App 里删除一条本地录音 | OGG 文件与数据库记录都删除；不向卡发送任何命令；SyncItem 保留为 `stored`，不会被重新下载 |
 | T-M1-33 | 下载失败的文件随后从卡上消失（#79） | 自动重试只针对本轮列表里还在、名字和大小都相同的失败项：文件消失后不再反复列表（不出现空重试循环）；同名文件再出现时能同步；同名不同大小时旧的失败项不再重试；新一轮检查成功拿到列表后才替换旧的重试计时器，检查失败时原计时器保留；计时器醒来时卡已断开或换了卡就不触发 |
+| T-M1-34 | 录音状态的三路来源乱序到达（#47、#53，`prd.md` §2.5） | 命令回包丢失、`0x56` 无回答或迟到、按键推送与 `0x80` 交错时，界面状态都以更新的来源为准；读 `0x56` 期间到达的 `0x80`（包括与界面一致的）使该回答不改状态；被超过的回答与界面状态相同时仍补上卡的已录时长；全程不重发录音命令 |
 
 实现（#39）：`app/ReviveKit/Tests/SyncEngineTests/`，每个用例结束时断言写帧里没有 `0x93`/`0x94`/`0xB0`/`0xB1`（§3.5 第 2 道检查）。
 
@@ -96,6 +97,8 @@
 - T-M1-27 分两种：`FakeCard.Fault.disconnectAfter(.deleteFile)` 表示删除已生效后断开，`disconnectInsteadOf(.deleteFile)` 表示断开时删除未生效。
 - 另有失败自动重试，以及录音中不同步两个用例。
 - T-M1-33（#79，PR #80）：`absentFailedFileDoesNotCauseEmptyRetryLoop`、`removedFailedFileReturningCanBeSynced`、`replacedSizeDoesNotKeepOldFailureRetrying`、`manualPassCancelsObsoleteRetryTimer`、`failedManualListDoesNotLoseScheduledRetry`；同时加了脱敏的同步诊断（`syncDiagnosticsExposeReasonAndCounts`：请求来源、是否排队、列表数、候选数、可重试数）。真机观察记录在 `evidence/v79-sync-retry/`，计时器边界修复之后的版本尚未真机复验。
+
+- T-M1-34（#47 的 13 个用例，#53 issue 里记为 12 个，实际 13 个都保留；#53 另补 3 组）：`HomeModelTests` 的 `unansweredStartThatDidNothingAsksToRetry`、`lostPauseReplyFollowsTheCard`、`lostStartReplyFollowsTheCard`、`unansweredStatusKeepsToastUntilTheNextDeviceInfo`、`deviceInfoStateIsUsedWhenStatusStaysSilent`、`unknownStatusCodeKeepsTheCommandUnconfirmed`、`newerStateBeatsTheDeviceInfoFallback`、`newerStateBeatsALateStatusAnswer`、`buttonPressBeatsALateReconcileAnswer`、`newerDeviceInfoBeatsAnOlderFallback`、`stopAfterARecoveredStartIsReported`、`stopFoundWithoutItsPushStillSyncs`、`deviceInfoSendsNothingWhileDebugScreenIsOpen`；#53 新增 `agreeingDeviceInfoBeatsALateStatusAnswer`（PR #51 留下的一处）、`DeviceStatusTests` 的 `overtakenStatusAnswerStillRestoresTimer`，以及规则本身的 `RecordingStateOrderTests`。
 
 用变异检查确认过用例有效：分别让已存入的文件重新下载、去掉启动恢复、在提交前发 `0x91`，T-M1-24、23、26 都会失败。
 
@@ -227,6 +230,7 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 | T-M2-07 | G1 职业设定 | 空白职业时提示词不变；有职业时加一句「用户的职业是「…」」，写明职业只影响顺序和说法、每条都要在文字稿里找得到原话、不写「没有异议」这类推断（v105 真机发现模型补了「没有提出异议」），最多 40 字；生成纪要的请求带上它；设置页保存成一行、截到 40 字，重开还在，清除服务不清职业 |
 
 | T-M2-08 | #85 密钥只留在本机 | 钥匙串项的可访问性是 `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`；旧版本存下的项在读取时改成这个属性（真机：升级后打开 AI 服务页，密钥仍在；用加密备份恢复到另一台手机后，密钥为空） |
+| T-M2-09 | X22 录完自动整理 | 默认关，新录音不转写；打开后新存入的录音依次转写、生成纪要、换上纪要标题，打开前已有的不动；没有服务时只转写；文字录音只整理不转写；失败的同一次运行里不再试；关掉再打开从新的时间算起。实现：`AutoProcessorTests`（真机：开着开关录一条，同步后不点任何按钮，详情页出现文字稿和纪要） |
 
 实现：T-M4-10 另有 `PolishAndLoopTests` `regeneratedSummaryKeepsADeletedTagOut`；T-M4-11 另有 `StreamTests` `streamWithoutAnEndIsCutOff`、`streamThatStopsEarlyThrows`。T-M2-08 是 `KeyStoreTests` `keychainKeyStaysOnThisDevice`（属性值）；读取时改属性、备份恢复后为空只能在真机上验证。T-M2-07 是 `SummarizerTests` `promptMentionsTheProfession`、`shortTranscriptIsOneRequest`，`AssistantSettingsModelTests` `professionIsSavedWithTheService`。T-M2-06 是 `PolisherTests`（4 个）、`AppDatabaseTests` `polishingKeepsTimesAndTheOriginal`、`v11LibraryUpgradesToV12`，`PolishAndLoopTests` `polishesAndRestores`。T-M2-05 是 `TranscriptionJobsTests`。T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
 

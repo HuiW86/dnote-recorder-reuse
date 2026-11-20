@@ -55,6 +55,12 @@ struct SettingsView: View {
             }
             .surfaceRows()
             Section {
+                Toggle("录完自动整理", isOn: $preferences.autoProcessEnabled)
+            } footer: {
+                Text("打开后，之后存进手机的每条录音会自动转成文字，再整理成纪要，不用一条条去点。转文字用上面的本机转写，或你在「AI 服务」里填的转写模型；整理纪要用你的 AI 服务，录音的文字稿会发给它。哪一样没设置，那一步就跳过。打开之前已有的录音不会自动处理；只在闻笺运行时进行。")
+            }
+            .surfaceRows()
+            Section {
                 NavigationLink("权限说明", value: Route.permissions)
                 DiagnosticShareLink(log: diagnostics)
             } header: {

@@ -9,6 +9,7 @@ import Observation
 import os
 import Player
 import SyncEngine
+import Transcription
 
 /// Composition root: the library, preferences and the one Bluetooth stack. Created in
 /// `didFinishLaunching`, as state restoration requires.
@@ -35,6 +36,19 @@ final class AppEnvironment {
         guard !model.isEmpty else { return nil }
         return ServiceConfig(baseURL: chat.baseURL, model: model, apiKey: chat.apiKey)
     }
+
+    /// The transcriber the recording page and 录完自动整理 use, read on every use so a change in
+    /// settings applies at once (#85). On the phone when 本机转写 is on (#67 keeps it behind a
+    /// switch); otherwise the user's own service, if they gave it a transcription model (the
+    /// audio is then uploaded, and the page says so); nil when neither.
+    func transcriber(library: RecordingLibrary) -> (any SpeechTranscribing)? {
+        if preferences.onDeviceTranscriptEnabled { return OnDeviceTranscriber(library: library) }
+        if let cloud = cloudTranscriptionConfig { return CloudTranscriber(library: library, config: cloud) }
+        return nil
+    }
+
+    /// 录完自动整理 (features.md X22); nil without a library.
+    private(set) var autoProcessor: AutoProcessor?
     let library: RecordingLibrary?
     /// Set when the library could not be opened; the app cannot work without it.
     let libraryError: String?
@@ -92,6 +106,13 @@ final class AppEnvironment {
         player = library.map { RecordingPlayer(library: $0) }
         phoneRecorder = library.map { PhoneRecorder(library: $0) }
         RecordingExporter.cleanUp()
+        if let library {
+            let processor = AutoProcessor(library: library, preferences: preferences,
+                                          transcriberSource: { [unowned self] in self.transcriber(library: library) },
+                                          assistant: assistantConfig, diagnostics: diagnostics)
+            processor.start()
+            autoProcessor = processor
+        }
     }
 
     /// Creates the Bluetooth stack once and returns it.

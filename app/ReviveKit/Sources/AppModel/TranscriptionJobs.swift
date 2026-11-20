@@ -14,6 +14,9 @@ public final class TranscriptionJobs {
     public static let shared = TranscriptionJobs()
 
     public private(set) var running: Set<UUID> = []
+    /// Recordings whose summary is being made right now, from a page or by 录完自动整理, so the
+    /// two never run at once and a page sees the other's result arrive.
+    public private(set) var summarizing: Set<UUID> = []
     /// When each running job started, its audio length, and whether it uses the network.
     @ObservationIgnored private var started: [UUID: (at: Date, audioMs: Int, network: Bool)] = [:]
     @ObservationIgnored private let defaults: UserDefaults
@@ -33,6 +36,11 @@ public final class TranscriptionJobs {
         started[id] = (now(), audioMs, usesNetwork)
         return true
     }
+
+    /// False when a summary of this recording is already being made.
+    public func beginSummary(_ id: UUID) -> Bool { summarizing.insert(id).inserted }
+
+    public func endSummary(_ id: UUID) { summarizing.remove(id) }
 
     /// `succeeded` runs teach the rate: an average weighted toward recent runs.
     public func end(_ id: UUID, succeeded: Bool = false) {
