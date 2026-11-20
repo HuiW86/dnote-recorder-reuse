@@ -204,6 +204,13 @@ private struct MainContent: View {
             paths[.recordings] = [.recording(id)]
         }
         .task {
+            // A phone recording cut off last time (the app was killed while recording) is
+            // stored now, and the user is told (features.md X18).
+            if let recorder = env.phoneRecorder, await recorder.recoverUnfinished() > 0, let toast = recorder.toast {
+                model.toast = toast
+            }
+        }
+        .task {
             // DEBUG launch arguments for screenshots (scripts/shots.sh); nil in release builds.
             if let id = LaunchOptions.openRecording(in: model.recordings) {
                 paths[tab, default: []].append(.recording(id))
