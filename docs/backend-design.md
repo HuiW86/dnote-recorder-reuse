@@ -266,6 +266,8 @@ App 发 `0x51 [1]` → 卡通过 `0x68` 推 Opus 音频块 → App 解码为 16k
   - 提示词和场景分类改编自 beanpod（MIT，见 `NOTICE`），目前只在 App 里，后端还不存在，「后端用同一份、App 拉取缓存」都还没有实现。
   - 转写走 `/audio/transcriptions` 还没有实现：现在能送去总结的文字稿只来自本机转写（X9）。
   - Keychain 项可在首次解锁后读取（`kSecAttrAccessibleAfterFirstUnlock`），没有设 `ThisDeviceOnly`，也没有设 iCloud 钥匙串同步：会随加密的本机备份迁到新手机，不会经 iCloud 钥匙串同步。这是现状描述，是否合适待定。
+  - **2026-11-20 决定（#85，用户按建议）**：改为 `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`：密钥只留在这部手机上，不进任何备份，换手机要重新填一次。旧版本存下的密钥在下次读取时改成这个属性。
+  - **2026-11-20 决定（#85，用户按建议）**：提示词暂时只在 App 里（`Assistant` 模块的 `Summarizer`、`Rewriter`、`Polisher`、`LibraryAsker`、`WordGrader`），不为还不存在的后端提前抽出来。M2 开始做后端时，再把它们抽成后端和 App 共用的一份（ADR-009「提示词只有一份来源」的做法不变，只是推迟到有后端时落实）。
 
 **哪些数据离开手机，发给谁**
 
