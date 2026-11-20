@@ -16,6 +16,7 @@ public final class Preferences {
         static let assistantBaseURL = Preferences.assistantBaseURLKey
         static let assistantModel = Preferences.assistantModelKey
         static let assistantTranscriptionModel = Preferences.assistantTranscriptionModelKey
+        static let assistantProfession = Preferences.assistantProfessionKey
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
     }
 
@@ -23,6 +24,8 @@ public final class Preferences {
     public nonisolated static let assistantBaseURLKey = "revive.assistant.baseURL"
     public nonisolated static let assistantModelKey = "revive.assistant.model"
     public nonisolated static let assistantTranscriptionModelKey = "revive.assistant.transcriptionModel"
+    /// The user's job (features.md G1 职业设定), sent with summary requests.
+    public nonisolated static let assistantProfessionKey = "revive.assistant.profession"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -94,6 +97,18 @@ public final class Preferences {
 
     /// Transcription model on the same service, such as "whisper-1"; empty means the service is
     /// not used for transcription (the audio then never leaves the phone).
+    public var assistantProfession: String {
+        get {
+            access(keyPath: \.assistantProfession)
+            return defaults.string(forKey: Key.assistantProfession) ?? ""
+        }
+        set {
+            withMutation(keyPath: \.assistantProfession) {
+                defaults.set(newValue, forKey: Key.assistantProfession)
+            }
+        }
+    }
+
     public var assistantTranscriptionModel: String {
         get {
             access(keyPath: \.assistantTranscriptionModel)

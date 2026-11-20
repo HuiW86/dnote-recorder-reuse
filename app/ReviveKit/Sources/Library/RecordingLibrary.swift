@@ -316,6 +316,29 @@ public final class RecordingLibrary: Sendable {
                          arguments: [deviceId, cardFileName]) ?? 0 > 0
     }
 
+    // MARK: Text files (features.md E2)
+
+    /// Stores an imported text file as a recording with no audio: its text becomes the
+    /// transcript (`TextImport.segments`), so search, summaries, rewrites and exports all work.
+    /// Nil when the text has nothing in it.
+    @discardableResult
+    public func addTextRecording(text: String, title: String?, startedAt: Date, now: Date = Date()) throws -> Recording? {
+        let segments = TextImport.segments(from: text)
+        guard !segments.isEmpty else { return nil }
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let recording = Recording(id: UUID(), deviceId: nil, source: .import, cardFileName: nil, cardFileSize: nil,
+                                  startedAt: startedAt, durationMs: 0, audioPath: "", audioSha256: "",
+                                  title: trimmed.isEmpty ? Recording.defaultTitle(for: startedAt) : String(trimmed.prefix(80)),
+                                  createdAt: now, updatedAt: now)
+        let transcript = Transcript(recordingId: recording.id, engine: TextImport.engine, language: "und",
+                                    segments: segments, createdAt: now)
+        try database.writer.write { db in
+            try recording.insert(db)
+            try transcript.insert(db)
+        }
+        return recording
+    }
+
     // MARK: Phone recordings (features.md X18)
 
     /// Stores a recording made with the phone's microphone: the file moves into `audio/` and a

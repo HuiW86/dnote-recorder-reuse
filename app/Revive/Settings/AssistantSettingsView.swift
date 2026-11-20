@@ -50,6 +50,15 @@ struct AssistantSettingsView: View {
             .surfaceRows()
 
             Section {
+                TextField("比如：产品经理、律师、老师", text: $model.profession)
+            } header: {
+                Text("你的职业（可选）")
+            } footer: {
+                Text("填了以后，生成纪要时会侧重这个职业关心的结论、数字和后续动作。职业会随文字稿一起发送给 AI 服务。")
+            }
+            .surfaceRows()
+
+            Section {
                 Button("保存") { model.save() }
                     .disabled(!model.isConfigured)
                 Button {

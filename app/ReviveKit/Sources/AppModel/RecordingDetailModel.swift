@@ -80,7 +80,9 @@ public final class RecordingDetailModel {
                                  uniquingKeysWith: { a, _ in a })
         if let recording {
             marks = (try? library.marks(for: recording)) ?? []
-            audioMissing = !FileManager.default.fileExists(atPath: library.store.url(forAudioPath: recording.audioPath).path)
+            // A text-only recording (features.md E2) has no audio to miss.
+            audioMissing = recording.hasAudio
+                && !FileManager.default.fileExists(atPath: library.store.url(forAudioPath: recording.audioPath).path)
         }
     }
 
@@ -99,6 +101,7 @@ public final class RecordingDetailModel {
     public var currentTime: TimeInterval { isLoaded ? player.currentTime : 0 }
 
     public func togglePlay() {
+        guard hasAudio else { return }
         if isPlaying {
             player.pause()
             return
@@ -170,7 +173,10 @@ public final class RecordingDetailModel {
     public var transcriptionUsesNetwork: Bool { transcriber?.usesNetwork ?? false }
 
     /// "转成文字" is offered when transcription is switched on and nothing is running.
-    public var canTranscribe: Bool { transcriber != nil && recording != nil && !audioMissing }
+    public var canTranscribe: Bool { transcriber != nil && hasAudio && !audioMissing }
+
+    /// False for an imported text file (features.md E2): no player, no audio exports, no times.
+    public var hasAudio: Bool { recording?.hasAudio ?? false }
 
     /// Recognizes the recording on this phone and stores the text. Replaces an earlier transcript.
     public func transcribe(language: String = "zh-CN") {
@@ -532,6 +538,7 @@ public final class RecordingDetailModel {
     }
 
     private func play(fromMs offsetMs: Int) {
+        guard hasAudio else { return }  // text only (features.md E2): nothing to play
         let target = Double(offsetMs) / 1000
         if isLoaded {
             player.seek(to: target)
@@ -660,7 +667,10 @@ public final class RecordingDetailModel {
         return f.string(from: recording.startedAt)
     }
 
-    public var durationText: String { RecordingText.longDuration(ms: recording?.durationMs ?? 0) }
+    public var durationText: String {
+        guard let recording else { return "" }
+        return recording.hasAudio ? RecordingText.longDuration(ms: recording.durationMs) : "文字"
+    }
 
     /// The card's name for a card recording; "手机录音" or "导入" otherwise (features.md D1c).
     public var sourceText: String? {
@@ -670,7 +680,7 @@ public final class RecordingDetailModel {
     }
 
     public var sizeText: String {
-        guard let recording else { return "" }
+        guard let recording, recording.hasAudio else { return "" }
         let url = library.store.url(forAudioPath: recording.audioPath)
         let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
         return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
@@ -681,7 +691,7 @@ public final class RecordingDetailModel {
     /// A temporary `<title>.ogg` for the share sheet (features.md E1a), named as the page shows
     /// the recording ("11月7日 14.02.ogg", #85); nil with a toast on failure.
     public func exportFile() -> URL? {
-        guard let recording else { return nil }
+        guard let recording, recording.hasAudio else { return nil }
         do {
             return try RecordingExporter.exportFile(for: recording, library: library, title: title)
         } catch PlayerError.audioMissing {
@@ -694,7 +704,7 @@ public final class RecordingDetailModel {
 
     /// A temporary `<title>.m4a` for the share sheet (features.md E1b); nil with a toast on failure.
     public func exportM4A() async -> URL? {
-        guard let recording, !isExporting else { return nil }
+        guard let recording, recording.hasAudio, !isExporting else { return nil }
         isExporting = true
         defer { isExporting = false }
         do {
@@ -717,7 +727,7 @@ public final class RecordingDetailModel {
 
     /// A temporary `<title>.wav` for the share sheet (features.md E1c); nil with a toast on failure.
     public func exportWAV() async -> URL? {
-        guard let recording, !isExporting else { return nil }
+        guard let recording, recording.hasAudio, !isExporting else { return nil }
         isExporting = true
         defer { isExporting = false }
         do {

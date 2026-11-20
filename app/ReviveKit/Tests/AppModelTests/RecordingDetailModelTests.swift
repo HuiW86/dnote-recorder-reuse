@@ -371,6 +371,27 @@ struct PolishAndLoopTests {
         #expect(model.assistantOutput == nil)
     }
 
+    /// E2 文字文件: a text-only recording shows its text, has nothing to play, transcribe or
+    /// export as audio, and never counts as missing its audio.
+    @Test func textOnlyRecordingHasNoAudio() async throws {
+        let f = try await DetailFixture()
+        let text = try #require(try f.library.addTextRecording(text: "周三发布。\n测试通过以后上线。", title: "会议记录",
+                                                               startedAt: Date()))
+        let fake = FakeTranscriber(result: .success([]))
+        let model = RecordingDetailModel(recordingId: text.id, library: f.library, player: f.player, transcriber: fake)
+        #expect(!model.hasAudio && !model.audioMissing && !model.canTranscribe)
+        #expect(model.transcript?.segments.count == 2)
+        #expect(model.durationText == "文字" && model.sizeText == "")
+        #expect(RecordingText.subtitle(text, deviceName: nil).hasSuffix("文字 · 导入"))
+        model.togglePlay()
+        model.play(from: try #require(model.transcript?.segments.first))
+        model.toggleLoop(lineAt: 0)
+        #expect(!model.isPlaying && !model.audioMissing && model.loopingIndex == nil)
+        #expect(model.exportFile() == nil && model.audioMissing == false)
+        #expect(model.exportMarkdown() != nil)
+        RecordingExporter.cleanUp()
+    }
+
     /// X20 单词分级: offered for a foreign transcript with a service; the list is kept, grouped
     /// from the hardest level down, and a word plays its line.
     @Test func listsWordsByLevel() async throws {

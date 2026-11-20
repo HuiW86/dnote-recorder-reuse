@@ -32,7 +32,8 @@ public enum RecordingText {
         if hasKnownTime(r) {
             parts.append(time(r.startedAt, calendar: calendar))
         }
-        parts.append(duration(ms: r.durationMs))
+        // A text-only recording (features.md E2) has no length; say what it is instead.
+        parts.append(r.hasAudio ? duration(ms: r.durationMs) : "文字")
         if let deviceName, !deviceName.isEmpty { parts.append(deviceName) }
         if r.source != .card { parts.append(sourceName(r.source)) }
         return parts.joined(separator: " · ")

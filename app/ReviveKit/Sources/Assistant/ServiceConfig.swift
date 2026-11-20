@@ -9,12 +9,19 @@ public struct ServiceConfig: Equatable, Sendable {
     public var baseURL: String
     public var model: String
     public var apiKey: String
+    /// The user's job, such as "产品经理" (features.md G1 职业设定); summaries lean towards what it
+    /// cares about. Empty for none. Sent to the service inside the prompt.
+    public var profession: String
 
-    public init(baseURL: String, model: String, apiKey: String) {
+    public init(baseURL: String, model: String, apiKey: String, profession: String = "") {
         self.baseURL = baseURL
         self.model = model
         self.apiKey = apiKey
+        self.profession = profession
     }
+
+    /// Longest profession kept, so the setting cannot swamp the prompt.
+    public static let professionLimit = 40
 
     /// Enough to send a request: an address and a model. The key is optional.
     public var isComplete: Bool {

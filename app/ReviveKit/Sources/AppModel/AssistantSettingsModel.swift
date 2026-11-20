@@ -12,6 +12,8 @@ public final class AssistantSettingsModel {
     public var apiKey: String
     /// Transcription model on the same service; empty keeps audio on the phone.
     public var transcriptionModel: String
+    /// The user's job (features.md G1 职业设定); optional, works without a service too.
+    public var profession: String
     public private(set) var isTesting = false
     /// Result of the last "测试连接", in words.
     public private(set) var testResult: String?
@@ -30,6 +32,7 @@ public final class AssistantSettingsModel {
         baseURL = preferences.assistantBaseURL
         model = preferences.assistantModel
         transcriptionModel = preferences.assistantTranscriptionModel
+        profession = preferences.assistantProfession
         apiKey = (try? keyStore.read()) ?? ""
     }
 
@@ -58,7 +61,8 @@ public final class AssistantSettingsModel {
     public var config: ServiceConfig {
         ServiceConfig(baseURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
                       model: model.trimmingCharacters(in: .whitespacesAndNewlines),
-                      apiKey: apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
+                      apiKey: apiKey.trimmingCharacters(in: .whitespacesAndNewlines),
+                      profession: Self.cleaned(profession))
     }
 
     public var isConfigured: Bool { config.isComplete }
@@ -69,6 +73,7 @@ public final class AssistantSettingsModel {
         preferences.assistantBaseURL = current.baseURL
         preferences.assistantModel = current.model
         preferences.assistantTranscriptionModel = transcriptionModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        preferences.assistantProfession = current.profession
         do {
             try keyStore.save(current.apiKey)
             toast = Toast("已保存")
@@ -87,6 +92,7 @@ public final class AssistantSettingsModel {
         preferences.assistantBaseURL = ""
         preferences.assistantModel = ""
         preferences.assistantTranscriptionModel = ""
+        // The job is about the user, not the service: it stays.
         try? keyStore.delete()
         toast = Toast("已清除")
     }
@@ -112,6 +118,12 @@ public final class AssistantSettingsModel {
                 testResult = "连接失败：\(error.localizedDescription)"
             }
         }
+    }
+
+    /// The job as stored: one line, trimmed, at most `ServiceConfig.professionLimit` characters.
+    public nonisolated static func cleaned(_ profession: String) -> String {
+        let oneLine = profession.split(whereSeparator: \.isNewline).joined(separator: " ")
+        return String(oneLine.trimmingCharacters(in: .whitespaces).prefix(ServiceConfig.professionLimit))
     }
 
     public nonisolated static func text(for error: AssistantError) -> String {

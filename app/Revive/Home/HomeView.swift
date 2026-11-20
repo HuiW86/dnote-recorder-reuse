@@ -27,6 +27,9 @@ enum Route: Hashable {
 /// 录音 tab (P05, #89): the list by day with filters, the card and sync status. Search is on
 /// 知识库; the record key and the shared prompts are in `MainView`.
 struct RecordingsView: View {
+    /// What 「文件」 offers: audio, and plain text or Markdown (features.md E2).
+    static let importTypes: [UTType] = [UTType.audio, UTType.plainText] + [UTType(filenameExtension: "md")].compactMap { $0 }
+
     @Bindable var model: HomeModel
     let env: AppEnvironment
     @Binding var showsSwitcher: Bool
@@ -59,11 +62,13 @@ struct RecordingsView: View {
                         }
                     }
                     .disabled(model.isImporting)
-                    .accessibilityLabel("导入音频文件")
+                    .accessibilityLabel("导入音频或文字文件")
                 }
             }
             .refreshable { await model.refresh() }
-            .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
+            // Audio, or a text file that becomes a recording with no audio (features.md E2).
+            .fileImporter(isPresented: $importing, allowedContentTypes: Self.importTypes,
+                          allowsMultipleSelection: true) { result in
                 guard case .success(let urls) = result else { return }
                 Task {
                     // Files outside the app's container are readable only inside their security scope.

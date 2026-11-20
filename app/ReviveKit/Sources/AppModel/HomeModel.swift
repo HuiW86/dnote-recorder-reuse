@@ -578,8 +578,12 @@ public final class HomeModel {
     /// An import from Files is running (features.md E2).
     public private(set) var isImporting = false
 
-    /// Imports audio files picked in Files: each becomes a recording named after its file. The
-    /// caller has already opened their security scope. Nothing is sent anywhere.
+    /// File extensions read as text (features.md E2): the file becomes a recording with no audio.
+    public static let textExtensions: Set<String> = ["txt", "text", "md", "markdown"]
+
+    /// Imports audio or text files picked in Files: each becomes a recording named after its
+    /// file; a text file's paragraphs become its transcript and it has no audio. The caller has
+    /// already opened their security scope. Nothing is sent anywhere.
     public func importAudio(_ urls: [URL]) async {
         guard !urls.isEmpty, !isImporting else { return }
         isImporting = true
@@ -588,6 +592,15 @@ public final class HomeModel {
         var failed = 0
         for url in urls {
             do {
+                if Self.textExtensions.contains(url.pathExtension.lowercased()) {
+                    let created = (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
+                    guard let text = TextImport.decode(try Data(contentsOf: url)),
+                          try session.library.addTextRecording(text: text, title: url.deletingPathExtension().lastPathComponent,
+                                                               startedAt: created) != nil
+                    else { throw CocoaError(.fileReadCorruptFile) }
+                    imported += 1
+                    continue
+                }
                 let prepared = try await AudioImporter.prepare(url)
                 let created = (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
                 try session.library.addLocalRecording(file: prepared.file, source: .import, startedAt: created,
@@ -601,7 +614,7 @@ public final class HomeModel {
         }
         switch (imported, failed) {
         case (_, 0): toast = Toast(imported == 1 ? "已导入" : "已导入 \(imported) 个文件")
-        case (0, _): toast = Toast("导入失败：不是能识别的音频文件")
+        case (0, _): toast = Toast("导入失败：不是能识别的音频或文字文件")
         default: toast = Toast("已导入 \(imported) 个，\(failed) 个无法识别")
         }
     }
