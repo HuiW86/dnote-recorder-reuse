@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Security)
+import Security
+#endif
 import Testing
 import Library
 @testable import Assistant
@@ -261,6 +264,14 @@ struct SummarizerRequestTests {
 }
 
 struct KeyStoreTests {
+    #if canImport(Security)
+    /// #85: the key stays on this phone, out of backups, readable after first unlock.
+    @Test func keychainKeyStaysOnThisDevice() {
+        let expected = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String
+        #expect((KeychainKeyStore.accessibility as String) == expected)
+    }
+    #endif
+
     @Test func inMemoryStoreSavesReadsAndDeletes() throws {
         let store: any ServiceKeyStoring = InMemoryKeyStore()
         #expect(try store.read() == nil)

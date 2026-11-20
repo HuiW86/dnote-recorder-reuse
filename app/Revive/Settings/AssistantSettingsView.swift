@@ -31,7 +31,7 @@ struct AssistantSettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } footer: {
-                Text("兼容 OpenAI 接口的服务都可以用。密钥只保存在这部手机的钥匙串里。")
+                Text("兼容 OpenAI 接口的服务都可以用。密钥只保存在这部手机的钥匙串里，不会进入备份，换手机后需要重新填写。")
             }
             .surfaceRows()
 

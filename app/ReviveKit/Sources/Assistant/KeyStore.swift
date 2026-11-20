@@ -20,8 +20,13 @@ public protocol ServiceKeyStoring: Sendable {
 }
 
 /// Keychain store, readable after first unlock like the bond store (CardService/BondStore.swift),
-/// so a summary started before the phone locks can still finish.
+/// so a summary started before the phone locks can still finish. The key stays on this phone:
+/// it is left out of backups and never moves to a new phone (#85, user's decision 2026-11-20);
+/// on a new phone the user enters it again.
 public struct KeychainKeyStore: ServiceKeyStoring {
+    /// `kSecAttrAccessible` of the key: after first unlock, this device only.
+    public static var accessibility: CFString { kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly }
+
     private let service: String
     private let account: String
 
@@ -34,7 +39,7 @@ public struct KeychainKeyStore: ServiceKeyStoring {
         guard !key.isEmpty else { return try delete() }
         let attributes: [String: Any] = [
             kSecValueData as String: Data(key.utf8),
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecAttrAccessible as String: Self.accessibility,
         ]
         var status = SecItemUpdate(baseQuery() as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {
@@ -52,6 +57,10 @@ public struct KeychainKeyStore: ServiceKeyStoring {
         switch status {
         case errSecSuccess:
             guard let data = item as? Data else { return nil }
+            // A key saved by an earlier build could move to another phone with a backup; keep it
+            // to this one from now on. Failing here leaves it readable as before.
+            _ = SecItemUpdate(baseQuery() as CFDictionary,
+                              [kSecAttrAccessible as String: Self.accessibility] as CFDictionary)
             return String(data: data, encoding: .utf8)
         case errSecItemNotFound:
             return nil
