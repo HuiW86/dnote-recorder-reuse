@@ -1,5 +1,6 @@
 import AppModel
 import SwiftUI
+import UIKit
 
 /// Recording with the phone's microphone (features.md X18): same look as the card's recording
 /// page, dark in both schemes. Stopping keeps the recording in the list.
@@ -38,9 +39,10 @@ struct PhoneRecordingStage: View {
                 }
                 .padding(.top, 20)
                 .padding(.horizontal, 24)
-                Text("用手机的麦克风录音，录音只保存在这部手机上")
+                // A call or another app paused the recording (X18); otherwise where it is kept.
+                Text(recorder.interruptionNotice ?? "用手机的麦克风录音，录音只保存在这部手机上")
                     .font(.subheadline)
-                    .foregroundStyle(Theme.onDark.opacity(0.65))
+                    .foregroundStyle(Theme.onDark.opacity(recorder.interruptionNotice == nil ? 0.65 : 0.95))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .padding(.top, 16)
@@ -61,6 +63,9 @@ struct PhoneRecordingStage: View {
         }
         .preferredColorScheme(.dark)
         .interactiveDismissDisabled()
+        .onChange(of: recorder.interruptionNotice) { _, notice in
+            if let notice { UIAccessibility.post(notification: .announcement, argument: notice) }
+        }
     }
 
     private func control(_ title: String, symbol: String, filled: Bool, action: @escaping () -> Void) -> some View {
