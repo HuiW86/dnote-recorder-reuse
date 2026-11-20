@@ -344,6 +344,45 @@ struct PolishAndLoopTests {
         #expect(try f.library.transcript(recordingId: f.recording.id)?.segments == raw)
     }
 
+    /// G3 "SSE 流式": the sheet opens at once, empty and streaming, and ends with the reply
+    /// (here from a service that does not stream); closing it clears it.
+    @Test func rewriteOpensTheSheetAndFillsIt() async throws {
+        let f = try await DetailFixture()
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "t", language: "zh-CN",
+                                                segments: [TranscriptSegment(startMs: 0, text: "周三发布。")],
+                                                createdAt: Date()))
+        let base = HostReply.register("<think>想想</think>**周三**发布")
+        let config = ServiceConfig(baseURL: base, model: "m", apiKey: "")
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         assistant: AssistantConfigSource { config },
+                                         summarizer: Summarizer(client: ChatClient(session: HostReply.session())))
+        model.rewrite(.email)
+        let opened = try #require(model.assistantOutput)
+        #expect(opened.title == "会后邮件" && opened.text.isEmpty && opened.isStreaming)
+        #expect(model.isAsking)
+        await waitUntil("answered") { model.assistantOutput?.isStreaming == false && !model.isAsking }
+        #expect(model.assistantOutput?.text == "**周三**发布")
+        #expect(model.assistantOutput?.id == opened.id && model.assistantOutput?.isCutOff == false)
+        model.assistantOutput = nil
+        #expect(model.assistantOutput == nil)
+    }
+
+    /// J1 思维导图: offered only with an outline; named like the other exports, after the page title.
+    @Test func exportsTheMindMap() async throws {
+        let f = try await DetailFixture()
+        let none = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(!none.canExportMindMap && none.exportMindMap() == nil)
+        try f.library.saveSummary(Summary(recordingId: f.recording.id, scene: "meeting", title: "定发布日", summary: "s",
+                                          sections: [], todos: [], tags: [], people: [],
+                                          outline: [OutlineItem(title: "排期", points: ["周三"])], model: "m",
+                                          createdAt: Date()))
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
+        #expect(model.canExportMindMap)
+        let url = try #require(model.exportMindMap())
+        #expect(url.lastPathComponent == "11月7日 14.02.opml")
+        #expect(try String(contentsOf: url, encoding: .utf8).contains(#"<outline text="周三"/>"#))
+    }
+
     @Test func loopRangeAndSteps() {
         let starts = [0, 1_000, 2_500]
         #expect(RecordingDetailModel.loopRange(starts, index: 0, durationMs: 4_000) == 0..<1_000)

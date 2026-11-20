@@ -42,5 +42,18 @@ struct RewriterTests {
         #expect(messages[1][0]["content"]?.contains("没有记录到") == true)
         #expect(messages[1][1]["content"] == "材料：\n材料\n\n问题：几号发布？")
         #expect(log.entries.allSatisfy { $0.json["response_format"] == nil })  // plain text, not JSON
+
+        // G3: the streamed versions send the same prompts, asking for a stream.
+        var streamed = ""
+        for try await piece in rewriter.answerStream(question: "几号发布？", material: "材料", config: config) {
+            streamed += piece
+        }
+        #expect(ChatClient.visibleText(streamed) == "成品")
+        let last = try #require(log.entries.last?.json)
+        #expect(last["stream"] as? Bool == true)
+        #expect((last["messages"] as? [[String: String]])?[1]["content"] == "材料：\n材料\n\n问题：几号发布？")
+        for try await _ in rewriter.rewriteStream(material: "材料", style: .email, config: config) {}
+        #expect((log.entries.last?.json["messages"] as? [[String: String]])?[0]["content"]?
+            .contains(RewriteStyle.email.instruction) == true)
     }
 }

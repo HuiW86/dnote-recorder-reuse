@@ -230,6 +230,11 @@ private struct RecordingDetailContent: View {
                         shareURL = model.exportPDF()
                     }
                 }
+                if model.canExportMindMap {
+                    Button("思维导图（OPML，可导入 XMind、幕布）", systemImage: "point.3.connected.trianglepath.dotted") {
+                        shareURL = model.exportMindMap()
+                    }
+                }
             }
             .disabled(model.isExporting)
             if let transcript = model.transcript, !transcript.segments.isEmpty {
@@ -729,7 +734,8 @@ private struct PlayerCard: View {
     }
 }
 
-/// A rewrite or an answer, to read, copy or share.
+/// A rewrite or an answer, to read, copy or share. It opens at once and fills in as the reply
+/// arrives (features.md G3); closing it stops the request.
 private struct AssistantOutputSheet: View {
     let output: AssistantOutput
     @Environment(\.dismiss) private var dismiss
@@ -737,24 +743,42 @@ private struct AssistantOutputSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(RichText.attributed(output.text))
-                    .foregroundStyle(Theme.ink)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
+                VStack(alignment: .leading, spacing: 12) {
+                    if output.text.isEmpty, output.isStreaming {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("正在等你的 AI 服务回复").font(.subheadline).foregroundStyle(Theme.inkMuted)
+                        }
+                    } else {
+                        Text(RichText.attributed(output.text))
+                            .foregroundStyle(Theme.ink)
+                            .textSelection(.enabled)
+                    }
+                    if output.isCutOff {
+                        Label("回答没有收完整，可以关掉后再试一次。", systemImage: "exclamationmark.triangle")
+                            .font(.footnote)
+                            .foregroundStyle(Theme.inkMuted)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
             }
             .background(Theme.paper)
             .navigationTitle(output.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { dismiss() }
+                    Button(output.isStreaming ? "停止" : "完成") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    ShareLink(item: output.text) {
-                        Image(systemName: "square.and.arrow.up")
+                    if output.isStreaming {
+                        ProgressView().accessibilityLabel("正在接收")
+                    } else {
+                        ShareLink(item: output.text) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel("分享")
                     }
-                    .accessibilityLabel("分享")
                 }
             }
         }

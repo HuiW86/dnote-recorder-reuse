@@ -62,26 +62,48 @@ public struct Rewriter: Sendable {
 
     public func rewrite(material: String, style: RewriteStyle, extra: String = "",
                         config: ServiceConfig) async throws -> String {
-        let extraLine = extra.trimmingCharacters(in: .whitespacesAndNewlines)
-        let system = """
-            你是一位文字编辑。下面是一段录音的内容，请按要求改写。
-            要求：\(style.instruction)\(extraLine.isEmpty ? "" : "\n补充要求：\(extraLine)")
-            只用录音里有的事实、观点和例子，不要编造数据或经历。录音里的口语垫词不要带进成品。
-            直接输出成品，不要解释你做了什么。用简体中文。
-            """
-        let reply = try await client.complete(config, system: system, user: material, json: false)
+        let reply = try await client.complete(config, system: Self.rewritePrompt(style, extra: extra), user: material,
+                                              json: false)
         guard !reply.isEmpty else { throw AssistantError.badReply("回复是空的") }
         return reply
     }
 
     public func answer(question: String, material: String, config: ServiceConfig) async throws -> String {
-        let system = """
-            你根据用户自己的这条录音回答问题。只用下面给出的材料，材料里没有就直说没有记录到，不要编。
-            回答简洁，用提问所用的语言回答。
-            """
-        let reply = try await client.complete(config, system: system,
-                                              user: "材料：\n\(material)\n\n问题：\(question)", json: false)
+        let reply = try await client.complete(config, system: Self.answerPrompt,
+                                              user: Self.answerMessage(question: question, material: material),
+                                              json: false)
         guard !reply.isEmpty else { throw AssistantError.badReply("回复是空的") }
         return reply
+    }
+
+    /// `rewrite` as it is written (G3 "SSE 流式"): raw pieces; show `ChatClient.visibleText`.
+    public func rewriteStream(material: String, style: RewriteStyle, extra: String = "",
+                              config: ServiceConfig) -> AsyncThrowingStream<String, Error> {
+        client.stream(config, system: Self.rewritePrompt(style, extra: extra), user: material)
+    }
+
+    /// `answer` as it is written: raw pieces; show `ChatClient.visibleText`.
+    public func answerStream(question: String, material: String,
+                             config: ServiceConfig) -> AsyncThrowingStream<String, Error> {
+        client.stream(config, system: Self.answerPrompt, user: Self.answerMessage(question: question, material: material))
+    }
+
+    static func rewritePrompt(_ style: RewriteStyle, extra: String) -> String {
+        let extraLine = extra.trimmingCharacters(in: .whitespacesAndNewlines)
+        return """
+            你是一位文字编辑。下面是一段录音的内容，请按要求改写。
+            要求：\(style.instruction)\(extraLine.isEmpty ? "" : "\n补充要求：\(extraLine)")
+            只用录音里有的事实、观点和例子，不要编造数据或经历。录音里的口语垫词不要带进成品。
+            直接输出成品，不要解释你做了什么。用简体中文。
+            """
+    }
+
+    static let answerPrompt = """
+        你根据用户自己的这条录音回答问题。只用下面给出的材料，材料里没有就直说没有记录到，不要编。
+        回答简洁，用提问所用的语言回答。
+        """
+
+    static func answerMessage(question: String, material: String) -> String {
+        "材料：\n\(material)\n\n问题：\(question)"
     }
 }
