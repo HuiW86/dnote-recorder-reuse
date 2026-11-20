@@ -135,6 +135,7 @@ public final class AssistantSettingsModel {
         case .http(let code, _): "服务返回错误 \(code)"
         case .badReply: "服务的回复看不懂，请换一个模型试试"
         case .unreachable: "连不上这个地址，请检查网络和地址"
+        case .offline: AssistantError.offlineAdvice
         }
     }
 }

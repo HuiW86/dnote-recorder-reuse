@@ -100,26 +100,4 @@ enum DemoLibrary {
         return url
     }
 }
-
-/// A card link that is ready but never finds or connects a card, for the demo library.
-@MainActor
-final class DemoCardLink: CardLink {
-    let state: LinkState = .idle
-    let peripheralId: UUID? = nil
-    let events: AsyncStream<LinkEvent>
-    private let continuation: AsyncStream<LinkEvent>.Continuation
-
-    init() {
-        let pair = AsyncStream<LinkEvent>.makeStream()
-        events = pair.stream
-        continuation = pair.continuation
-    }
-
-    func startScan() {}
-    func stopScan() {}
-    func connect(_ id: UUID) async throws { throw LinkError.connectFailed }
-    func connectWhenSeen(_ id: UUID) throws {}
-    func disconnect() {}
-    func send(_ request: CardRequest) async throws { throw LinkError.notConnected }
-}
 #endif

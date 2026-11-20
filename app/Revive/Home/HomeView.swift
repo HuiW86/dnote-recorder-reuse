@@ -135,7 +135,9 @@ struct RecordingsView: View {
             } else if model.recordings.isEmpty {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
-                                           description: Text("按卡上的录音键，或点下方中间的红色按钮"))
+                                           description: Text(model.currentDevice == nil
+                                                             ? "点下方中间的红色按钮用这部手机录，或点右上角导入音频和文字"
+                                                             : "按卡上的录音键，或点下方中间的红色按钮"))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 }

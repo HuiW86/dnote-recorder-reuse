@@ -26,7 +26,7 @@ enum MainTab: String, Hashable, CaseIterable {
     }
 }
 
-/// After pairing: the tabs, the bottom bar with the record key in its middle, and what every tab
+/// After pairing, or after 先不连卡 on P01: the tabs, the bottom bar with the record key in its middle, and what every tab
 /// shares (the recording page, prompts, "留着 / 不要", toasts). Each tab keeps its own
 /// navigation stack.
 struct MainView: View {
@@ -46,7 +46,8 @@ struct MainView: View {
             }
         }
         .onAppear {
-            if model == nil, let session = env.startBluetooth() {
+            // The real Bluetooth stack, or for 先不连卡 one that never asks for Bluetooth.
+            if model == nil, let session = env.mainSession() {
                 model = HomeModel(session: session, preferences: env.preferences, player: env.player)
             }
             if overview == nil, let library = env.library {
@@ -139,14 +140,21 @@ private struct MainContent: View {
         .sheet(isPresented: $showsSwitcher, onDismiss: { model.start() }) {
             DeviceSwitcherSheet(model: model, env: env)
         }
-        .confirmationDialog("录音卡还没连上", isPresented: $offersPhone, titleVisibility: .visible) {
+        .confirmationDialog(model.status == .noDevice ? "还没有录音卡" : "录音卡还没连上",
+                            isPresented: $offersPhone, titleVisibility: .visible) {
             if env.phoneRecorder != nil {
                 Button("用这部手机录") { startPhoneRecording() }
             }
+            if model.status == .noDevice {
+                Button("添加录音卡") { addCard() }
+            }
             Button("取消", role: .cancel) {}
         } message: {
-            Text(model.status == .connecting ? "正在连接录音卡，稍等一下再试。"
-                 : "按住卡上的录音键，白灯闪烁后松手，连上后就能从这里开始录音。")
+            switch model.status {
+            case .noDevice: Text("可以先用这部手机录。有录音卡时，点「添加录音卡」。")
+            case .connecting: Text("正在连接录音卡，稍等一下再试。")
+            default: Text("按住卡上的录音键，白灯闪烁后松手，连上后就能从这里开始录音。")
+            }
         }
         .alert(model.prompt?.title ?? "", isPresented: promptBinding, presenting: model.prompt) { prompt in
             Button(prompt.actionTitle) {
@@ -230,6 +238,17 @@ private struct MainContent: View {
             model.startTapped()
         default:
             offersPhone = true
+        }
+    }
+
+    /// "添加录音卡" with no card: through P01 for 先不连卡 (no Bluetooth stack yet), otherwise
+    /// P02 → P03 in the 录音卡 tab.
+    private func addCard() {
+        if env.isCardless {
+            env.addFirstCard()
+        } else {
+            tab = .card
+            paths[.card] = [.connectGuide]
         }
     }
 

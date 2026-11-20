@@ -29,6 +29,8 @@ struct WelcomeView: View {
                 } actions: {
                     Button("去设置") { openSettings() }
                         .buttonStyle(.borderedProminent)
+                    // Without Bluetooth the card cannot work, but the phone can still record.
+                    useWithoutCard
                 }
                 .paperPage()
             } else {
@@ -76,23 +78,34 @@ struct WelcomeView: View {
             }
             .padding(.vertical, 24)
         } footer: {
-            Button {
-                model.continueTapped()
-                if model.phase == .proceed { goToGuide() }
-            } label: {
-                Group {
-                    if model.phase == .requesting {
-                        ProgressView()
-                    } else {
-                        Text("继续")
+            VStack(spacing: 4) {
+                Button {
+                    model.continueTapped()
+                    if model.phase == .proceed { goToGuide() }
+                } label: {
+                    Group {
+                        if model.phase == .requesting {
+                            ProgressView()
+                        } else {
+                            Text("继续")
+                        }
                     }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                useWithoutCard
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
             .disabled(model.phase == .requesting)
         }
+    }
+
+    /// 先不连卡 (product-spec.md P01): the tabs without a card; no Bluetooth prompt. A card can be
+    /// added later from 录音卡, which comes back here.
+    private var useWithoutCard: some View {
+        Button("先不连卡，直接用") { env.preferences.usesWithoutCard = true }
+            .frame(minHeight: 44)
+            .accessibilityHint("用手机录音、导入音频和文字，以后再添加录音卡")
     }
 
     /// Idempotent: the phase can reach `.proceed` from the button and from `onChange`.
