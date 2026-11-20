@@ -83,7 +83,8 @@ public struct Summarizer: Sendable {
             material = notes.joined(separator: "\n\n")
         }
         let user = "录音时长：\(Self.promptDuration(ms: durationMs))\n\n文字稿：\n\(material)"
-        let reply = try await client.complete(config, system: Self.systemPrompt(fixedScene: fixedScene),
+        let reply = try await client.complete(config, system: Self.systemPrompt(fixedScene: fixedScene,
+                                                                                profession: config.profession),
                                               user: user, json: true)
         return try Self.parse(reply, fixedScene: fixedScene, model: config.model)
     }
@@ -126,6 +127,15 @@ public struct Summarizer: Sendable {
 
     static func chunkPrompt(index: Int) -> String {
         "你在帮人整理一段长录音的文字稿。这是其中第 \(index) 段。用简体中文列出这一段里的事实、观点、数字、人名、约定和待办，每条一行，不要评论，不要编造。"
+    }
+
+    /// The prompt with a line about the user's job (features.md G1 职业设定) when one is set.
+    public static func systemPrompt(fixedScene: RecordingScene?, profession: String) -> String {
+        let job = String(profession.trimmingCharacters(in: .whitespacesAndNewlines)
+            .prefix(ServiceConfig.professionLimit))
+        let base = systemPrompt(fixedScene: fixedScene)
+        guard !job.isEmpty else { return base }
+        return base + "\n\n用户的职业是「\(job)」。整理时侧重这个职业会关心的结论、数字、风险和后续动作，用这个行业惯用的说法；但只写录音里真有的内容，不要因为职业而添加录音里没有的东西。"
     }
 
     public static func systemPrompt(fixedScene: RecordingScene?) -> String {

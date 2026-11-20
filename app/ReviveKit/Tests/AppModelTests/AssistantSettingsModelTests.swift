@@ -10,6 +10,25 @@ struct AssistantSettingsModelTests {
         Preferences(defaults: UserDefaults(suiteName: "assistant-\(UUID().uuidString)")!)
     }
 
+    /// G1 职业设定: saved on one line and capped, part of the config summaries use, and kept
+    /// when the service is cleared.
+    @Test func professionIsSavedWithTheService() throws {
+        let prefs = preferences()
+        let keys = InMemoryKeyStore()
+        let model = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        model.baseURL = "https://example.invalid/v1"
+        model.model = "m"
+        model.profession = "  产品\n经理  "
+        #expect(model.config.profession == "产品 经理")
+        model.save()
+        #expect(prefs.assistantProfession == "产品 经理")
+        let again = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        #expect(again.profession == "产品 经理" && again.config.profession == "产品 经理")
+        #expect(AssistantSettingsModel.cleaned(String(repeating: "长", count: 60)).count == ServiceConfig.professionLimit)
+        again.clear()
+        #expect(prefs.assistantProfession == "产品 经理")
+    }
+
     @Test func savesLoadsAndClears() throws {
         let prefs = preferences()
         let keys = InMemoryKeyStore()

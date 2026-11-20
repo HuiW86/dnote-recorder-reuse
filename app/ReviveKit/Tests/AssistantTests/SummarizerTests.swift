@@ -170,6 +170,18 @@ struct SummaryTextTests {
         }
         #expect(Summarizer.systemPrompt(fixedScene: .sales).contains("场景已经确定是 sales"))
     }
+
+    /// G1 职业设定: a line about the user's job, capped; none when it is blank.
+    @Test func promptMentionsTheProfession() {
+        let base = Summarizer.systemPrompt(fixedScene: nil)
+        #expect(Summarizer.systemPrompt(fixedScene: nil, profession: "  ") == base)
+        let lawyer = Summarizer.systemPrompt(fixedScene: nil, profession: " 律师 ")
+        #expect(lawyer.hasPrefix(base) && lawyer.contains("用户的职业是「律师」"))
+        #expect(lawyer.contains("不要因为职业而添加录音里没有的东西"))
+        let long = Summarizer.systemPrompt(fixedScene: nil, profession: String(repeating: "长", count: 60))
+        let capped = String(repeating: "长", count: ServiceConfig.professionLimit)
+        #expect(long.contains("「\(capped)」"))
+    }
 }
 
 struct SummarizerRequestTests {
@@ -183,7 +195,7 @@ struct SummarizerRequestTests {
             return (200, chatReply(answer))
         }
         let summarizer = Summarizer(client: ChatClient(session: StubURLProtocol.session()))
-        let config = ServiceConfig(baseURL: base, model: "m1", apiKey: "")
+        let config = ServiceConfig(baseURL: base, model: "m1", apiKey: "", profession: "项目经理")
         let draft = try await summarizer.summarize(transcript: "各位，下周三上线。", durationMs: 125_000,
                                                    config: config, fixedScene: .meeting)
         #expect(draft.scene == .meeting && draft.summary == "下周三上线。" && draft.todos == ["测试"])
@@ -197,6 +209,7 @@ struct SummarizerRequestTests {
         let system = try #require(messages.first?["content"] as? String)
         let user = try #require(messages.last?["content"] as? String)
         #expect(system.contains("场景已经确定是 meeting"))
+        #expect(system.contains("用户的职业是「项目经理」"))
         #expect(user.hasPrefix("录音时长：2 分钟"))
         #expect(user.contains("各位，下周三上线。"))
     }

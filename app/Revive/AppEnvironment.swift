@@ -22,7 +22,8 @@ final class AppEnvironment {
         let defaults = UserDefaults.standard
         let config = ServiceConfig(baseURL: defaults.string(forKey: Preferences.assistantBaseURLKey) ?? "",
                                    model: defaults.string(forKey: Preferences.assistantModelKey) ?? "",
-                                   apiKey: (try? KeychainKeyStore().read()) ?? "")
+                                   apiKey: (try? KeychainKeyStore().read()) ?? "",
+                                   profession: defaults.string(forKey: Preferences.assistantProfessionKey) ?? "")
         return config.isComplete ? config : nil
     }
 
