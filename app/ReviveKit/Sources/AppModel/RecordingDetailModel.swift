@@ -293,6 +293,18 @@ public final class RecordingDetailModel {
         }
     }
 
+    /// 「解释这一句」(features.md X20 难句解析): the line, with its neighbours as context, explained
+    /// by the user's service in the same sheet as a rewrite. Only those lines are sent.
+    public func explainLine(_ index: Int) {
+        guard let segments = transcript?.segments, segments.indices.contains(index) else { return }
+        let line = segments[index].text
+        let before = index > 0 ? segments[index - 1].text : nil
+        let after = index + 1 < segments.count ? segments[index + 1].text : nil
+        run(title: "解释这一句") { config, _, rewriter in
+            rewriter.explainStream(line: line, before: before, after: after, config: config)
+        }
+    }
+
     /// Opens the sheet at once and fills it as the reply arrives (features.md G3 "SSE 流式").
     /// A reply cut off part way keeps what arrived and says so; one with nothing closes the sheet.
     private func run(title: String,

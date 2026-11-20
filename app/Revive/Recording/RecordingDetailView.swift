@@ -556,6 +556,10 @@ extension RecordingDetailContent {
                         Button(looping ? "停止循环" : "单句循环", systemImage: "repeat.1") {
                             model.toggleLoop(lineAt: index)
                         }
+                        if model.canRewrite {
+                            Button("解释这一句", systemImage: "text.bubble") { model.explainLine(index) }
+                                .disabled(model.isAsking)
+                        }
                         if !model.isPolishing {
                             Button("修改这一句", systemImage: "pencil") {
                                 lineText = segment.text
@@ -565,6 +569,10 @@ extension RecordingDetailContent {
                     }
                     .accessibilityAction(named: looping ? "停止循环" : "单句循环") {
                         model.toggleLoop(lineAt: index)
+                    }
+                    .accessibilityAction(named: "解释这一句") {
+                        guard model.canRewrite, !model.isAsking else { return }
+                        model.explainLine(index)
                     }
                     .accessibilityAction(named: "修改这一句") {
                         guard !model.isPolishing else { return }

@@ -88,6 +88,31 @@ public struct Rewriter: Sendable {
         client.stream(config, system: Self.answerPrompt, user: Self.answerMessage(question: question, material: material))
     }
 
+    /// One transcript line explained for a learner (features.md X20 难句解析): translation, the
+    /// hard words, and how the sentence is built. `before` and `after` are the neighbouring lines,
+    /// for context only.
+    public func explainStream(line: String, before: String?, after: String?,
+                              config: ServiceConfig) -> AsyncThrowingStream<String, Error> {
+        client.stream(config, system: Self.explainPrompt,
+                      user: Self.explainMessage(line: line, before: before, after: after))
+    }
+
+    static let explainPrompt = """
+        你在帮用户逐句听懂一段录音。解释用户指定的那一句：
+        - 先给翻译：外语句子译成简体中文；中文句子译成英文
+        - 再列出句中较难的词或短语，每个一行，写清意思和在这里的用法
+        - 最后用一两句话说明句子结构或语气；句子听起来像识别错了时，指出可能原本是什么
+        上下文只用来理解意思，不要解释上下文。简洁，用简体中文讲解。
+        """
+
+    static func explainMessage(line: String, before: String?, after: String?) -> String {
+        var parts: [String] = []
+        if let before, !before.isEmpty { parts.append("上一句：\(before)") }
+        parts.append("要解释的句子：\(line)")
+        if let after, !after.isEmpty { parts.append("下一句：\(after)") }
+        return parts.joined(separator: "\n")
+    }
+
     static func rewritePrompt(_ style: RewriteStyle, extra: String) -> String {
         let extraLine = extra.trimmingCharacters(in: .whitespacesAndNewlines)
         return """

@@ -367,6 +367,25 @@ struct PolishAndLoopTests {
         #expect(model.assistantOutput == nil)
     }
 
+    /// X20 难句解析: 「解释这一句」 opens the same sheet, titled for it; out of range does nothing.
+    @Test func explainsALine() async throws {
+        let f = try await DetailFixture()
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "t", language: "en-US",
+                                                segments: [TranscriptSegment(startMs: 0, text: "Let's ship it.")],
+                                                createdAt: Date()))
+        let base = HostReply.register("我们发布吧。")
+        let config = ServiceConfig(baseURL: base, model: "m", apiKey: "")
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         assistant: AssistantConfigSource { config },
+                                         summarizer: Summarizer(client: ChatClient(session: HostReply.session())))
+        model.explainLine(3)
+        #expect(model.assistantOutput == nil && !model.isAsking)
+        model.explainLine(0)
+        #expect(model.assistantOutput?.title == "解释这一句")
+        await waitUntil("explained") { model.assistantOutput?.isStreaming == false && !model.isAsking }
+        #expect(model.assistantOutput?.text == "我们发布吧。")
+    }
+
     /// J1 思维导图: offered only with an outline; named like the other exports, after the page title.
     @Test func exportsTheMindMap() async throws {
         let f = try await DetailFixture()
