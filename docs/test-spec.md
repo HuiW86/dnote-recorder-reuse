@@ -154,6 +154,7 @@
 | T-M15-22 | #85 断开期间结束的录音 | 录音中断开，卡上停止（推送丢失）后重连：补问「留着 / 不要」，时长未知；重连时仍在录：重连当时不问，停止后问一次且带时长 |
 | T-M15-23 | #85 通知文案、转写开关、导出文件名 | 只计这一轮新存的卡上录音（不含最近删除、导入）；只有一条时带它的 id，多条时不带；转写开关在打开的 P06 上立即生效；导出文件名按页面显示的标题（「11月7日 14.02.ogg」，改名后用新名字） |
 | T-M15-20 | #89 列表按天分组的合计、正在播放的句子、外观 | 组标题「今天」「昨天」「3月2日」「2025年11月7日」；合计「2 条 · 1 小时 6 分钟」；正在播放的句子是起点不晚于当前位置的最后一句，第一句之前和没有句子时为空；详情页开始播放某句后，当前句就是这一句；外观默认跟随系统，选择后重新读取仍是所选 |
+| T-M15-24 | 先不连卡（P01，2026-11-20） | 选择存进偏好，重开仍在，可清掉；`NoCardLink` 状态是 `idle`，不连接、不写；在它上面的 `HomeModel` 没有当前卡、状态是 `noDevice`（不是 `bluetoothUnavailable`），导入的文字文件照常进列表 |
 
 实现：
 
@@ -182,6 +183,7 @@
 | T-M15-22 | `HomeModelTests` `recordingThatEndedWhileAwayIsOfferedOnReconnect`、`recordingStillGoingAfterReconnectIsOfferedWhenItStops` |
 | T-M15-23 | `SyncNoticeTests`；`RecordingDetailModelTests` `transcriptionSwitchAppliesToAnOpenPage`、`exportsUnderTitle` |
 | T-M15-20 | `OverviewTests` `RecordingDayTests`、`TranscriptPositionTests`、`AppearanceTests`；`RecordingDetailModelTests` `transcribesStoresAndReportsFailures`（当前句段） |
+| T-M15-24 | `Tests/AppModelTests/CardlessTests.swift`（2 个）、`Tests/CardLinkTests/NoCardLinkTests.swift` |
 
 **没有自动用例覆盖的部分**（代码已合并，靠 §3.6.2 和界面走查）：
 
@@ -209,6 +211,8 @@
 | T-M15-58 | Opus 帧头真机统计（#66） | 按 `evidence/v66-opus-toc/README.md`：用 `pull` 留下的 `.raw` 跑 `python dnote.py toc`，输出存为 `toc-v1.50.txt`；样本至少 3 个文件（1 分钟以内、30 分钟以上、按键发起各一条；至少一条有人说话、一条基本安静）；#8 的其他卡各取一条 | 每个文件都是 `matches 20 ms mono: yes` 才算通过；有 `NO` 时按该 README 的判据表分情况处理，结论写进 README。注意 `backend-design.md` §7.2 H2 记录实时流里见过 TOC `0x4b`，它的帧数码是 3，而现行检查（Swift `OpusTOC.isCardFormat` 和 Python `opus_frames_match_card_format`）只接受帧数码 0；文件里若也出现 `0x4b`，会被判为不符，按判据表第 2 行处理 |
 
 | T-M15-59 | #89 界面走查与截图 | ① 在 Mac 上跑 `scripts/shots.sh`（模拟器，示例数据，不连卡）；② 真机上连卡，按 `product-spec.md` §9「界面改版第二步」逐项走一遍，浅色、深色各一遍；③ 走查时打开「减弱动态效果」和最大号动态字体各一次 | ① 浅色、深色各 7 张截图都生成，放进 `evidence/v89-ui/` 并与改版稿并排；② 每项都有截图或录屏；③ 文字稿播放时不滚动但仍高亮，标签和人物换行、没有单字竖排；全程没有 App 崩溃 |
+
+| T-M15-60 | 先不连卡（P01，2026-11-20） | 删掉 App 重装，不配对卡，按 `product-spec.md` §9「先不连卡」逐项：P01 点「先不连卡，直接用」后**不弹**蓝牙权限框；手机录音、导入、本机转写可用；「添加录音卡」回到 P01，点「继续」后才弹权限框，配对后录音都在；重启后直接进入标签栏；拒绝蓝牙时也能进入。通过线：蓝牙权限框只在点「继续」之后出现（录屏为证） |
 
 T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录音。T-M15-56 的录音音频不入库，只记 sha256（硬规则 4）。
 

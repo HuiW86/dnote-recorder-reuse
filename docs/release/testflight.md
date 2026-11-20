@@ -70,17 +70,17 @@
 - **登录信息**：不需要登录。取消勾选「需要登录」
 - **审核备注**：
 
-> This app is a companion for the D·NOTE voice recorder card, a Bluetooth hardware device. Without the card, the app shows the onboarding and pairing screens; the main screens (recording, syncing, playback, export) open after a card is paired. A video of the full flow on a real card is here: 【演示视频链接】.
+> This app is a companion for the D·NOTE voice recorder card, a Bluetooth hardware device. Pairing and syncing need the card; a video of the full flow on a real card is here: 【演示视频链接】. Without a card you can still try most of the app: on the first screen, tap "先不连卡，直接用" (use without a card). Then tap the red button in the middle of the tab bar and choose "用这部手机录" to record with the iPhone microphone, or import an audio or text file with the button at the top right of 录音. You can play, rename, star and export recordings, and transcribe them on the device after turning on 本机转写 in Settings (录音卡 tab, gear at the top right). Choosing "先不连卡" does not ask for Bluetooth.
 >
 > There is no account, no developer server and no third-party SDK. The optional AI features (summaries, rewriting, questions) use an OpenAI-compatible service that the user configures with their own address and API key; the app contacts only that service, only when the user taps an AI feature or turns on automatic processing of new recordings, and ships with no key of ours. Everything else works offline. On some iPhones, iOS shows a "wireless data" permission prompt on first launch; choosing "Don't Allow" does not affect the card, recording, playback or export.
 >
-> 本 App 用于配合 D·NOTE 录音卡（蓝牙硬件）。没有录音卡时可以看到引导和配对页面；配对一张卡之后才进入主界面（录音、同步、播放、导出）。真卡全流程演示视频：【演示视频链接】。没有账号、开发者服务器和第三方 SDK。可选的 AI 功能（纪要、改写、提问）使用用户自己填写地址和密钥的兼容 OpenAI 接口的服务，只在用户点了 AI 功能或自己打开「录完自动整理」时联系那个服务，App 不内置我们的密钥；其余功能都不联网。部分 iPhone 首次启动时系统会弹出「无线数据」权限询问，选「不允许」不影响录音卡、录音、播放和导出。
+> 本 App 用于配合 D·NOTE 录音卡（蓝牙硬件）。配对和同步需要录音卡，真卡全流程演示视频：【演示视频链接】。没有录音卡也能试大部分功能：在第一页点「先不连卡，直接用」，然后点底栏中间的红色按钮，选「用这部手机录」用手机麦克风录音，或在「录音」右上角导入音频或文字文件；可以播放、改名、标星、导出，在「设置」（「录音卡」标签右上角的齿轮）里打开「本机转写」后可以在手机上转成文字。选「先不连卡」不会请求蓝牙权限。没有账号、开发者服务器和第三方 SDK。可选的 AI 功能（纪要、改写、提问）使用用户自己填写地址和密钥的兼容 OpenAI 接口的服务，只在用户点了 AI 功能或自己打开「录完自动整理」时联系那个服务，App 不内置我们的密钥；其余功能都不联网。部分 iPhone 首次启动时系统会弹出「无线数据」权限询问，选「不允许」不影响录音卡、录音、播放和导出。
 
 **【待核对】** 需要硬件的 App，审核员手上没有设备时，常见做法是提供一段演示视频。演示视频用真卡录：从配对到导出 M4A 走一遍，最好和 T-M1-50 一起录。画面里不要出现完整的 `sn` 或蓝牙地址（硬规则 4）。
 
 **【待核对】** AI 功能要用户自己的密钥。审核员如果要求试用，是否要另给一个测试用的密钥，以审核反馈为准；给的话只写在「审核备注」里，不进 App、不进仓库，审核结束后在服务商那里作废。
 
-**【待决定】** 现在没配对过卡就进不了主界面（`RootView` 按 `hasPairedDevice` 分流），所以审核员没有卡时，手机录音、导入、本机转写这些不需要卡的功能都试不到，只能看演示视频。如果以后在 P01 加「先不连卡，直接用」的入口，这段备注改为引导审核员用「用这部手机录」和「导入」试用（见 PR 说明里的提议）。
+「先不连卡，直接用」和「用这部手机录」「导入」入口的位置以 `product-spec.md` 当前版本为准（1.3.3）；界面再改时同步改这段备注。审核员走的就是 T-M15-60 这条路，提交审核前先在真机上走一遍。
 
 ## 4. 出口合规
 
@@ -96,6 +96,7 @@
 - [ ] 隐私政策已托管（§1），占位符已填，与 App 内 P11 一致（含「AI 服务」一节）
 - [ ] App 隐私已回答（§2），自配 AI 服务那条已按 Apple 当时的说明核对
 - [ ] 真机：系统设置里关掉闻笺的「无线数据」后，录音卡、录音、同步、播放、导出都正常；点「生成纪要」时 Toast 指向「设置 › 闻笺 › 无线数据」（T-M2-10）
+- [ ] 真机：T-M15-60 先不连卡通过（审核员没有卡时走这条路）
 - [ ] 测试信息已填写（§3），演示视频已上传
 - [ ] 提交 Beta 版 App 审核；通过后建外部群组、发公开链接
 - [ ] `features.md` M1 条目状态更新为 verified
