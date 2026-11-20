@@ -32,8 +32,9 @@ struct LibraryQuestionModelTests {
         unset.ask("什么时候上线？")
         #expect(unset.answer == nil && !unset.isAsking)
 
-        // The newest summary is [1]; the reply cites [2], the older one.
-        let base = HostStub.register("周三上线 [2]。")
+        // The older summary shares "上线" with the question, so it goes first as [1] although the
+        // other one is newer (QuestionSources); the reply cites [1].
+        let base = HostStub.register("周三上线 [1]。")
         let config = ServiceConfig(baseURL: base, model: "m", apiKey: "k")
         let model = LibraryQuestionModel(library: library, assistant: AssistantConfigSource { config },
                                          asker: LibraryAsker(client: ChatClient(session: HostStub.session())))
@@ -45,7 +46,7 @@ struct LibraryQuestionModelTests {
         #expect(model.answer?.isStreaming == true && model.answer?.text == "" && model.isAsking)
         await waitUntil("answered") { model.answer?.isStreaming == false && !model.isAsking }
         #expect(model.answer?.question == "什么时候上线？")
-        #expect(model.answer?.text == "周三上线 [2]。")
+        #expect(model.answer?.text == "周三上线 [1]。")
         #expect(model.answer?.sources.map(\.recording.id) == [older])
         #expect(model.answer?.isCutOff == false)
         model.clear()
