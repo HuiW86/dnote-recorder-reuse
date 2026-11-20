@@ -236,8 +236,8 @@ public final class RecordingDetailModel {
             do {
                 let draft = try await summarizer.summarize(transcript: material, durationMs: recording.durationMs,
                                                            config: config, fixedScene: scene)
-                let stored = draft.record(recordingId: recording.id)
-                try library.saveSummary(stored)
+                // What was stored, with the user's tag rules applied (a deleted tag stays gone).
+                let stored = try library.saveSummary(draft.record(recordingId: recording.id))
                 summary = stored
                 if let titled = try library.applyAITitle(id: recording.id, stored.title) { self.recording = titled }
             } catch let error as AssistantError {

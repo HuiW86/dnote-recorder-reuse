@@ -636,11 +636,15 @@ public final class RecordingLibrary: Sendable {
     // MARK: Summaries (features.md G1)
 
     /// Stores the summary of a recording, replacing an earlier one.
-    public func saveSummary(_ summary: Summary) throws {
+    /// Returns the summary as stored: its tags have the user's tag rules applied (D1c), so a
+    /// page must show this, not the draft it passed in.
+    @discardableResult
+    public func saveSummary(_ summary: Summary) throws -> Summary {
         try database.writer.write { db in
             var summary = summary
             summary.tags = TagRule.apply(try TagRule.fetchAll(db), to: summary.tags)
             try summary.save(db)
+            return summary
         }
     }
 

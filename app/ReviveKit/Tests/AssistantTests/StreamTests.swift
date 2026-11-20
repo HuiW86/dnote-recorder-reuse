@@ -22,6 +22,19 @@ struct StreamTests {
         #expect(try reader.finish() == nil)
     }
 
+    /// v105 device acceptance: with the network gone the stream just stopped, and the page said
+    /// 「完成」. A stream that ends without `[DONE]` or a `finish_reason` is cut off.
+    @Test func streamWithoutAnEndIsCutOff() throws {
+        var cut = StreamReader()
+        #expect(try cut.feed(event("第一段")) == "第一段")
+        #expect(throws: ChatClient.cutOff) { try cut.finish() }
+
+        var finished = StreamReader()
+        _ = try finished.feed(event("全文"))
+        _ = try finished.feed(#"data: {"choices":[{"delta":{},"finish_reason":"stop"}]}"#)
+        #expect(try finished.finish() == nil)
+    }
+
     @Test func readerReportsAnErrorEvent() {
         var reader = StreamReader()
         #expect(throws: AssistantError.badReply("rate limited")) {
@@ -65,6 +78,21 @@ struct StreamTests {
         #expect(entry.json["stream"] as? Bool == true)
         #expect(entry.json["response_format"] == nil)
         #expect(entry.request.value(forHTTPHeaderField: "Accept") == "text/event-stream")
+        // A silent stream gives up after a minute, not the whole-request timeout.
+        #expect(entry.request.timeoutInterval == ChatClient.streamIdleTimeout)
+    }
+
+    @Test func streamThatStopsEarlyThrows() async throws {
+        let base = StubURLProtocol.register { _, _ in (200, Data((event("一半") + "\n").utf8)) }
+        let client = ChatClient(session: StubURLProtocol.session())
+        var pieces: [String] = []
+        await #expect(throws: ChatClient.cutOff) {
+            for try await piece in client.stream(ServiceConfig(baseURL: base, model: "m", apiKey: ""), system: "s",
+                                                 user: "u") {
+                pieces.append(piece)
+            }
+        }
+        #expect(pieces == ["一半"])
     }
 
     @Test func streamFallsBackAndReportsErrors() async throws {
