@@ -15,7 +15,7 @@ import Player
 /// (`recoverUnfinished`). The CAF is only removed once the recording is in the library.
 @MainActor
 @Observable
-public final class PhoneRecorder {
+public final class PhoneRecorder: NSObject {
     public enum State: Equatable, Sendable {
         case idle, recording, paused
     }
@@ -46,6 +46,8 @@ public final class PhoneRecorder {
     public static let minimumFreeBytesWhileRecording: Int64 = 30_000_000
     public static let noSpaceText = "手机存储空间不足 100 MB，先清理一些空间再录"
     public static let spaceRanOutText = "手机存储空间快满了，录音已自动停止并保存"
+    /// The recorder stopped on its own (an encoding or write error, or iOS reset its media services).
+    public static let failedText = "录音意外中断，已保存中断前录到的部分"
 
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private var recorder: AVAudioRecorder?
@@ -60,6 +62,7 @@ public final class PhoneRecorder {
     public init(library: RecordingLibrary, freeSpace: (() -> Int64)? = nil) {
         self.library = library
         self.freeSpace = freeSpace ?? { library.store.availableCapacity() }
+        super.init()
         observeSession()
     }
 
@@ -104,6 +107,7 @@ public final class PhoneRecorder {
             try session.setActive(true)
             #endif
             let recorder = try AVAudioRecorder(url: url, settings: Self.recordingSettings)
+            recorder.delegate = self
             guard recorder.record() else { throw CocoaError(.fileWriteUnknown) }
             self.recorder = recorder
             startedAt = now
@@ -176,6 +180,14 @@ public final class PhoneRecorder {
     @discardableResult
     public func stop() async -> Recording? {
         await finish(savedText: "已保存到录音列表")
+    }
+
+    /// The recorder stopped on its own while recording: what reached the CAF is stored like a
+    /// 停止, and the toast says it was cut short. Without this the page kept saying 录音中 while
+    /// nothing was written. Nothing happens once a stop is under way.
+    func recordingFailed() {
+        guard state != .idle, !isSaving else { return }
+        Task { await finish(savedText: Self.failedText) }
     }
 
     /// Recording or paused with less than `minimumFreeBytesWhileRecording` free.
@@ -282,6 +294,24 @@ public final class PhoneRecorder {
             guard type == .began else { return }
             MainActor.assumeIsolated { self?.interruptionBegan() }
         })
+        // iOS restarted its audio services: the recorder object is dead and records nothing more.
+        observers.append(NotificationCenter.default.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.recordingFailed() }
+        })
         #endif
+    }
+}
+
+extension PhoneRecorder: AVAudioRecorderDelegate {
+    /// Also called after our own `stop()`, successfully; only a failure while recording matters.
+    nonisolated public func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        guard !flag else { return }
+        // The thread these arrive on is not documented: hop to the main actor.
+        Task { @MainActor [weak self] in self?.recordingFailed() }
+    }
+
+    nonisolated public func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
+        Task { @MainActor [weak self] in self?.recordingFailed() }
     }
 }

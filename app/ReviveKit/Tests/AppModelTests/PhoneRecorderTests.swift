@@ -73,6 +73,18 @@ struct PhoneRecorderTests {
         #expect(f.recorder.state == .paused)
     }
 
+    /// The recorder reports finishing after our own stop too, and a failure can arrive late:
+    /// when nothing is being recorded, it changes nothing. (A failure while recording stores what
+    /// reached the file like a 停止; that needs the microphone, so it is checked on a phone.)
+    @Test func failureWhenNotRecordingChangesNothing() async throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        f.recorder.recordingFailed()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(f.recorder.state == .idle && f.recorder.toast == nil && !f.recorder.isSaving)
+        #expect(try f.library.recordings().isEmpty)
+    }
+
     /// Pausing by hand shows no interruption notice.
     @Test func pausingByHandIsNotAnInterruption() throws {
         let f = try fixture()
