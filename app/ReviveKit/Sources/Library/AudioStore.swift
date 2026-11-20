@@ -3,13 +3,14 @@ import Foundation
 /// Audio files under the library root in Application Support (prd.md §5):
 /// `audio/<recording id>.ogg`, `tmp/` for downloads in progress, `staging/` for OGG files
 /// before their atomic move, `diagnostics/` for raw bytes that failed to decrypt, `decoded/`
-/// for PCM copies made by the player on systems that cannot play OGG directly.
+/// for PCM copies made by the player on systems that cannot play OGG directly, `phone/` for a
+/// phone recording in progress (features.md X18).
 public struct AudioStore: Sendable {
     public let root: URL
 
     public init(root: URL) throws {
         self.root = root
-        for dir in [audioDir, tmpDir, stagingDir, diagnosticsDir, decodedDir] {
+        for dir in [audioDir, tmpDir, stagingDir, diagnosticsDir, decodedDir, phoneDir] {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         }
     }
@@ -19,6 +20,9 @@ public struct AudioStore: Sendable {
     var stagingDir: URL { root.appendingPathComponent("staging", isDirectory: true) }
     public var diagnosticsDir: URL { root.appendingPathComponent("diagnostics", isDirectory: true) }
     var decodedDir: URL { root.appendingPathComponent("decoded", isDirectory: true) }
+    /// The phone recording being made, as a CAF that stays readable if the app is killed. Not
+    /// cleared after a crash like `tmp/`: what is here is the only copy of that recording.
+    public var phoneDir: URL { root.appendingPathComponent("phone", isDirectory: true) }
 
     public func url(forAudioPath path: String) -> URL { root.appendingPathComponent(path) }
 

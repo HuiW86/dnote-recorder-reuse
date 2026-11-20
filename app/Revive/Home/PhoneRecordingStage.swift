@@ -10,7 +10,8 @@ struct PhoneRecordingStage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let paused = recorder.state == .paused
+        let saving = recorder.isSaving
+        let paused = recorder.state == .paused || saving
         ZStack {
             Theme.stage.ignoresSafeArea()
             VStack(spacing: 0) {
@@ -19,7 +20,7 @@ struct PhoneRecordingStage: View {
                         .fill(paused ? Theme.onDark.opacity(0.4) : Theme.record)
                         .frame(width: 9, height: 9)
                         .accessibilityHidden(true)
-                    Text(paused ? "已暂停 · 这部手机" : "录音中 · 这部手机")
+                    Text(saving ? "正在保存 · 这部手机" : paused ? "已暂停 · 这部手机" : "录音中 · 这部手机")
                         .font(.callout.weight(.medium))
                         .foregroundStyle(Theme.onDark.opacity(0.9))
                 }
@@ -48,14 +49,22 @@ struct PhoneRecordingStage: View {
                     .padding(.top, 16)
                 Spacer(minLength: 16)
                 HStack(spacing: 48) {
-                    if paused {
+                    if saving {
+                        // Converting to M4A; a long recording takes a few seconds (X18).
+                        ProgressView().tint(Theme.onDark).controlSize(.large).frame(height: 66)
+                    } else if paused {
                         control("继续", symbol: "play.fill", filled: false) { recorder.resume() }
                     } else {
                         control("暂停", symbol: "pause.fill", filled: false) { recorder.pause() }
                     }
-                    control("停止", symbol: "stop.fill", filled: true) {
-                        recorder.stop()
-                        close()
+                    if !saving {
+                        control("停止", symbol: "stop.fill", filled: true) {
+                            // Closes once stored, so the tabs show the saved / failed toast.
+                            Task {
+                                await recorder.stop()
+                                close()
+                            }
+                        }
                     }
                 }
                 .padding(.bottom, 32)
