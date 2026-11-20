@@ -89,6 +89,7 @@
 | T-M1-31 | 分片返回 `0xF0` 文件不存在 | `fileNotFound`；重新列表 |
 | T-M1-32 | 在 App 里删除一条本地录音 | OGG 文件与数据库记录都删除；不向卡发送任何命令；SyncItem 保留为 `stored`，不会被重新下载 |
 | T-M1-33 | 下载失败的文件随后从卡上消失（#79） | 自动重试只针对本轮列表里还在、名字和大小都相同的失败项：文件消失后不再反复列表（不出现空重试循环）；同名文件再出现时能同步；同名不同大小时旧的失败项不再重试；新一轮检查成功拿到列表后才替换旧的重试计时器，检查失败时原计时器保留；计时器醒来时卡已断开或换了卡就不触发 |
+| T-M1-34 | 录音状态的三路来源乱序到达（#47、#53，`prd.md` §2.5） | 命令回包丢失、`0x56` 无回答或迟到、按键推送与 `0x80` 交错时，界面状态都以更新的来源为准；读 `0x56` 期间到达的 `0x80`（包括与界面一致的）使该回答不改状态；被超过的回答与界面状态相同时仍补上卡的已录时长；全程不重发录音命令 |
 
 实现（#39）：`app/ReviveKit/Tests/SyncEngineTests/`，每个用例结束时断言写帧里没有 `0x93`/`0x94`/`0xB0`/`0xB1`（§3.5 第 2 道检查）。
 
@@ -96,6 +97,8 @@
 - T-M1-27 分两种：`FakeCard.Fault.disconnectAfter(.deleteFile)` 表示删除已生效后断开，`disconnectInsteadOf(.deleteFile)` 表示断开时删除未生效。
 - 另有失败自动重试，以及录音中不同步两个用例。
 - T-M1-33（#79，PR #80）：`absentFailedFileDoesNotCauseEmptyRetryLoop`、`removedFailedFileReturningCanBeSynced`、`replacedSizeDoesNotKeepOldFailureRetrying`、`manualPassCancelsObsoleteRetryTimer`、`failedManualListDoesNotLoseScheduledRetry`；同时加了脱敏的同步诊断（`syncDiagnosticsExposeReasonAndCounts`：请求来源、是否排队、列表数、候选数、可重试数）。真机观察记录在 `evidence/v79-sync-retry/`，计时器边界修复之后的版本尚未真机复验。
+
+- T-M1-34（#47 的 13 个用例，#53 issue 里记为 12 个，实际 13 个都保留；#53 另补 3 组）：`HomeModelTests` 的 `unansweredStartThatDidNothingAsksToRetry`、`lostPauseReplyFollowsTheCard`、`lostStartReplyFollowsTheCard`、`unansweredStatusKeepsToastUntilTheNextDeviceInfo`、`deviceInfoStateIsUsedWhenStatusStaysSilent`、`unknownStatusCodeKeepsTheCommandUnconfirmed`、`newerStateBeatsTheDeviceInfoFallback`、`newerStateBeatsALateStatusAnswer`、`buttonPressBeatsALateReconcileAnswer`、`newerDeviceInfoBeatsAnOlderFallback`、`stopAfterARecoveredStartIsReported`、`stopFoundWithoutItsPushStillSyncs`、`deviceInfoSendsNothingWhileDebugScreenIsOpen`；#53 新增 `agreeingDeviceInfoBeatsALateStatusAnswer`（PR #51 留下的一处）、`DeviceStatusTests` 的 `overtakenStatusAnswerStillRestoresTimer`，以及规则本身的 `RecordingStateOrderTests`。
 
 用变异检查确认过用例有效：分别让已存入的文件重新下载、去掉启动恢复、在提交前发 `0x91`，T-M1-24、23、26 都会失败。
 
