@@ -42,15 +42,8 @@ struct RecordingDetailView: View {
         }
         .onAppear {
             if model == nil, let library = env.library, let player = env.player {
-                // On-device transcription is behind a switch until its quality is measured (#67).
-                // On the phone when that is switched on; otherwise the user's own service, if they
-                // gave it a transcription model (the audio is then uploaded, and the page says so).
                 // Read on every use, so changing the switch applies to this page too (#85).
-                let source: @MainActor () -> (any SpeechTranscribing)? = { [env] in
-                    if env.preferences.onDeviceTranscriptEnabled { return OnDeviceTranscriber(library: library) }
-                    if let cloud = env.cloudTranscriptionConfig { return CloudTranscriber(library: library, config: cloud) }
-                    return nil
-                }
+                let source: @MainActor () -> (any SpeechTranscribing)? = { [env] in env.transcriber(library: library) }
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
                                              transcriberSource: source, assistant: env.assistantConfig)
             }
@@ -143,6 +136,10 @@ private struct RecordingDetailContent: View {
         }
         .onChange(of: model.isTranscribing) { _, running in
             if !running { model.reloadTranscript() }
+        }
+        // A summary made by 录完自动整理 while the page is open (features.md X22).
+        .onChange(of: model.isSummarizing) { _, running in
+            if !running { model.reloadSummary() }
         }
         .onChange(of: model.isDeleted) { _, deleted in
             guard deleted else { return }
