@@ -128,7 +128,17 @@ extension KnowledgeView {
                 if let answer = questions.answer {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(answer.question).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
-                        Text(RichText.attributed(answer.text)).foregroundStyle(Theme.ink).textSelection(.enabled)
+                        // G3 "SSE 流式": the answer fills in as it arrives.
+                        if answer.text.isEmpty, answer.isStreaming {
+                            Text("正在等你的 AI 服务回复").font(.subheadline).foregroundStyle(Theme.inkMuted)
+                        } else {
+                            Text(RichText.attributed(answer.text)).foregroundStyle(Theme.ink).textSelection(.enabled)
+                        }
+                        if answer.isCutOff {
+                            Label("回答没有收完整，可以再问一次。", systemImage: "exclamationmark.triangle")
+                                .font(.footnote)
+                                .foregroundStyle(Theme.inkMuted)
+                        }
                     }
                     if !answer.sources.isEmpty {
                         ForEach(Array(answer.sources.enumerated()), id: \.offset) { _, item in
@@ -139,7 +149,7 @@ extension KnowledgeView {
                             }
                         }
                     }
-                    Button("清除回答") { questions.clear() }
+                    Button(answer.isStreaming ? "停止" : "清除回答") { questions.clear() }
                         .font(.subheadline)
                 }
             } else {

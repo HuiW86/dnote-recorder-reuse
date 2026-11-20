@@ -146,6 +146,8 @@ struct TagRecordingsView: View {
         .confirmationDialog("删除标签「\(tag)」？", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("删除标签", role: .destructive) {
                 tags?.delete(tag)
+                // This page goes away; the toast shows over the tabs instead.
+                if let toast = tags?.toast { model.toast = toast }
                 if !path.isEmpty { path.removeLast() }
             }
         } message: {
@@ -159,7 +161,9 @@ struct TagRecordingsView: View {
 
     /// After a rename this page shows the tag under its new name.
     private func rename() {
-        guard let tags, let new = tags.rename(tag, to: newName) else { return }
-        if !path.isEmpty { path[path.count - 1] = .tag(new) }
+        guard let tags else { return }
+        let new = tags.rename(tag, to: newName)
+        if let toast = tags.toast { model.toast = toast }
+        if let new, !path.isEmpty { path[path.count - 1] = .tag(new) }
     }
 }

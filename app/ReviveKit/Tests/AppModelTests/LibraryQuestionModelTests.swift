@@ -41,10 +41,13 @@ struct LibraryQuestionModelTests {
         model.ask("   ")
         #expect(!model.isAsking)
         model.ask("什么时候上线？")
-        await waitUntil("answered") { model.answer != nil && !model.isAsking }
+        // G3 "SSE 流式": the answer is there at once, empty and still arriving.
+        #expect(model.answer?.isStreaming == true && model.answer?.text == "" && model.isAsking)
+        await waitUntil("answered") { model.answer?.isStreaming == false && !model.isAsking }
         #expect(model.answer?.question == "什么时候上线？")
         #expect(model.answer?.text == "周三上线 [2]。")
         #expect(model.answer?.sources.map(\.recording.id) == [older])
+        #expect(model.answer?.isCutOff == false)
         model.clear()
         #expect(model.answer == nil)
     }

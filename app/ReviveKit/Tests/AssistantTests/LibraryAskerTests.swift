@@ -49,5 +49,21 @@ struct LibraryAskerTests {
             try await asker.answer(question: "q", sources: [source(1, "x")],
                                    config: ServiceConfig(baseURL: "", model: "", apiKey: ""))
         }
+
+        // G3 "SSE 流式": the same message, asked as a stream; citations read from the whole text.
+        let streamed = try asker.answerStream(question: "什么时候上线？",
+                                              sources: [source(1, "灵感"), source(2, "周三上线")], config: config)
+        #expect(streamed.used == 2)
+        var raw = ""
+        for try await piece in streamed.pieces { raw += piece }
+        let text = ChatClient.visibleText(raw)
+        #expect(text == "下周三上线 [2]。")
+        #expect(LibraryAsker.citations(in: text, count: streamed.used) == [2])
+        let last = try #require(log.entries.last?.json)
+        #expect(last["stream"] as? Bool == true)
+        #expect((last["messages"] as? [[String: Any]])?.last?["content"] as? String == user)
+        #expect(throws: AssistantError.badReply("没有可以参考的纪要")) {
+            _ = try asker.answerStream(question: "q", sources: [], config: config)
+        }
     }
 }
