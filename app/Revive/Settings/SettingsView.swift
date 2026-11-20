@@ -123,9 +123,21 @@ struct AboutView: View {
                 .padding(.vertical, 8)
             }
             .surfaceRows()
+            // Unofficial, and whose names are whose (#75 致谢与免责声明). The brand itself appears
+            // only in the line above (CLAUDE.md rule 5).
+            Section("声明") {
+                Text("闻笺由独立开发者开发，不是录音卡厂商的官方 App，与厂商没有关联。录音卡的名称和商标归各自的所有者所有。")
+                    .foregroundStyle(Theme.ink)
+            }
+            .surfaceRows()
             Section("开源许可") {
                 NavigationLink("GRDB.swift") {
                     LicenseView(name: "GRDB.swift", text: Self.grdbLicense)
+                }
+                // Prompts and scene definitions adapted from it ship in the app (NOTICE); MIT asks
+                // for its notice in every copy.
+                NavigationLink("beanpod") {
+                    LicenseView(name: "beanpod", text: Self.beanpodLicense)
                 }
             }
             .surfaceRows()
@@ -160,6 +172,21 @@ struct AboutView: View {
         EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER \
         IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR \
         THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+        """
+
+    /// The repository's NOTICE, as it applies to the app.
+    static let beanpodLicense = """
+        录音场景分类，总结、改写、提问和跨录音提问的提示词，以及常见服务商地址列表，改编自         andyhuo520/beanpod（commit 0d00fab）。代码由本项目重写。
+
+        MIT License
+
+        Copyright (c) 2026 berryxia
+
+        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and         associated documentation files (the "Software"), to deal in the Software without restriction, including         without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell         copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the         following conditions:
+
+        The above copyright notice and this permission notice shall be included in all copies or substantial         portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT         LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO         EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER         IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR         THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         """
 }
 
