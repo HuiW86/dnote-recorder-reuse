@@ -60,11 +60,8 @@ struct PhoneRecordingStage: View {
                     }
                     if !saving {
                         control("停止", symbol: "stop.fill", filled: true) {
-                            // Closes once stored, so the tabs show the saved / failed toast.
-                            Task {
-                                await recorder.stop()
-                                close()
-                            }
+                            // The page closes once stored (below).
+                            Task { await recorder.stop() }
                         }
                     }
                 }
@@ -73,6 +70,10 @@ struct PhoneRecordingStage: View {
         }
         .preferredColorScheme(.dark)
         .interactiveDismissDisabled()
+        // Stored, after 停止 or after running out of space: close, so the tabs show the toast.
+        .onChange(of: recorder.isSaving) { wasSaving, saving in
+            if wasSaving, !saving, recorder.state == .idle { close() }
+        }
         .onChange(of: recorder.interruptionNotice) { _, notice in
             if let notice { UIAccessibility.post(notification: .announcement, argument: notice) }
         }
