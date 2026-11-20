@@ -180,7 +180,10 @@ struct SummaryTextTests {
         #expect(Summarizer.systemPrompt(fixedScene: nil, profession: "  ") == base)
         let lawyer = Summarizer.systemPrompt(fixedScene: nil, profession: " 律师 ")
         #expect(lawyer.hasPrefix(base) && lawyer.contains("用户的职业是「律师」"))
-        #expect(lawyer.contains("不要因为职业而添加录音里没有的东西"))
+        // v105 device acceptance: the job reorders and rewords only; no inferred stances.
+        #expect(lawyer.contains("职业不改变内容"))
+        #expect(lawyer.contains("不要写「没有异议」"))
+        #expect(lawyer.contains("每一条都必须能在文字稿里找到对应的原话"))
         let long = Summarizer.systemPrompt(fixedScene: nil, profession: String(repeating: "长", count: 60))
         let capped = String(repeating: "长", count: ServiceConfig.professionLimit)
         #expect(long.contains("「\(capped)」"))

@@ -135,7 +135,17 @@ public struct Summarizer: Sendable {
             .prefix(ServiceConfig.professionLimit))
         let base = systemPrompt(fixedScene: fixedScene)
         guard !job.isEmpty else { return base }
-        return base + "\n\n用户的职业是「\(job)」。整理时侧重这个职业会关心的结论、数字、风险和后续动作，用这个行业惯用的说法；但只写录音里真有的内容，不要因为职业而添加录音里没有的东西。"
+        // Device acceptance (v105): with a job set, a model added "没有提出异议" that nobody said.
+        // The job may only reorder and reword; every point must be in the transcript.
+        return base + "\n\n" + professionRule(job)
+    }
+
+    /// The prompt line for the user's job: it changes order and wording only, never content.
+    static func professionRule(_ job: String) -> String {
+        """
+        用户的职业是「\(job)」。职业只影响先写哪些要点、用什么说法：把这个职业会关心的结论、数字、风险和后续动作排在前面，用这个行业惯用的叫法。
+        职业不改变内容：每一条都必须能在文字稿里找到对应的原话。不要推断态度、立场或共识，不要写「没有异议」「已达成一致」「已确认」「无反对意见」这类原文没有明说的结论；原文没说的就不写，不要因为职业补充录音里没有的东西。
+        """
     }
 
     public static func systemPrompt(fixedScene: RecordingScene?) -> String {

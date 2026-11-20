@@ -224,11 +224,11 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M2-06 | 逐句润色（#75） | 每批 40 句、请求带 `json_object`；回复句数对上时逐句替换，回显的「3. 」序号去掉（原句本身以序号开头时保留）；某一批对不上时那一批保持原文、Toast 说明有几句没能润色；全部对不上报「润色后的句数对不上」；没有句子不发请求、没设置服务不发；库：时间不变、空的一句保留原文、再次润色保留第一次的原文、恢复原文后与转写结果一致；`v11` 升到 `v12` 后原有文字稿 `original_segments` 为空；页面：没设置服务时不能润色，润色后 Toast「已润色，可以随时恢复原文」，恢复后 Toast「已恢复原文」 |
 
-| T-M2-07 | G1 职业设定 | 空白职业时提示词不变；有职业时加一句「用户的职业是「…」」并要求不编造，最多 40 字；生成纪要的请求带上它；设置页保存成一行、截到 40 字，重开还在，清除服务不清职业 |
+| T-M2-07 | G1 职业设定 | 空白职业时提示词不变；有职业时加一句「用户的职业是「…」」，写明职业只影响顺序和说法、每条都要在文字稿里找得到原话、不写「没有异议」这类推断（v105 真机发现模型补了「没有提出异议」），最多 40 字；生成纪要的请求带上它；设置页保存成一行、截到 40 字，重开还在，清除服务不清职业 |
 
 | T-M2-08 | #85 密钥只留在本机 | 钥匙串项的可访问性是 `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`；旧版本存下的项在读取时改成这个属性（真机：升级后打开 AI 服务页，密钥仍在；用加密备份恢复到另一台手机后，密钥为空） |
 
-实现：T-M2-08 是 `KeyStoreTests` `keychainKeyStaysOnThisDevice`（属性值）；读取时改属性、备份恢复后为空只能在真机上验证。T-M2-07 是 `SummarizerTests` `promptMentionsTheProfession`、`shortTranscriptIsOneRequest`，`AssistantSettingsModelTests` `professionIsSavedWithTheService`。T-M2-06 是 `PolisherTests`（4 个）、`AppDatabaseTests` `polishingKeepsTimesAndTheOriginal`、`v11LibraryUpgradesToV12`，`PolishAndLoopTests` `polishesAndRestores`。T-M2-05 是 `TranscriptionJobsTests`。T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
+实现：T-M4-10 另有 `PolishAndLoopTests` `regeneratedSummaryKeepsADeletedTagOut`；T-M4-11 另有 `StreamTests` `streamWithoutAnEndIsCutOff`、`streamThatStopsEarlyThrows`。T-M2-08 是 `KeyStoreTests` `keychainKeyStaysOnThisDevice`（属性值）；读取时改属性、备份恢复后为空只能在真机上验证。T-M2-07 是 `SummarizerTests` `promptMentionsTheProfession`、`shortTranscriptIsOneRequest`，`AssistantSettingsModelTests` `professionIsSavedWithTheService`。T-M2-06 是 `PolisherTests`（4 个）、`AppDatabaseTests` `polishingKeepsTimesAndTheOriginal`、`v11LibraryUpgradesToV12`，`PolishAndLoopTests` `polishesAndRestores`。T-M2-05 是 `TranscriptionJobsTests`。T-M2-04 是 `AppDatabaseTests` `correctionsAreShortWordSwaps`、`editingALineLearnsTheCorrection`、`v10LibraryUpgradesToV11`，`RecordingDetailModelTests` `correctedWordsFixLaterTranscripts`。T-M2-03 是 `SummarizerTests` `readsOutlineAndQuotes`、`AppDatabaseTests` `summaryIsStoredAndFollowsTheRecording`、`v9LibraryUpgradesToV10`、`MarkdownExportTests`。T-M2-01 是 `AppDatabaseTests` `aiTitlesNeverReplaceTheUsersTitle`、`v8LibraryUpgradesToV9`；T-M2-02 是 `RecordingDetailModelTests` `summarizesWithTheUsersServiceAndTicksTodos`、`aiTitleKeepsTheUsersTitleUnlessAsked`，`SummarizerTests` `readsANewTitle`。
 
 #### 3.6.4 M4 先做的部分
 
@@ -251,9 +251,9 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 | T-M4-09 | P08 上次同步 | 同步完整跑完后这张卡的 `last_synced_at` 有值且不早于 `last_seen_at`，P08 副标题是「已连接 · 上次同步 …」；未知的卡不写；`v12` 升到 `v13` 后原有的卡 `last_synced_at` 为空 |
 
-| T-M4-10 | D1c 标签管理 | 条数不含最近删除，按条数从多到少、同条数按名字；按标签列录音新的在前；改名去掉空白和 `#`，空名字、同名不改；改成已有的名字时合并为一个；改名接力（A→B→C 后再来的 A 变成 C）；删除后之后的纪要也不带它；改回被改掉的名字后，那个名字的规则作废；`v13` 升到 `v14` 后有 `tag_rule` 表；页面：Toast「已改名为「…」」「已并入「…」」「已删除标签「…」，录音还在」，删除后录音还在 |
+| T-M4-10 | D1c 标签管理 | 详情页重新生成纪要后显示的标签已按规则处理（v105 真机发现删掉的标签重新出现在页面上）；条数不含最近删除，按条数从多到少、同条数按名字；按标签列录音新的在前；改名去掉空白和 `#`，空名字、同名不改；改成已有的名字时合并为一个；改名接力（A→B→C 后再来的 A 变成 C）；删除后之后的纪要也不带它；改回被改掉的名字后，那个名字的规则作废；`v13` 升到 `v14` 后有 `tag_rule` 表；页面：Toast「已改名为「…」」「已并入「…」」「已删除标签「…」，录音还在」，删除后录音还在 |
 
-| T-M4-11 | G3 流式回复 | 读 `data:` 事件的 `delta.content`，跳过注释行、空行、只有角色的事件，`[DONE]` 后不再读；事件里带错误时报出服务的错误；服务不支持流式、整段返回 JSON 时一次给出全文，看不懂的内容报错；`<think>` 部分不显示，没结束的思考截掉；请求带 `stream: true` 和 `Accept: text/event-stream`；401 等错误码照常报；没设置服务时不发请求；页面：改写后 Sheet 立刻打开（空、接收中），收完后显示正文、不是接收中，关掉后清空；知识库提问后立刻有回答（空、接收中），收完后列出引用的录音，`answerStream` 发的消息与整段请求相同 |
+| T-M4-11 | G3 流式回复 | 读 `data:` 事件的 `delta.content`，跳过注释行、空行、只有角色的事件，`[DONE]` 后不再读；没有 `[DONE]` 也没有 `finish_reason` 就结束的流算中断并报错（v105 真机断网后显示「完成」）；流式请求静默 60 秒即超时；事件里带错误时报出服务的错误；服务不支持流式、整段返回 JSON 时一次给出全文，看不懂的内容报错；`<think>` 部分不显示，没结束的思考截掉；请求带 `stream: true` 和 `Accept: text/event-stream`；401 等错误码照常报；没设置服务时不发请求；页面：改写后 Sheet 立刻打开（空、接收中），收完后显示正文、不是接收中，关掉后清空；知识库提问后立刻有回答（空、接收中），收完后列出引用的录音，`answerStream` 发的消息与整段请求相同 |
 
 | T-M4-12 | J1 思维导图 | OPML 2.0，录音标题是根，话题和要点按顺序嵌套，没有要点的话题是单个节点；`&`、`<`、`>`、`"` 转义；XML 解析器能读完；没有大纲时不提供；文件名按页面标题，扩展名 `.opml` |
 

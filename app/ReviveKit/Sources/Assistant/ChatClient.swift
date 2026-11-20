@@ -33,6 +33,10 @@ extension AssistantError: LocalizedError {
 public struct ChatClient: Sendable {
     public let session: URLSession
     public let timeout: TimeInterval
+    /// How long a streamed reply may go silent before it counts as cut off. A whole reply can
+    /// take minutes, but a stream sends something every few seconds; with the network gone the
+    /// request would otherwise sit out the full `timeout` (v105 device acceptance: 5 minutes).
+    public static let streamIdleTimeout: TimeInterval = 60
 
     /// Tests pass a session whose configuration routes requests to a `URLProtocol` stub.
     public init(session: URLSession = .shared, timeout: TimeInterval = 300) {
@@ -69,7 +73,7 @@ public struct ChatClient: Sendable {
     private func makeRequest(_ config: ServiceConfig, system: String, user: String, json: Bool,
                              stream: Bool) throws -> URLRequest {
         guard config.isComplete, let url = Self.endpoint(config.baseURL) else { throw AssistantError.notConfigured }
-        var request = URLRequest(url: url, timeoutInterval: timeout)
+        var request = URLRequest(url: url, timeoutInterval: stream ? min(timeout, Self.streamIdleTimeout) : timeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if stream { request.setValue("text/event-stream", forHTTPHeaderField: "Accept") }
@@ -149,6 +153,9 @@ public struct ChatClient: Sendable {
         if let whole = try reader.finish() { onPiece(whole) }
     }
 
+    /// Thrown when a streamed reply stops without the service saying it is done.
+    public static let cutOff = AssistantError.unreachable("回答在中途断开了")
+
     #if canImport(FoundationNetworking)
     private func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
@@ -227,6 +234,8 @@ private struct RequestBody: Encodable {
 struct StreamReader {
     private(set) var isDone = false
     private var sawEvent = false
+    /// Some services end with a chunk carrying `finish_reason` and no `[DONE]` line.
+    private var sawFinishReason = false
     private var plain = ""
 
     /// The text a line adds, if any. Throws when an event carries the service's error.
@@ -245,15 +254,22 @@ struct StreamReader {
         let data = Data(payload.utf8)
         if let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
             if let message = chunk.error?.message { throw AssistantError.badReply(message) }
+            if chunk.choices?.contains(where: { $0.finishReason != nil }) == true { sawFinishReason = true }
             guard let piece = chunk.choices?.first?.delta?.content, !piece.isEmpty else { return nil }
             return piece
         }
         return nil
     }
 
-    /// The whole reply when the service answered without events; nil after a streamed reply.
+    /// The whole reply when the service answered without events; nil after a streamed reply
+    /// that ended properly. A stream that stopped without `[DONE]` or a `finish_reason` was cut
+    /// off (the network went away), and throws `ChatClient.cutOff` rather than passing for a
+    /// complete reply (v105 device acceptance).
     func finish() throws -> String? {
-        guard !sawEvent else { return nil }
+        if sawEvent {
+            guard isDone || sawFinishReason else { throw ChatClient.cutOff }
+            return nil
+        }
         guard let reply = try? JSONDecoder().decode(ReplyBody.self, from: Data(plain.utf8)) else {
             throw AssistantError.badReply("不是 chat/completions 的格式")
         }
@@ -271,6 +287,12 @@ private struct StreamChunk: Decodable {
         }
 
         let delta: Delta?
+        let finishReason: String?
+
+        enum CodingKeys: String, CodingKey {
+            case delta
+            case finishReason = "finish_reason"
+        }
     }
 
     struct ErrorBody: Decodable {

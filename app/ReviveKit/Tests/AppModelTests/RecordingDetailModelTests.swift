@@ -371,6 +371,26 @@ struct PolishAndLoopTests {
         #expect(model.assistantOutput == nil)
     }
 
+    /// v105 device acceptance: after a tag was deleted, regenerating the summary showed it again
+    /// on the page until it was reopened. The page now shows the summary as stored.
+    @Test func regeneratedSummaryKeepsADeletedTagOut() async throws {
+        let f = try await DetailFixture()
+        try f.library.saveTranscript(Transcript(recordingId: f.recording.id, engine: "t", language: "zh-CN",
+                                                segments: [TranscriptSegment(startMs: 0, text: "周四发外部测试。")],
+                                                createdAt: Date()))
+        try f.library.deleteTag("外部测试")
+        let reply = #"{"scene":"meeting","title":"发布","summary":"周四发外部测试。","tags":["外部测试","发布"]}"#
+        let base = HostReply.register(reply)
+        let config = ServiceConfig(baseURL: base, model: "m", apiKey: "")
+        let model = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player,
+                                         assistant: AssistantConfigSource { config },
+                                         summarizer: Summarizer(client: ChatClient(session: HostReply.session())))
+        model.summarize()
+        await waitUntil("summarized") { model.summary != nil && !model.isSummarizing }
+        #expect(model.summary?.tags == ["发布"])
+        #expect(try f.library.summary(recordingId: f.recording.id)?.tags == ["发布"])
+    }
+
     /// E2 文字文件: a text-only recording shows its text, has nothing to play, transcribe or
     /// export as audio, and never counts as missing its audio.
     @Test func textOnlyRecordingHasNoAudio() async throws {
