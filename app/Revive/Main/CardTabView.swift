@@ -14,8 +14,21 @@ struct CardTabView: View {
                 // A new id after switching cards gives the page a fresh model.
                 DeviceView(env: env, deviceId: device.id, isTab: true).id(device.id)
             } else {
-                ContentUnavailableView("还没有录音卡", systemImage: "rectangle.portrait")
-                    .paperPage()
+                // 先不连卡, or the last card was unpaired (product-spec.md P07).
+                ContentUnavailableView {
+                    Label("还没有录音卡", systemImage: "rectangle.portrait")
+                } description: {
+                    Text("没有录音卡也能用：点底栏中间的红键用这部手机录，或者在「录音」里导入音频和文字。")
+                } actions: {
+                    if env.isCardless {
+                        Button("添加录音卡") { env.addFirstCard() }
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        NavigationLink(value: Route.connectGuide) { Text("添加录音卡") }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                .paperPage()
             }
         }
         .toolbar {
