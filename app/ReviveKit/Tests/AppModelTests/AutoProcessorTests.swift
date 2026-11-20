@@ -72,7 +72,8 @@ private final class AutoFixture {
     func addRecording(createdAt: Date = Date(), audio: Bool = true) async throws -> Recording {
         let r = Recording(id: UUID(), deviceId: nil, source: .card, cardFileName: nil, cardFileSize: nil,
                           startedAt: createdAt, durationMs: 60_000, audioPath: audio ? "audio/x.ogg" : "",
-                          audioSha256: "", title: "11月20日 10:00", createdAt: createdAt, updatedAt: createdAt)
+                          audioSha256: "", title: Recording.defaultTitle(for: createdAt),
+                          createdAt: createdAt, updatedAt: createdAt)
         try await library.database.writer.write { try r.insert($0) }
         return r
     }
