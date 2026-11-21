@@ -1062,7 +1062,7 @@ M1.5 和改版第一步（1.2 新增）：
 | M1 是否多语言 | 否，只有简体中文（`features.md` O1a） |
 | 准备 | 文案全部放进 String Catalog（`Localizable.xcstrings`），不在代码里写死，以后加语言不用改代码。**2026-11-17 核对**：仓库里没有 `Localizable.xcstrings`，M1 和 M1.5 的文案都直接写在 Swift 代码里（界面文字和 `AppModel` 里的 Toast 文案）；加语言前要补 |
 | 日期和时长 | 用系统格式化（`Date.FormatStyle`、`Duration.UnitsFormatStyle`），跟随系统地区 |
-| 什么时候加语言（2026-11-21） | 见 `i18n-evaluation.md`：建议外部测试和首次上架只做简体中文；要加时先把文案收进 String Catalog，再翻译。核对时发现录音列表的日期是拼出来的（`11月7日`），还没有跟随系统地区 |
+| 什么时候加语言（2026-11-21） | 用户决定先只做简体中文，见 `i18n-evaluation.md`；要加时先把文案收进 String Catalog，再翻译。核对时发现录音列表的日期是拼出来的（`11月7日`），还没有跟随系统地区 |
 
 ---
 
