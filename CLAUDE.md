@@ -61,6 +61,7 @@ python3 app/ReviveKit/scripts/make_fixtures.py    # 用 Python 客户端重新�
 | 哪个功能在哪个里程碑 | `docs/features.md` |
 | 颜色、字号、组件样式、页面结构 | `docs/design-spec.md` |
 | 从 beanpod 借鉴了什么、为什么 | `docs/beanpod-evaluation.md` |
+| 要不要做多语言界面、怎么做 | `docs/i18n-evaluation.md` |
 | 为什么选这个技术或方案 | `docs/adr/` |
 | 蓝牙协议、命令字、帧格式 | `docs/PROTOCOL.md` |
 | 官方 App 有哪些功能和接口 | `docs/official-app-analysis.md` |
