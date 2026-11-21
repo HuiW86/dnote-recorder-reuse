@@ -1,7 +1,7 @@
 # 纪要提示词与模型评估（方法与评分表；数据待测）
 
 **用途**　#12 的前置任务「大模型总结」：≥ 2 个模型 × 3 套提示词，在 5 分钟和 30 分钟样本上按统一评分表打分，选出默认方案。#68 要求 beanpod 的「场景—栏目」提示词作为其中一套。
-**状态**　2026-11-21：方法、评分表和汇总工具已就绪（`client/summary_scores.py`，有测试，client-ci 会跑）。下面的数据都是 **待测**。
+**状态**　2026-11-21：方法、评分表、生成和汇总工具已就绪（`client/summary_generate.py`、`client/summary_scores.py`，都有测试，client-ci 会跑）。下面的数据都是 **待测**。
 **上游**　#12、#68、ADR-009；`features.md` G1、G2a
 **相关**　转写的评估见 `asr-evaluation.md`；两个评估用同一套录音
 
@@ -22,7 +22,7 @@
 | A | App 当前的提示词（自动判断场景，含大纲、金句），职业留空 | `Summarizer.swift` |
 | A+职业 | A 加上职业那一段（可选，用一个和样本相符的职业，例如「产品经理」） | 同上 |
 | B | beanpod 原版（`0d00fab` 的 `Shared/Analyzer.swift` `analyze`，不含 A 后加的部分） | #68 |
-| C | 另写的一套「会议纪要」提示词，不分场景，只出摘要、要点、待办 | 待写；作为不依赖场景判断的对照 |
+| C | 另写的一套「会议纪要」提示词，不分场景，只出摘要、要点、待办 | `client/prompts/c-plain-minutes.txt`（本项目写的）；作为不依赖场景判断的对照 |
 
 ### 2.2 模型
 
@@ -37,9 +37,23 @@
 
 ## 4. 怎么生成、怎么打分
 
-1. **生成**：每个「样本 × 提示词 × 模型」生成一次，结果存成文件，文件名用随机编号（例如 `o17.md`），不带模型名和提示词名。编号与模型、提示词的对应关系另存为 `key.csv`，打分结束前不给打分人看。
-   - 提示词 A 可以直接在 App 里跑：把参考文字稿存成 `.txt` 导入（E2），生成纪要，再导出 Markdown。
-   - 提示词 B、C 要另外调用接口。
+1. **生成**：每个「样本 × 提示词 × 模型」生成一次，结果存成文件，文件名用随机编号（例如 `o17.md`），不带模型名和提示词名。编号与模型、提示词的对应关系另存为 `key.csv`，打分结束前不给打分人看。用 `client/summary_generate.py` 一次做完：
+
+```bash
+cd client
+export DEEPSEEK_API_KEY=…   # 密钥只从环境变量读，不写在命令里
+python summary_generate.py --transcripts refs --out blind \
+    --prompt B=prompts/b-beanpod.txt --prompt C=prompts/c-plain-minutes.txt \
+    --model deepseek-chat=https://api.deepseek.com/v1,deepseek-chat,DEEPSEEK_API_KEY \
+    --existing A@deepseek-chat=exports-a --scorers 甲,乙
+```
+
+   - 输出：`blind/o01.md`…，`key.csv`，`timing.csv`（每次生成的秒数），以及 `scores-template.csv`（每个输出、每个打分人一行，分数空着，填好就是第 2 步的 `scores.csv`）。
+   - 失败的组合（例如服务商限流）会列出来，不进入这一套；目录里已有一套时拒绝写入，免得混在一起。
+   - 提示词 A：在 App 里跑。把参考文字稿存成 `.txt` 导入（E2），生成纪要，导出 Markdown，按样本名存进一个目录（`exports-a/m30.md`），用 `--existing A@模型名=目录` 放进同一套。`--existing` 的模型名要和 `--model` 里同一个模型的名字一致，汇总时才会归到一起。
+   - 提示词 B：beanpod 原版在它的仓库里（`0d00fab` 的 `Shared/Analyzer.swift` `analyze`），按 MIT 许可复制进 `client/prompts/b-beanpod.txt`，文件头写明出处（#68）。
+   - 提示词 C：`client/prompts/c-plain-minutes.txt`，本项目写的，不分场景，字段用 App 的格式（`title`、`summary`、`sections`、`todos`），这样「能否解析」一栏三套可以比。
+   - 参考文字稿会发给所选的服务；只用可以发给它们的材料。
 2. **打分**：每个输出最好由两个人分别打分，每人在 `scores.csv` 里写一行：
 
 | 列 | 取值 | 怎么判 |
