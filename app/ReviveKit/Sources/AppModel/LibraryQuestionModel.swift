@@ -3,8 +3,9 @@ import Foundation
 import Library
 import Observation
 
-/// "问问你的录音" on 知识库 (features.md G3): one question across the latest summaries, answered
-/// by the user's own service with the recordings it used. Only summaries leave the phone, and
+/// "问问你的录音" on 知识库 (features.md G3): one question across the summaries that share words
+/// with it (the newest fill the rest, `QuestionSources`), answered by the user's own service
+/// with the recordings it used. Only summaries leave the phone, and
 /// only when the user asks; nothing here runs on its own.
 @MainActor
 @Observable
@@ -37,8 +38,10 @@ public final class LibraryQuestionModel {
     public private(set) var isAsking = false
     public var toast: Toast?
 
-    /// How many of the latest summaries are offered to the service.
+    /// How many summaries are offered to the service.
     public static let sourceLimit = 30
+    /// How many summaries, newest first, are looked through to choose them.
+    static let searchLimit = 2_000
 
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private let assistant: AssistantConfigSource?
@@ -56,13 +59,14 @@ public final class LibraryQuestionModel {
 
     /// "会把最近 N 条纪要发给……" under the field.
     public var privacyNote: String {
-        "提问时，会把最近 \(Self.sourceLimit) 条以内的纪要发给你在设置里填的 AI 服务；录音音频和文字稿不会发送。"
+        "提问时，会在这部手机上挑出和问题最相关的 \(Self.sourceLimit) 条以内的纪要（不够就用最近的补上），发给你在设置里填的 AI 服务；录音音频和文字稿不会发送。"
     }
 
     public func ask(_ question: String) {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty, !isAsking, let config = assistant?.current() else { return }
-        let items = (try? library.recentSummaries(limit: Self.sourceLimit)) ?? []
+        let all = (try? library.recentSummaries(limit: Self.searchLimit)) ?? []
+        let items = QuestionSources.pick(question, from: all, limit: Self.sourceLimit)
         guard !items.isEmpty else {
             toast = Toast("还没有整理好的纪要可以参考")
             return
