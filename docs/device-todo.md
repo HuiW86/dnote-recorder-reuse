@@ -108,8 +108,8 @@
 
 | 项 | 定义 | 还缺什么 |
 |---|---|---|
-| ASR 对比（#12、#67）：本机识别、SenseVoiceSmall、云厂商、FunASR 的字错率 | `asr-evaluation.md`，打分用 `client/asr_eval.py` | 录音和参考文本；硅基流动和云厂商的账号；本机识别要在 iPhone 真机上跑。结论决定 X9 去不去掉「试验」 |
-| 纪要提示词 × 模型（#12、#68） | `summary-evaluation.md`，汇总用 `client/summary_scores.py` | 同一套参考文本；至少两家服务商的账号；两个打分人 |
+| ASR 对比（#12、#67）：本机识别、SenseVoiceSmall、云厂商、FunASR 的字错率 | `asr-evaluation.md`，批量转写用 `client/asr_transcribe.py`，打分用 `client/asr_eval.py` | 录音和参考文本；硅基流动和云厂商的账号；本机识别要在 iPhone 真机上跑。结论决定 X9 去不去掉「试验」 |
+| 纪要提示词 × 模型（#12、#68） | `summary-evaluation.md`，生成盲评集用 `client/summary_generate.py`，汇总用 `client/summary_scores.py` | 同一套参考文本；至少两家服务商的账号；两个打分人 |
 
 ## 9. 只要 Mac、不要真机的
 
