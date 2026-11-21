@@ -101,3 +101,4 @@
 ## 实施记录
 
 - 2026-11-21：M5 第一步的第一部分合入。`app/project.yml` 加 macOS 目标 `ReviveMac`（Bundle ID `com.huiw86.revive.mac`，开启 hardened runtime，不开沙盒），CI 每个 PR 都构建它；窗口是 `NavigationSplitView`：左边是这台 Mac 上的录音（搜索、导入音频或文字文件、拖进窗口导入），右边是播放、纪要和文字稿。列表的状态在 `AppModel` 的 `LibraryBrowserModel`，导入抽成 iOS 和 Mac 共用的 `LibraryImport`。配对、同步、转文字和整理纪要还没有：前两者要先在 Mac 上用真卡取证（硬规则 6）。`scripts/check-m1-rules.sh` 的禁发命令字检查本来就扫整个 `app/`，已覆盖 Mac 目标；`scripts/check-theme.sh` 扩到 Mac 视图。
+- 2026-11-21：Mac 上加转文字和生成纪要。设置窗口（⌘,）用 iPhone 同一个 `AssistantSettingsModel`；选用哪个服务、哪种转写的逻辑从 iOS 的 `AppEnvironment` 移到 `AppModel`（`AssistantConfigSource.saved()`、`TranscriberChoice`），两边共用。密钥用同一个 `KeychainKeyStore` 存；macOS 上没有指定数据保护钥匙串，预计落在登录钥匙串里，iOS 的「只在本机」属性在那里不起作用。这一点还没有在 Mac 上实际保存、读取过（`device-todo.md` §9）。Mac 和 iPhone 的密钥不互通。

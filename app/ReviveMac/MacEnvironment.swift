@@ -3,11 +3,15 @@ import Foundation
 import Library
 import Observation
 import Player
+import Transcription
 
 /// Composition root of the Mac app: the library on this Mac and one player.
 @MainActor
 @Observable
 final class MacEnvironment {
+    let preferences = Preferences()
+    /// The user's AI service (features.md X11), shared with the iPhone's code; nil until saved.
+    let assistantConfig = AssistantConfigSource.saved()
     let library: RecordingLibrary?
     let libraryError: String?
     let player: RecordingPlayer?
@@ -32,5 +36,10 @@ final class MacEnvironment {
             player = nil
             browser = nil
         }
+    }
+
+    /// 本机转写 when it is on, else the user's service with a transcription model, else nil.
+    func transcriber(library: RecordingLibrary) -> (any SpeechTranscribing)? {
+        TranscriberChoice.current(preferences: preferences, library: library, assistant: assistantConfig)
     }
 }

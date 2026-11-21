@@ -2,14 +2,19 @@ import AppModel
 import Library
 import Player
 import SwiftUI
+import Transcription
 
 /// One recording on the Mac: playback, its transcript and its summary (ADR-011 step one).
-/// Transcribing and summarizing come later; nothing here uses the network.
+/// Transcribing uses 本机转写 or the user's service; summaries the user's service (X11). The
+/// audio or text leaves the Mac only for the service the user set, and the pane says so.
 struct RecordingPane: View {
     @State private var model: RecordingDetailModel
 
-    init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer) {
-        _model = State(initialValue: RecordingDetailModel(recordingId: recordingId, library: library, player: player))
+    init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer, env: MacEnvironment) {
+        // Read on every use, so a change in 设置 applies to an open pane too (#85).
+        let source: @MainActor () -> (any SpeechTranscribing)? = { [env] in env.transcriber(library: library) }
+        _model = State(initialValue: RecordingDetailModel(recordingId: recordingId, library: library, player: player,
+                                                          transcriberSource: source, assistant: env.assistantConfig))
     }
 
     var body: some View {
@@ -27,6 +32,7 @@ struct RecordingPane: View {
                         playerBar
                     }
                 }
+                actions
                 if let summary = model.summary { summaryView(summary) }
                 transcriptView
             }
@@ -42,7 +48,62 @@ struct RecordingPane: View {
                 }
             }
         }
+        .onChange(of: model.isTranscribing) { _, running in
+            if !running { model.reloadTranscript() }
+        }
+        .onChange(of: model.isSummarizing) { _, running in
+            if !running { model.reloadSummary() }
+        }
+        .overlay(alignment: .bottom) {
+            if let toast = model.toast {
+                Text(toast.text)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.bottom, 20)
+                    .task(id: toast.id) {
+                        try? await Task.sleep(for: .seconds(3))
+                        if model.toast?.id == toast.id { model.toast = nil }
+                    }
+            }
+        }
         .onDisappear { model.leave() }
+    }
+
+    /// 转成文字 and 生成纪要, with what they send and where (ADR-009).
+    @ViewBuilder private var actions: some View {
+        let showsTranscribe = model.canTranscribe || model.isTranscribing
+        let showsSummarize = model.canSummarize || model.isSummarizing
+        if showsTranscribe || showsSummarize {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 12) {
+                    if showsTranscribe {
+                        Button(model.transcript == nil ? "转成文字" : "重新转写") { model.transcribe() }
+                            .disabled(model.isTranscribing)
+                    }
+                    if model.isTranscribing {
+                        ProgressView().controlSize(.small)
+                        Text(model.transcriptionRemainingText ?? "正在转文字").foregroundStyle(.secondary)
+                    }
+                    if showsSummarize {
+                        Button(model.summary == nil ? "生成纪要" : "重新生成纪要") { model.summarize() }
+                            .disabled(model.isSummarizing)
+                    }
+                    if model.isSummarizing {
+                        ProgressView().controlSize(.small)
+                        Text("正在整理纪要").foregroundStyle(.secondary)
+                    }
+                }
+                if showsTranscribe, model.transcriptionUsesNetwork {
+                    Text("转文字时，录音音频会上传给你在设置里填的服务。").font(.caption).foregroundStyle(.secondary)
+                }
+                if showsSummarize {
+                    Text("生成纪要时，文字稿会发给你在设置里填的 AI 服务。").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        } else if let hint = model.summaryHint {
+            Text(hint.replacingOccurrences(of: "「设置 → AI 服务」", with: "「设置」（⌘,）"))
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var playerBar: some View {
@@ -104,8 +165,9 @@ struct RecordingPane: View {
                     }
                 }
             }
-        } else {
-            Text("这条录音还没有文字稿。Mac 版暂时还不能转文字和整理纪要。").foregroundStyle(.secondary)
+        } else if model.hasAudio, !model.canTranscribe {
+            Text("这条录音还没有文字稿。在「设置」（⌘,）里打开本机转写，或填上带转写模型的 AI 服务，就能转成文字。")
+                .foregroundStyle(.secondary)
         }
     }
 }

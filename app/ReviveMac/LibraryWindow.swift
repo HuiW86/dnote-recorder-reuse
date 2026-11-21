@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 struct LibraryWindow: View {
     @Bindable var model: LibraryBrowserModel
     let player: RecordingPlayer
+    let env: MacEnvironment
     @State private var selection: UUID?
     @State private var importing = false
 
@@ -41,7 +42,7 @@ struct LibraryWindow: View {
             }
         } detail: {
             if let id = selection, model.recordings.contains(where: { $0.id == id }) {
-                RecordingPane(recordingId: id, library: model.library, player: player).id(id)
+                RecordingPane(recordingId: id, library: model.library, player: player, env: env).id(id)
             } else {
                 ContentUnavailableView("选一条录音", systemImage: "waveform",
                                        description: Text("这里只有这台 Mac 上的录音：可以导入音频或文字文件。连接录音卡和同步还没有在 Mac 上验证，之后再加。"))

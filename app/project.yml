@@ -63,7 +63,8 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
   # The Mac app (ADR-011, features.md X13): a native macOS target sharing ReviveKit and AppModel.
   # Distributed outside the App Store with Developer ID (not sandboxed); M5 step one has no card
-  # functions yet, so it asks for no Bluetooth or microphone permission.
+  # functions yet, so it asks for no Bluetooth or microphone permission (speech recognition
+  # only once 本机转写 is on).
   ReviveMac:
     type: application
     platform: macOS
@@ -83,6 +84,8 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: 闻笺由独立开发者开发，不是录音卡厂商的官方 App。
+        # Asked only after the user turns on 本机转写 in 设置 (features.md X9).
+        NSSpeechRecognitionUsageDescription: 在这台 Mac 上把录音转成文字，录音不会离开这台 Mac
     settings:
       base:
         # No third-party brand names (CLAUDE.md rule 5).
