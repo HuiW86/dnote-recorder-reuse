@@ -11,7 +11,15 @@
 
 ## 1. 隐私政策托管
 
-**建议**：单独建一个**公开**的 GitHub 仓库，开启 GitHub Pages，只放隐私政策一页（内容取自 `privacy-policy.md`，删掉开头的维护说明框）。
+**建议**：单独建一个**公开**的 GitHub 仓库，开启 GitHub Pages，只放隐私政策一页。这一页用脚本从 `privacy-policy.md` 生成：去掉开头的维护说明框，填好占位符；还有占位符没填，或者出现了硬规则 5 不允许的名称时，脚本拒绝生成：
+
+```bash
+python3 scripts/build_privacy_page.py \
+    --fill YYYY-MM-DD=2026-12-01 --fill 开发者名称=… --fill 联系邮箱=… \
+    --out ../wenjian-app/privacy.md
+```
+
+生成的 `privacy.md` 带 Jekyll 的页头，GitHub Pages 会把它发布成 `privacy.html`。改了 `privacy-policy.md` 之后重新生成一次再推送；只想预览时加 `--draft`。
 
 - 仓库名用中性名称，例如 `wenjian-app`，不含对方商标。地址形如 `https://【GitHub 用户名】.github.io/wenjian-app/privacy.html`
 - 为什么选它：不用登录就能打开；地址稳定；免费；改动有版本记录；独立开发者给 App 挂隐私政策常这么做
@@ -93,7 +101,7 @@
 - [ ] `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 加 1。构建号也决定 #59 的「换构建后重试一次」
 - [ ] 真机用例 T-M1-50～57 全部通过，证据入库（`test-spec.md` §4）。其中 T-M1-56：在装着 0.1.0 (1) 的手机上覆盖安装，录音、设备、配对都保留，迁移 `v2` 成功
 - [ ] 多卡回归：至少 3 张卡（#8，硬规则 7）
-- [ ] 隐私政策已托管（§1），占位符已填，与 App 内 P11 一致（含「AI 服务」一节）
+- [ ] 隐私政策已托管（§1），用 `scripts/build_privacy_page.py` 生成（不带 `--draft` 时退出码为 0，说明占位符都已填），与 App 内 P11 一致（含「AI 服务」一节）
 - [ ] 隐私政策的「声明」一节与 App 内 P10 的声明一致；权利人联系方式（【联系邮箱】）已填
 - [ ] App 隐私已回答（§2），自配 AI 服务那条已按 Apple 当时的说明核对
 - [ ] 真机：系统设置里关掉闻笺的「无线数据」后，录音卡、录音、同步、播放、导出都正常；点「生成纪要」时 Toast 指向「设置 › 闻笺 › 无线数据」（T-M2-10）
