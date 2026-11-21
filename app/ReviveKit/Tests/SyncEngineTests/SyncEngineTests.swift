@@ -69,7 +69,7 @@ private final class Harness {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("sync-\(UUID().uuidString)")
         library = RecordingLibrary(database: try AppDatabase.inMemory(), store: try AudioStore(root: root))
         self.freeSpace = freeSpace
-        engine = try SyncEngine(service: service, library: library, options: options, freeSpace: { freeSpace })
+        engine = try SyncEngine(source: CardSyncSource(service), library: library, options: options, freeSpace: { freeSpace })
         engine.hooks = hooks
         let stream = service.events
         Task { [weak self] in
@@ -88,7 +88,7 @@ private final class Harness {
 
     /// A new engine on the same database and files, as after the app was killed.
     func restart(options: SyncEngine.Options = testOptions) throws {
-        engine = try SyncEngine(service: service, library: library, options: options, freeSpace: { [freeSpace] in freeSpace })
+        engine = try SyncEngine(source: CardSyncSource(service), library: library, options: options, freeSpace: { [freeSpace] in freeSpace })
     }
 
     var items: [SyncItem] {

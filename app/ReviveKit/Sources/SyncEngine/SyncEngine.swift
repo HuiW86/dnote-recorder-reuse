@@ -1,17 +1,18 @@
-import CardLink
-import CardProtocol
-import CardService
 import CryptoKit
+import DeviceSource
 import Foundation
 import Library
 import Observation
 import os
 
-// Card files to the local library, per the sync state machine (prd.md §4).
+// Device files to the local library, per the sync state machine (prd.md §4).
 //
-// The card holds the only copy of a recording (CLAUDE.md rule 2), so a file is only ever
-// deleted on the card after its Recording row and OGG file are committed, and only when
-// the user has turned on delete-after-sync.
+// The device holds the only copy of a recording (CLAUDE.md rule 2), so a file is only ever
+// deleted on the device after its Recording row and OGG file are committed, and only when
+// the user has turned on delete-after-sync or asked not to keep that recording.
+//
+// The engine knows devices only through `SyncSource` (ADR-010): it imports no D·NOTE module,
+// and the D·NOTE card reaches it through `CardSyncSource`.
 
 public enum SyncStatus: Equatable, Sendable {
     case idle
@@ -54,8 +55,8 @@ public final class SyncEngine {
 
     /// Test seams for fault injection (test-spec.md §3.3). Unused in the app.
     public struct Hooks {
-        public var beforeDownload: (@MainActor (CardFile) -> Void)?
-        public var afterDownload: (@MainActor (CardFile) -> Void)?
+        public var beforeDownload: (@MainActor (SourceFile) -> Void)?
+        public var afterDownload: (@MainActor (SourceFile) -> Void)?
         /// Runs after the OGG file is in place and before the transaction commits.
         public var beforeCommit: (@MainActor () async -> Void)?
         public var afterCommit: (@MainActor (SyncItem) -> Void)?
@@ -100,8 +101,8 @@ public final class SyncEngine {
     /// A pass is running or queued ("正在检查录音卡", product-spec.md P05).
     public var isRunning: Bool { pass != nil }
 
-    /// The device files come from (ADR-010); the D·NOTE card's `CardService` in the app.
-    @ObservationIgnored private let service: any SyncSource
+    /// The device files come from (ADR-010); `CardSyncSource` for the D·NOTE card.
+    @ObservationIgnored private let source: any SyncSource
     @ObservationIgnored private let library: RecordingLibrary
     @ObservationIgnored private let freeSpace: () -> Int64
     @ObservationIgnored private let now: () -> Date
@@ -110,7 +111,7 @@ public final class SyncEngine {
     private var pass: Task<Void, Never>?
     @ObservationIgnored private var rerunRequested = false
     @ObservationIgnored private var retryTimer: Task<Void, Never>?
-    /// `0x70` said a listed file does not exist: list once more (prd.md §6 `fileNotFound`).
+    /// The device said a listed file does not exist: list once more (prd.md §6 `fileNotFound`).
     @ObservationIgnored private var relistAfterNotFound = false
     /// The card `failures` belongs to.
     @ObservationIgnored private var failuresDeviceId: UUID?
@@ -119,9 +120,9 @@ public final class SyncEngine {
     @ObservationIgnored private var passDeletesAfterSync = false
 
     /// Recovers from a previous crash before anything else touches the library (prd.md §4.3).
-    public init(service: any SyncSource, library: RecordingLibrary, options: Options = Options(),
+    public init(source: any SyncSource, library: RecordingLibrary, options: Options = Options(),
                 freeSpace: (() -> Int64)? = nil, now: @escaping () -> Date = Date.init) throws {
-        self.service = service
+        self.source = source
         self.library = library
         self.options = options
         self.freeSpace = freeSpace ?? { library.store.availableCapacity() }
@@ -136,10 +137,11 @@ public final class SyncEngine {
 
     // MARK: - Triggers (prd.md §4.4)
 
-    /// Feed CardService events here; whoever consumes `CardService.events` forwards them.
-    public func handle(_ event: CardEvent) {
-        switch event {
-        case .stateChanged(.connected):
+    /// Feed device events here; whoever consumes the device's events forwards them (for the
+    /// card, `CardService.events`, whose `CardEvent` maps itself to `SourceEvent`).
+    public func handle(_ event: some SourceEventConvertible) {
+        switch event.sourceEvent {
+        case .connected:
             requestSync(.connection)
         case .recordingStopped:
             let delay = options.recordingStoppedDelay
@@ -147,7 +149,7 @@ public final class SyncEngine {
                 try? await Task.sleep(for: delay)
                 self?.requestSync(.recordingStopped)
             }
-        default:
+        case nil:
             break
         }
     }
@@ -186,11 +188,11 @@ public final class SyncEngine {
     // MARK: - One pass
 
     private func runPass() async {
-        guard service.linkState == .connected else { return }
+        guard source.isConnected else { return }
         defer { progress = nil }
         // A pass belongs to the card it started on: after a switch it must not list, download
         // or delete on the next card with this card's file names, nor use that card's setting.
-        passCard = service.peripheralId
+        passCard = source.connectionId
         passDeletesAfterSync = options.deleteAfterSync
         do {
             let device = try await currentDevice()
@@ -200,19 +202,19 @@ public final class SyncEngine {
             }
             // The card serves files whether or not it is paired (#38 E): never sync, let alone
             // delete, on a card that was re-bound to another phone.
-            guard try await service.isPairedWithThisPhone() else { throw CardServiceError.notPaired }
+            guard try await source.isPairedWithThisPhone() else { throw SourceError.notPaired }
             guard try await cardIsIdle() else { return }
-            let files: [CardFile]
+            let files: [SourceFile]
             do {
-                files = try await service.listFiles()
-            } catch CardServiceError.cardBusyRecording {
+                files = try await source.listFiles()
+            } catch SourceError.busyRecording {
                 // An empty list while recording says nothing about the card's files (#5).
                 status = .waitingForRecording
                 return
             }
             let listed = Set(files.map { Key($0.name, $0.size) })
 
-            // A delete whose outcome was unknown (link dropped after 0x91): gone means done.
+            // A delete whose outcome was unknown (link dropped after sending it): gone means done.
             for var item in try library.syncItems(deviceId: device.id)
             where item.state == .deletePending && !listed.contains(Key(item)) {
                 markDeleted(&item)
@@ -244,7 +246,7 @@ public final class SyncEngine {
                 try checkSameCard()
                 if index > 0, try await !cardIsIdle() { return }
                 progress = Progress(index: index + 1, total: queue.count)
-                if try await sync(item, device: device) { pendingCount -= 1 }
+                if try await sync(item, device: device, converter: source.audioConverter) { pendingCount -= 1 }
             }
             progress = nil
             failures = try failureCounts(device, listed: listed)
@@ -282,7 +284,7 @@ public final class SyncEngine {
     }
 
     private func cardIsIdle() async throws -> Bool {
-        guard try await service.recordingStatus().state == .idle else {
+        guard try await !source.isRecording() else {
             status = .waitingForRecording
             return false
         }
@@ -291,25 +293,25 @@ public final class SyncEngine {
 
     /// Ends the pass as a lost link when the link now goes to another card, or to none.
     private func checkSameCard() throws {
-        guard service.linkState == .connected, service.peripheralId == passCard else {
-            throw CardServiceError.disconnected
+        guard source.isConnected, source.connectionId == passCard else {
+            throw SourceError.disconnected
         }
     }
 
     private func currentDevice() async throws -> Device {
-        let info: DeviceInfo
-        if let last = service.lastInfo { info = last } else { info = try await service.info() }
-        let peripheral = service.peripheralId?.uuidString
+        let info = try await source.deviceInfo()
+        let peripheral = source.connectionId?.uuidString
+        let defaultName = source.defaultDeviceName
         let seen = now()
         let device = try library.upsertDevice(sn: info.serial) { d in
-            // Pairing names the card first; the card's own Bluetooth name is the brand (ADR-005).
-            if d.name.isEmpty { d.name = "录音卡" }
+            // Pairing names the device first; the device's own Bluetooth name is a brand (ADR-005).
+            if d.name.isEmpty { d.name = defaultName }
             d.firmware = info.firmware
             d.peripheralId = peripheral ?? d.peripheralId
             d.lastSeenAt = seen
             d.battery = info.battery
-            d.freeMb = info.freeSpace
-            d.totalMb = info.totalSpace
+            d.freeMb = info.freeMb
+            d.totalMb = info.totalMb
         }
         onDeviceSaved?(device)
         return device
@@ -320,10 +322,10 @@ public final class SyncEngine {
     /// Downloads, converts and commits one file. Errors that concern only this file are
     /// recorded on the item; errors that end the pass (link lost, phone full) are thrown.
     /// Returns true when the recording was committed.
-    private func sync(_ item: SyncItem, device: Device) async throws -> Bool {
+    private func sync(_ item: SyncItem, device: Device, converter: any SourceAudioConverter) async throws -> Bool {
         var item = item
         guard let id = item.id else { return false }
-        let file = CardFile(name: item.cardFileName, size: item.cardFileSize)
+        let file = SourceFile(name: item.cardFileName, size: item.cardFileSize)
         let store = library.store
 
         var offset = store.partLength(id)
@@ -347,13 +349,13 @@ public final class SyncEngine {
         var received = offset
         status = .syncing(file: file.name, received: received, total: file.size)
         do {
-            try await service.download(file, from: offset) { [weak self] chunk in
+            try await source.download(file, from: offset) { [weak self] chunk in
                 do { try writer.append(chunk) } catch { writeFailed = true }
                 received += chunk.count
                 self?.status = .syncing(file: file.name, received: received, total: file.size)
             }
             writer.close()
-        } catch let error as CardServiceError {
+        } catch let error as SourceError {
             writer.close()
             switch error {
             case .fileNotFound:
@@ -369,7 +371,7 @@ public final class SyncEngine {
             case .requestTimeout:
                 fail(&item, .transferFailed, countsAsAttempt: true)
                 return false
-            case .cardBusy:
+            case .busy:
                 // Every file would be refused until the card restarts: keep the part, stop the pass.
                 fail(&item, .cardBusy, countsAsAttempt: false)
                 throw error
@@ -395,7 +397,7 @@ public final class SyncEngine {
         }
         let audio: ConvertedAudio
         do {
-            audio = try await Task.detached(priority: .utility) { try ConvertedAudio(raw) }.value
+            audio = try await Task.detached(priority: .utility) { try ConvertedAudio(raw, converter: converter) }.value
         } catch {
             // Keep the card file and the raw bytes for a bug report (prd.md §6 decryptFailed).
             try? store.saveDiagnostic(raw, name: "\(device.id.uuidString)-\(file.name)")
@@ -415,7 +417,7 @@ public final class SyncEngine {
         }
         await hooks.beforeCommit?()
 
-        let started = Self.startDate(fileName: file.name) ?? now()
+        let started = source.startDate(of: file) ?? now()
         let recording = Recording(
             id: recordingId, deviceId: device.id, source: .card, cardFileName: file.name,
             cardFileSize: file.size, startedAt: started, durationMs: audio.durationMs, audioPath: path,
@@ -452,7 +454,7 @@ public final class SyncEngine {
 
     // MARK: - Delete after sync
 
-    /// `0x91` for items already committed, then a second list to confirm (prd.md §4.1).
+    /// Deletes items already committed, then lists again to confirm (prd.md §4.1; `0x91` on the card).
     private func deletePending(_ device: Device) async throws {
         // An item is deleted from the card because "同步后删除" is on, or because the user asked
         // not to keep this recording. Items left `deletePending` by a setting since turned off stay.
@@ -472,15 +474,15 @@ public final class SyncEngine {
                 continue
             }
             try checkSameCard()
-            try await service.delete(item.cardFileName)
+            try await source.delete(item.cardFileName)
             sent.append(item)
         }
         guard !sent.isEmpty else { return }
         try checkSameCard()
-        let remaining: [CardFile]
+        let remaining: [SourceFile]
         do {
-            remaining = try await service.listFiles()
-        } catch CardServiceError.cardBusyRecording {
+            remaining = try await source.listFiles()
+        } catch SourceError.busyRecording {
             return  // unconfirmed; the next pass checks again
         }
         let listed = Set(remaining.map { Key($0.name, $0.size) })
@@ -504,7 +506,7 @@ public final class SyncEngine {
             do { try await Task.sleep(for: delay) } catch { return }
             guard !Task.isCancelled, let self else { return }
             self.retryTimer = nil
-            guard self.service.linkState == .connected, self.service.peripheralId == card else { return }
+            guard self.source.isConnected, self.source.connectionId == card else { return }
             self.requestSync(.retry)
         }
     }
@@ -516,18 +518,6 @@ public final class SyncEngine {
     }
 
     // MARK: - Naming
-
-    /// Card file names are `YYYYMMDDHHmmss.opus` in the card's clock, which the app sets to
-    /// the phone's local time on every connect (`0x87`). Parsed in the phone's current zone on
-    /// purpose (#59): a file recorded after one connect and synced after the phone changed zone
-    /// is off by the difference. The card's time carries no zone (prd.md §5.2).
-    nonisolated public static func startDate(fileName: String) -> Date? {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
-        f.dateFormat = "yyyyMMddHHmmss"
-        return f.date(from: String(fileName.prefix(14)))
-    }
 
     static func title(_ date: Date) -> String {
         let f = DateFormatter()
@@ -542,18 +532,17 @@ public enum SyncFailure: String, Error, Sendable {
     case disconnected, transferFailed, fileNotFound, decryptFailed, phoneStorageFull, storeFailed
     case notPaired, cardBusyRecording, cardBusy, requestTimeout, unexpectedReply, other
 
-    init(_ error: CardServiceError) {
+    init(_ error: SourceError) {
         switch error {
         case .notPaired: self = .notPaired
-        case .cardBusyRecording: self = .cardBusyRecording
-        case .cardBusy: self = .cardBusy
+        case .busyRecording: self = .cardBusyRecording
+        case .busy: self = .cardBusy
         case .fileNotFound: self = .fileNotFound
         case .transferFailed: self = .transferFailed
         case .requestTimeout: self = .requestTimeout
         case .unexpectedReply: self = .unexpectedReply
-        case .disconnected, .bluetoothOff, .bluetoothUnauthorized, .bluetoothUnsupported,
-             .connectTimeout, .connectFailed, .unknownCard: self = .disconnected
-        default: self = .other
+        case .disconnected: self = .disconnected
+        case .other: self = .other
         }
     }
 
@@ -565,13 +554,13 @@ public enum SyncFailure: String, Error, Sendable {
     static func code(_ error: Error) -> String {
         switch error {
         case let e as SyncFailure: e.rawValue
-        case let e as CardServiceError: SyncFailure(e).rawValue
+        case let e as SourceError: SyncFailure(e).rawValue
         default: SyncFailure.storeFailed.rawValue
         }
     }
 }
 
-/// Unique key of a card file (prd.md §4.3).
+/// Unique key of a device file (prd.md §4.3).
 private struct Key: Hashable {
     let name: String
     let size: Int
@@ -586,17 +575,16 @@ private struct Key: Hashable {
     }
 }
 
-/// Raw card bytes -> OGG, off the main actor (prd.md §4.2 step 2).
+/// Downloaded bytes -> OGG through the device's converter, off the main actor (prd.md §4.2 step 2).
 struct ConvertedAudio: Sendable {
     let ogg: Data
     let durationMs: Int
     let sha256: String
 
-    init(_ raw: Data) throws {
-        let opus = AudioCrypto.isEncrypted(raw) ? try AudioCrypto.decrypt(raw) : raw
-        let frames = OggOpus.splitFrames(opus)
-        ogg = OggOpus.wrap(frames)
-        durationMs = frames.count * 20  // 20 ms per frame
+    init(_ raw: Data, converter: any SourceAudioConverter) throws {
+        let audio = try converter.convert(raw)
+        ogg = audio.ogg
+        durationMs = audio.durationMs
         sha256 = SHA256.hash(data: ogg).map { String(format: "%02x", $0) }.joined()
     }
 }

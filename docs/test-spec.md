@@ -90,6 +90,7 @@
 | T-M1-32 | 在 App 里删除一条本地录音 | OGG 文件与数据库记录都删除；不向卡发送任何命令；SyncItem 保留为 `stored`，不会被重新下载 |
 | T-M1-33 | 下载失败的文件随后从卡上消失（#79） | 自动重试只针对本轮列表里还在、名字和大小都相同的失败项：文件消失后不再反复列表（不出现空重试循环）；同名文件再出现时能同步；同名不同大小时旧的失败项不再重试；新一轮检查成功拿到列表后才替换旧的重试计时器，检查失败时原计时器保留；计时器醒来时卡已断开或换了卡就不触发 |
 | T-M1-34 | 录音状态的三路来源乱序到达（#47、#53，`prd.md` §2.5） | 命令回包丢失、`0x56` 无回答或迟到、按键推送与 `0x80` 交错时，界面状态都以更新的来源为准；读 `0x56` 期间到达的 `0x80`（包括与界面一致的）使该回答不改状态；被超过的回答与界面状态相同时仍补上卡的已录时长；全程不重发录音命令 |
+| T-M1-35 | 同步只通过与设备无关的接口（ADR-010，`prd.md` §2.6） | 静态：`SyncEngine`、`DeviceSource` 不 import CardProtocol、CardLink、CardService（`check-m1-rules.sh`），`Package.swift` 里 SyncEngine 只依赖 DeviceSource 和 Library。D·NOTE：T-M1-20～33 的用例和断言不变，经 `CardSyncSource` 全部通过；每个卡错误都换成保留原失败码的 `SourceError`；只有「连上」和「录音停止」两个事件触发同步；转换结果与 `expected_ogg.bin` 逐字节一致。另一种设备（内存里的假设备，没有帧和解密）：每个文件只存一条、存入后才删、断点续传不重复 |
 
 实现（#39）：`app/ReviveKit/Tests/SyncEngineTests/`，每个用例结束时断言写帧里没有 `0x93`/`0x94`/`0xB0`/`0xB1`（§3.5 第 2 道检查）。
 
@@ -99,6 +100,8 @@
 - T-M1-33（#79，PR #80）：`absentFailedFileDoesNotCauseEmptyRetryLoop`、`removedFailedFileReturningCanBeSynced`、`replacedSizeDoesNotKeepOldFailureRetrying`、`manualPassCancelsObsoleteRetryTimer`、`failedManualListDoesNotLoseScheduledRetry`；同时加了脱敏的同步诊断（`syncDiagnosticsExposeReasonAndCounts`：请求来源、是否排队、列表数、候选数、可重试数）。真机观察记录在 `evidence/v79-sync-retry/`，计时器边界修复之后的版本尚未真机复验。
 
 - T-M1-34（#47 的 13 个用例，#53 issue 里记为 12 个，实际 13 个都保留；#53 另补 3 组）：`HomeModelTests` 的 `unansweredStartThatDidNothingAsksToRetry`、`lostPauseReplyFollowsTheCard`、`lostStartReplyFollowsTheCard`、`unansweredStatusKeepsToastUntilTheNextDeviceInfo`、`deviceInfoStateIsUsedWhenStatusStaysSilent`、`unknownStatusCodeKeepsTheCommandUnconfirmed`、`newerStateBeatsTheDeviceInfoFallback`、`newerStateBeatsALateStatusAnswer`、`buttonPressBeatsALateReconcileAnswer`、`newerDeviceInfoBeatsAnOlderFallback`、`stopAfterARecoveredStartIsReported`、`stopFoundWithoutItsPushStillSyncs`、`deviceInfoSendsNothingWhileDebugScreenIsOpen`；#53 新增 `agreeingDeviceInfoBeatsALateStatusAnswer`（PR #51 留下的一处）、`DeviceStatusTests` 的 `overtakenStatusAnswerStillRestoresTimer`，以及规则本身的 `RecordingStateOrderTests`。
+
+- T-M1-35：`CardServiceTests` 的 `CardSyncSourceTests`（`cardErrorsMapToSourceErrors`、`onlyConnectAndStopStartASync`、`converterDecryptsAndWrapsInOgg`、`startDateComesFromTheFileName`、`handsOverTheCardsFilesAndState`、`missingFileIsASourceError`），`SyncEngineTests` 的 `OtherDeviceTests`（`storesEachFileOnceThenDeletesIt`、`cutOffDownloadResumesWithoutDuplicates`）。
 
 用变异检查确认过用例有效：分别让已存入的文件重新下载、去掉启动恢复、在提交前发 `0x91`，T-M1-24、23、26 都会失败。
 
@@ -326,5 +329,6 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 - M2 起增加后端：`pytest`，数据库用 PostgreSQL 服务容器。
 - M1.5 起 `scripts/check-m1-rules.sh` 的不联网检查也覆盖 `Transcription` 模块（T-M15-13）。
 - #74 起 CI 在 `swift test` 之前还跑 `scripts/check-theme.sh`（T-M15-15）。
+- 2026-11-21 起 `scripts/check-m1-rules.sh` 还检查 `SyncEngine`、`DeviceSource` 不引用 D·NOTE 的模块（T-M1-35，ADR-010），不联网检查也覆盖 `DeviceSource`。
 - 计时（2026-11-19）：`swift test` 并行跑所有套件，主线程隔离的测试共用一个主线程，CI 上开头约 5 s 都很忙。所以「等一个应该到的回包或状态」一律用宽松上限：模拟卡请求超时 30 s、`waitUntil` 30 s，条件一满足就返回，测试不会变慢。只有专门测超时的用例（注入 `noResponse`、`dropReply`）在连上卡之后才把要测的那个超时缩短（`Harness.shortenRequestTimeouts()`、`service.timing`），连接本身不受影响。此前 100 ms、200 ms、2 s、3 s 的上限都在 CI 上超时过（`e962290`、PR #90）。
 - 真机与端到端不进 CI；结果以证据目录和 PR 记录为准。

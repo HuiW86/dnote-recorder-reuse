@@ -2,6 +2,7 @@ import Testing
 import CardProtocol
 import CardLink
 import CardService
+import DeviceSource
 import Library
 import SyncEngine
 import Player
@@ -13,6 +14,7 @@ struct ArchitectureTests {
     @Test func allModulesLink() {
         let names = [
             String(describing: Command.self), String(describing: LinkState.self), String(describing: CardService.self),
+            String(describing: SourceFile.self),
             String(describing: SyncEngine.self), String(describing: RecordingPlayer.self),
             String(describing: CardSession.self),
         ]

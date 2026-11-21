@@ -308,7 +308,7 @@ public final class HomeModel {
 
     /// When the current recording started, from the card's file name.
     public var recordingStartedAt: Date? {
-        session.recordingName.flatMap { SyncEngine.startDate(fileName: $0) }
+        session.recordingName.flatMap { CardFile.startDate(fileName: $0) }
     }
 
     // MARK: - Marks (features.md X7)

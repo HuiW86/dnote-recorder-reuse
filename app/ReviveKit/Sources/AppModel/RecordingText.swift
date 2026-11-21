@@ -1,6 +1,6 @@
+import CardProtocol
 import Foundation
 import Library
-import SyncEngine
 
 // List and detail text for recordings (product-spec.md P05, P06, §7.2). Simplified Chinese only.
 
@@ -78,6 +78,6 @@ public enum RecordingText {
     /// Card recordings whose file name could not be parsed were stamped with the sync time.
     private static func hasKnownTime(_ r: Recording) -> Bool {
         guard r.source == .card, let name = r.cardFileName else { return true }
-        return SyncEngine.startDate(fileName: name) != nil
+        return CardFile.startDate(fileName: name) != nil
     }
 }

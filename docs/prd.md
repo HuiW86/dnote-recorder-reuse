@@ -20,7 +20,8 @@
         │     ├─ CardLink ──── CoreBluetooth：扫描、连接、写、通知、断线恢复
         │     └─ CardProtocol ── 帧编解码、命令白名单、固件差异适配（CardLink 也依赖它）
         │
-        ├─ SyncEngine ───── 卡上文件 → 本地录音库，按 §4 状态机（依赖 `SyncSource` 接口和 Library；CardService 是第一个实现，ADR-010）
+        ├─ SyncEngine ───── 设备上的文件 → 本地录音库，按 §4 状态机（只依赖 DeviceSource 和 Library，§2.6）
+        │     └─ DeviceSource ── 与设备无关的接口 `SyncSource`；D·NOTE 卡由 CardService 里的 `CardSyncSource` 实现（ADR-010）
         │
         ├─ Library ──────── 本地数据库与音频文件（§5）
         │
@@ -129,6 +130,27 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 - 命令超时后的处理不变（`product-spec.md` §7.1 `requestTimeout`，#47）：不重发，读一次 `0x56`；读到的状态码不认识时，命令仍算未确认。
 - DEBUG 设备调试页打开时，不一致的 `0x80` 不触发读取（调试页只发它自己的请求）。
 - 以前分散在 `CardSession` 里的状态修订号、`0x80` 计数和「命令进行中」标记（#47，PR #51）都收进了这一套规则。PR #51 留下的一处：读 `0x56` 期间来了一个与界面一致的 `0x80`，原先仍会采用 `0x56` 的回答，现在按上表丢弃。
+
+### 2.6 与设备无关的同步接口（ADR-010，2026-11-21）
+
+`SyncEngine` 只通过 `DeviceSource` 模块里的 `SyncSource` 接口认识设备，不引用 CardProtocol、CardLink、CardService（`Package.swift` 的依赖和 `scripts/check-m1-rules.sh` 都管着这一条）。接入第二种设备时，同步状态机、录音库和硬规则 2（先存入再删）不用改，只需要再写一个 `SyncSource` 的实现。
+
+| 能力 | 语义 | D·NOTE 卡的实现（`CardSyncSource`） |
+|---|---|---|
+| `isConnected`、`connectionId` | 是否连着；连着的是哪台设备。一次同步中途换了设备就停下 | 链路状态、peripheral id |
+| `defaultDeviceName` | 录音库里还没起名的设备叫什么，不用品牌名（硬规则 5） | 「录音卡」 |
+| `deviceInfo()` | 序列号（录音库里设备的键）、固件、电量、剩余和总空间 | 连接后读到的 `0x80`，没有时再读一次 |
+| `isPairedWithThisPhone()` | 只从和这部手机配对的设备取文件 | `0xA1`（#38 E） |
+| `isRecording()` | 录音中或暂停时不同步（H5） | `0x56` 的状态不是空闲 |
+| `listFiles()` | 文件名加大小；录音中报 `busyRecording`，不返回没有意义的空列表 | `0x90`（#5） |
+| `download(file, from:offset)` | 从某个字节开始下载，边收边交出；失败前交出的部分仍然有效 | `0x70`，按块校验偏移（#34） |
+| `delete(name)` | 只在文件存入手机后调用；结果由下一次 `listFiles()` 确认 | `0x91`（#38 E） |
+| `startDate(of:)` | 录音开始时间；不知道时由 SyncEngine 用同步时间 | 文件名 `YYYYMMDDHHmmss`（#59） |
+| `audioConverter` | 把下载到的字节转成录音库存的 OGG Opus 和时长，在主线程以外运行 | 解密、按 40 字节一帧切分、封装 OGG（§4.2 第 2 步） |
+
+- **错误**：实现把自己的错误换成 `SourceError`（`disconnected`、`notPaired`、`busyRecording`、`busy`、`fileNotFound`、`transferFailed`、`requestTimeout`、`unexpectedReply`、`other`）。SyncEngine 按它决定记什么失败码、要不要重试，失败码（§6，存在 `sync_item.last_error`）和以前一样。
+- **事件**：设备自己的事件类型实现 `SourceEventConvertible`，只把「连上了」和「录音停了」交给 SyncEngine（§4.4）。D·NOTE 的 `CardEvent` 就是这样接入的。
+- 录音库里沿用 `card_file_name`、`deleted_on_card` 这些名字，对别的设备同样指「设备上的文件」，不改表结构。
 
 ## 3. 配对状态机（A2）
 

@@ -94,7 +94,7 @@ public final class CardSession {
                 diagnostics: DiagnosticLog? = nil,
                 now: @escaping () -> Date = Date.init) throws {
         service = CardService(link: link, bondStore: bondStore, timing: timing)
-        syncEngine = try SyncEngine(service: service, library: library, options: syncOptions)
+        syncEngine = try SyncEngine(source: CardSyncSource(service), library: library, options: syncOptions)
         self.library = library
         self.diagnostics = diagnostics
         self.now = now

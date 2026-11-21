@@ -9,8 +9,8 @@ let package = Package(
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "ReviveKit", targets: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "Transcription", "AppModel",
-            "Assistant",
+            "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player",
+            "Transcription", "AppModel", "Assistant",
         ]),
     ],
     dependencies: [
@@ -21,12 +21,16 @@ let package = Package(
         .target(name: "CardProtocol"),
         // CoreBluetooth transport: scan, connect, notify, pending reconnect.
         .target(name: "CardLink", dependencies: ["CardProtocol"]),
-        // Device operations, pairing, unsolicited events.
-        .target(name: "CardService", dependencies: ["CardProtocol", "CardLink"]),
+        // What SyncEngine needs from any recording device (ADR-010). Foundation only: no D·NOTE
+        // frames, commands, encryption or file names.
+        .target(name: "DeviceSource"),
+        // Device operations, pairing, unsolicited events; `CardSyncSource` makes the card a DeviceSource.
+        .target(name: "CardService", dependencies: ["CardProtocol", "CardLink", "DeviceSource"]),
         // Local database and audio files.
         .target(name: "Library", dependencies: [.product(name: "GRDB", package: "GRDB.swift")]),
-        // Card files -> local library, per the sync state machine.
-        .target(name: "SyncEngine", dependencies: ["CardService", "Library"]),
+        // Device files -> local library, per the sync state machine. Knows devices only through
+        // DeviceSource, never the D·NOTE modules (ADR-010; scripts/check-m1-rules.sh).
+        .target(name: "SyncEngine", dependencies: ["DeviceSource", "Library"]),
         // Playback and export of stored OGG files.
         .target(name: "Player", dependencies: ["Library"]),
         // Screen state for the SwiftUI app (no views): one session over the device stack,
@@ -51,7 +55,7 @@ let package = Package(
         ),
         .testTarget(name: "CardLinkTests", dependencies: ["CardProtocol", "CardLink", "CardTestSupport"]),
         .testTarget(name: "CardServiceTests", dependencies: [
-            "CardProtocol", "CardLink", "CardService", "CardTestSupport",
+            "CardProtocol", "CardLink", "CardService", "CardTestSupport", "DeviceSource",
         ]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
         .testTarget(name: "TranscriptionTests", dependencies: ["Library", "Transcription"]),
@@ -60,14 +64,14 @@ let package = Package(
         ]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "CardTestSupport",
+            "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "CardTestSupport",
         ]),
         .testTarget(name: "AppModelTests", dependencies: [
             "AppModel", "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "CardTestSupport",
             "Assistant",
         ]),
         .testTarget(name: "ArchitectureTests", dependencies: [
-            "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "AppModel",
+            "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player", "AppModel",
         ]),
     ]
 )
