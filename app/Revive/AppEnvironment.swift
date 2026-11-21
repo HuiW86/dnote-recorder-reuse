@@ -155,7 +155,8 @@ final class AppEnvironment {
     /// paired, or iOS has already answered about Bluetooth (starting it then shows no prompt);
     /// otherwise, for 先不连卡, a session over `NoCardLink`.
     func mainSession() -> CardSession? {
-        if session != nil || hasPairedDevice || Self.bluetoothAuthorization != .notDetermined {
+        if BluetoothStart.realStackForTabs(stackExists: session != nil, hasPairedCard: hasPairedDevice,
+                                           authorization: Self.bluetoothAuthorization) {
             return startBluetooth()
         }
         if let cardlessSession { return cardlessSession }

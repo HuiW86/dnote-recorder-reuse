@@ -1,6 +1,7 @@
 // App shell. Screen state lives in ReviveKit's AppModel; device, sync and library logic in
 // the other ReviveKit modules.
 
+import AppModel
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -35,7 +36,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             // pending connects and restoration work. Once Bluetooth is authorized, creating the
             // manager shows no prompt, so start it too (prewarm launches carry no centrals key).
             // Otherwise first use waits for P01, which asks for the permission.
-            if env.hasPairedDevice || !centrals.isEmpty || AppEnvironment.bluetoothAuthorization == .allowed {
+            if BluetoothStart.atLaunch(hasPairedCard: env.hasPairedDevice, restoringCard: !centrals.isEmpty,
+                                       authorization: AppEnvironment.bluetoothAuthorization) {
                 env.startBluetooth()
             }
         }

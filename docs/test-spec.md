@@ -154,7 +154,7 @@
 | T-M15-22 | #85 断开期间结束的录音 | 录音中断开，卡上停止（推送丢失）后重连：补问「留着 / 不要」，时长未知；重连时仍在录：重连当时不问，停止后问一次且带时长 |
 | T-M15-23 | #85 通知文案、转写开关、导出文件名 | 只计这一轮新存的卡上录音（不含最近删除、导入）；只有一条时带它的 id，多条时不带；转写开关在打开的 P06 上立即生效；导出文件名按页面显示的标题（「11月7日 14.02.ogg」，改名后用新名字） |
 | T-M15-20 | #89 列表按天分组的合计、正在播放的句子、外观 | 组标题「今天」「昨天」「3月2日」「2025年11月7日」；合计「2 条 · 1 小时 6 分钟」；正在播放的句子是起点不晚于当前位置的最后一句，第一句之前和没有句子时为空；详情页开始播放某句后，当前句就是这一句；外观默认跟随系统，选择后重新读取仍是所选 |
-| T-M15-24 | 先不连卡（P01，2026-11-20） | 选择存进偏好，重开仍在，可清掉；`NoCardLink` 状态是 `idle`，不连接、不写；在它上面的 `HomeModel` 没有当前卡、状态是 `noDevice`（不是 `bluetoothUnavailable`），导入的文字文件照常进列表 |
+| T-M15-24 | 先不连卡（P01，2026-11-20） | 选择存进偏好，重开仍在，可清掉；`NoCardLink` 状态是 `idle`，不连接、不写；在它上面的 `HomeModel` 没有当前卡、状态是 `noDevice`（不是 `bluetoothUnavailable`），导入的文字文件照常进列表；什么时候创建蓝牙：没配对、没有蓝牙、iOS 没问过时，启动和标签栏都不创建（不弹权限框）；有卡、系统为卡重新启动、已允许时启动就创建；标签栏在已有蓝牙、有卡或 iOS 已经回答过（允许或拒绝）时用真实蓝牙；有卡或选过「先不连卡」时显示标签栏 |
 
 实现：
 
@@ -183,7 +183,7 @@
 | T-M15-22 | `HomeModelTests` `recordingThatEndedWhileAwayIsOfferedOnReconnect`、`recordingStillGoingAfterReconnectIsOfferedWhenItStops` |
 | T-M15-23 | `SyncNoticeTests`；`RecordingDetailModelTests` `transcriptionSwitchAppliesToAnOpenPage`、`exportsUnderTitle` |
 | T-M15-20 | `OverviewTests` `RecordingDayTests`、`TranscriptPositionTests`、`AppearanceTests`；`RecordingDetailModelTests` `transcribesStoresAndReportsFailures`（当前句段） |
-| T-M15-24 | `Tests/AppModelTests/CardlessTests.swift`（2 个）、`Tests/CardLinkTests/NoCardLinkTests.swift` |
+| T-M15-24 | `Tests/AppModelTests/CardlessTests.swift`（2 个）、`Tests/CardLinkTests/NoCardLinkTests.swift`、`Tests/AppModelTests/BluetoothStartTests.swift`（4 个） |
 
 **没有自动用例覆盖的部分**（代码已合并，靠 §3.6.2 和界面走查）：
 
