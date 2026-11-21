@@ -202,7 +202,7 @@ M3、M4 的命令在对应里程碑开工时才加入代码（#37 只定义了 M
 - App 被杀或崩溃后重启：`downloading` 一律回到 `discovered`，临时文件清掉，从头下载。临时文件可能没有完整落盘，不拿它续传。这是有意的（#59 复核后保留）：协议帧没有校验和（`PROTOCOL.md` §3），解密只校验文件头 24 字节（§4.2），续传接上一段没落盘完整的数据也会「成功」，得到错乱的音频，开了「同步后删除」时会丢掉唯一副本；代价是重启后长录音要重下，M3 的 WiFi 快传做完后会小很多。
 - **在 App 里删除本地录音不会让它重新同步回来**：删除 Recording 和 OGG 文件，但 SyncItem 保持 `stored`，列表比对时照常跳过；也不向卡发任何命令（`test-spec.md` T-M1-32）。
 - 删除只在 `stored` 之后发生。`0x91` 发出后连接断开、不确定是否删成功的，下次列表里不在就记为已删除，还在就重新删。
-- 实现（#39）：下载中的字节写到 `tmp/<SyncItem id>.part`，OGG 先写到 `staging/` 并 `fsync`，再原子移动到 `audio/`。启动恢复（`RecordingLibrary.recoverAfterLaunch`）会清空 `tmp/` 和 `staging/`，并删掉 `audio/` 里没有 Recording 记录的 OGG：这是「写完 OGG、事务未提交时崩溃」留下的孤儿文件。系统不能直接播放 OGG 时，播放器把录音解码成 `decoded/<Recording id>.caf`；删除录音时一并删除，启动恢复时也会删掉没有 Recording 记录的副本和没解码完的 `.part` 文件（#40）。
+- 实现（#39）：下载中的字节写到 `tmp/<SyncItem id>.part`，OGG 先写到 `staging/` 并 `fsync`，再原子移动到 `audio/`。启动恢复（`RecordingLibrary.recoverAfterLaunch`）会清空 `tmp/` 和 `staging/`，并删掉 `audio/` 里没有 Recording 记录的 OGG：这是「写完 OGG、事务未提交时崩溃」留下的孤儿文件。系统不能直接播放 OGG 时，播放器把录音解码成 `decoded/<Recording id>.caf`；删除录音时一并删除，启动恢复时也会删掉没有 Recording 记录的副本和没解码完的 `.part` 文件（#40）。手机录音（X18，2026-11-20）录音中写到 `phone/phone-<开始时间毫秒>.caf`（16 kHz 单声道 16 位 PCM，App 被杀掉时文件仍可读到最后一个样本），停止后转成 M4A 存进 `audio/`，存好才删这个 CAF；存失败或录音中 App 被杀掉时 CAF 留着，下次打开标签栏时（`PhoneRecorder.recoverUnfinished`）按文件名里的开始时间存入，读不了的改名为 `.unreadable` 保留、不再重试，没有声音的删掉。启动恢复不碰 `phone/`：那里是这条录音唯一的一份。
 
 ### 4.4 触发时机
 
@@ -393,6 +393,20 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 | `created_at` | DATETIME | — |
 
 只发含拉丁字母的句子（不发音频），每批 80 句，句子在批内编号；每批最多留 30 个词，同一个词只留第一次出现的。读不懂的批次跳过，全部读不懂才报错。只有文字稿里拉丁字母多于其他文字（且至少 20 个）时才提供。
+
+### 5.13 `phone_mark`（手机录音的重点，迁移 `v16`，X7、X18，2026-11-20）
+
+用这部手机录音时标的重点。手机录音没有卡上的文件名可认，所以挂在 `recording` 上，随录音删除（外键级联）。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | INTEGER PK | 自增 |
+| `recording_id` | UUID FK | — |
+| `offset_ms` | INTEGER | 标记时这部手机的已录时长，暂停不影响 |
+| `created_at` | DATETIME | — |
+
+- 录音中 `recording` 行还不存在：标记先记在内存里，同时写进 CAF 旁边的 `phone-<开始时间毫秒>.caf.marks`（毫秒数的 JSON 数组），存入录音时和 `recording` 行在同一个事务里写进本表；App 被关掉后找回的录音也带着标记（§4 的手机录音文件布局）。
+- 与 `recording_mark` 相同：2 秒内的重复标记丢弃，超过录音时长的不显示，只存在手机上。显示时两张表合成同一种「播放标记」（`RecordingLibrary.playbackMarks`），列表的重点数、「有重点」筛选、详情页的重点列表和播放条刻度都用它。
 
 ## 6. App 错误码（M1）
 

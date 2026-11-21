@@ -344,15 +344,18 @@ public final class RecordingLibrary: Sendable {
     /// Stores a recording made with the phone's microphone: the file moves into `audio/` and a
     /// row is added. Nothing here involves a card or the sync engine.
     @discardableResult
-    public func addPhoneRecording(file: URL, startedAt: Date, durationMs: Int, now: Date = Date()) throws -> Recording {
-        try addLocalRecording(file: file, source: .phone, startedAt: startedAt, durationMs: durationMs, title: nil, now: now)
+    /// `marksMs`: the points marked while recording (features.md X7), stored with it.
+    public func addPhoneRecording(file: URL, startedAt: Date, durationMs: Int, marksMs: [Int] = [],
+                                  now: Date = Date()) throws -> Recording {
+        try addLocalRecording(file: file, source: .phone, startedAt: startedAt, durationMs: durationMs, title: nil,
+                              marksMs: marksMs, now: now)
     }
 
     /// Stores an audio file that did not come from a card: a phone recording (X18) or an
     /// imported file (E2). `title` nil gives the default date title. The file is moved.
     @discardableResult
     public func addLocalRecording(file: URL, source: Recording.Source, startedAt: Date, durationMs: Int,
-                                  title: String?, now: Date = Date()) throws -> Recording {
+                                  title: String?, marksMs: [Int] = [], now: Date = Date()) throws -> Recording {
         let id = UUID()
         let data = try Data(contentsOf: file)
         let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -363,7 +366,14 @@ public final class RecordingLibrary: Sendable {
                                   title: trimmed.isEmpty ? Recording.defaultTitle(for: startedAt) : String(trimmed.prefix(80)),
                                   createdAt: now, updatedAt: now)
         do {
-            try database.writer.write { db in try recording.insert(db) }
+            try database.writer.write { db in
+                try recording.insert(db)
+                // In the same transaction: a recording is never stored without its marks.
+                for offset in Set(marksMs.map { max(0, $0) }).sorted() {
+                    var mark = PhoneMark(recordingId: id, offsetMs: offset, createdAt: now)
+                    try mark.insert(db)
+                }
+            }
         } catch {
             store.removeAudio(path)
             throw error
@@ -423,6 +433,10 @@ public final class RecordingLibrary: Sendable {
                 JOIN recording_mark ON recording_mark.device_id = recording.device_id
                  AND recording_mark.card_file_name = recording.card_file_name
                  AND recording_mark.offset_ms <= recording.duration_ms
+                UNION
+                SELECT recording.id FROM recording
+                JOIN phone_mark ON phone_mark.recording_id = recording.id
+                 AND phone_mark.offset_ms <= recording.duration_ms
                 """))
         }
     }
@@ -759,6 +773,22 @@ public final class RecordingLibrary: Sendable {
     public func marks(for recording: Recording) throws -> [RecordingMark] {
         guard let deviceId = recording.deviceId, let name = recording.cardFileName else { return [] }
         return try marks(deviceId: deviceId, cardFileName: name).filter { $0.offsetMs <= recording.durationMs }
+    }
+
+    /// Every mark of a recording within its length, in playback order: a card recording's by its
+    /// card file, a phone recording's by the recording (X18).
+    public func playbackMarks(for recording: Recording) throws -> [PlaybackMark] {
+        if recording.deviceId != nil, recording.cardFileName != nil {
+            return try marks(for: recording).compactMap { mark in
+                mark.id.map { PlaybackMark(id: "card-\($0)", offsetMs: mark.offsetMs) }
+            }
+        }
+        return try database.writer.read { db in
+            try PhoneMark
+                .filter(Column("recording_id") == recording.id && Column("offset_ms") <= recording.durationMs)
+                .order(Column("offset_ms"))
+                .fetchAll(db)
+        }.compactMap { mark in mark.id.map { PlaybackMark(id: "phone-\($0)", offsetMs: mark.offsetMs) } }
     }
 
     public func deleteMark(id: Int64) throws {

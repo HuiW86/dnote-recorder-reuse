@@ -161,6 +161,42 @@ public struct RecordingMark: Codable, Equatable, Sendable, Identifiable, Fetchab
     }
 }
 
+/// A point marked while recording with the phone (features.md X7, X18). A phone recording has no
+/// card file, so its marks hang off the recording itself and go with it (`recording_id` cascades).
+public struct PhoneMark: Codable, Equatable, Sendable, Identifiable, FetchableRecord, MutablePersistableRecord {
+    public var id: Int64?
+    public var recordingId: UUID
+    public var offsetMs: Int
+    public var createdAt: Date
+
+    public init(recordingId: UUID, offsetMs: Int, createdAt: Date) {
+        self.recordingId = recordingId
+        self.offsetMs = offsetMs
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "phone_mark"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}
+
+/// A mark as playback shows it, whichever recording it came from: a card's `RecordingMark` or a
+/// phone's `PhoneMark`.
+public struct PlaybackMark: Equatable, Identifiable, Sendable {
+    /// "card-3", "phone-3": the two tables number their rows separately.
+    public let id: String
+    public let offsetMs: Int
+
+    public init(id: String, offsetMs: Int) {
+        self.id = id
+        self.offsetMs = offsetMs
+    }
+}
+
 /// One sentence of a transcript, with where it starts in the audio.
 public struct TranscriptSegment: Codable, Equatable, Sendable {
     public var startMs: Int

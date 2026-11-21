@@ -587,6 +587,14 @@ struct RecordingLibraryTests {
         #expect(try lib.wordList(recordingId: id) == nil)
     }
 
+    @Test func v15LibraryUpgradesToV16() throws {
+        let queue = try DatabaseQueue()
+        try AppDatabase.migrator.migrate(queue, upTo: "v15")
+        #expect(try queue.read { try $0.tableExists("phone_mark") } == false)
+        let db = try AppDatabase(queue)
+        #expect(try db.writer.read { try $0.tableExists("phone_mark") })
+    }
+
     @Test func v14LibraryUpgradesToV15() throws {
         let queue = try DatabaseQueue()
         try AppDatabase.migrator.migrate(queue, upTo: "v14")
@@ -754,6 +762,32 @@ struct RecordingLibraryTests {
         try lib.recoverAfterLaunch()
         #expect(!FileManager.default.fileExists(atPath: orphan.path))
         #expect(FileManager.default.fileExists(atPath: audio.path))
+    }
+
+    /// X7 for X18: marks taken while recording with the phone are stored with the recording, in
+    /// playback order, once each and within its length; they count for the 有重点 filter and go
+    /// with the recording.
+    @Test func phoneMarksStayWithTheRecording() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("phone-\(UUID().uuidString).m4a")
+        try Data("m4a".utf8).write(to: file)
+        let stored = try lib.addPhoneRecording(file: file, startedAt: Date(), durationMs: 10_000,
+                                               marksMs: [3_000, 1_000, 1_000, 99_000])
+        #expect(try lib.playbackMarks(for: stored).map(\.offsetMs) == [1_000, 3_000])
+        #expect(Set(try lib.playbackMarks(for: stored).map(\.id)).count == 2)
+        #expect(try lib.marks(for: stored).isEmpty)  // not a card file
+        #expect(try lib.recordingIdsWithMarks() == [stored.id])
+
+        let plain = FileManager.default.temporaryDirectory.appendingPathComponent("phone-\(UUID().uuidString).m4a")
+        try Data("m4a".utf8).write(to: plain)
+        let unmarked = try lib.addPhoneRecording(file: plain, startedAt: Date(), durationMs: 10_000)
+        #expect(try lib.playbackMarks(for: unmarked).isEmpty)
+        #expect(try lib.recordingIdsWithMarks() == [stored.id])
+
+        try lib.deleteRecording(id: stored.id)
+        #expect(try lib.database.writer.read { try PhoneMark.fetchCount($0) } == 0)
+        #expect(try lib.recordingIdsWithMarks().isEmpty)
     }
 
     /// X6: rename trims, caps the length and falls back to the default title.

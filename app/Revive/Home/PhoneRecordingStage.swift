@@ -10,7 +10,8 @@ struct PhoneRecordingStage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let paused = recorder.state == .paused
+        let saving = recorder.isSaving
+        let paused = recorder.state == .paused || saving
         ZStack {
             Theme.stage.ignoresSafeArea()
             VStack(spacing: 0) {
@@ -19,7 +20,7 @@ struct PhoneRecordingStage: View {
                         .fill(paused ? Theme.onDark.opacity(0.4) : Theme.record)
                         .frame(width: 9, height: 9)
                         .accessibilityHidden(true)
-                    Text(paused ? "已暂停 · 这部手机" : "录音中 · 这部手机")
+                    Text(saving ? "正在保存 · 这部手机" : paused ? "已暂停 · 这部手机" : "录音中 · 这部手机")
                         .font(.callout.weight(.medium))
                         .foregroundStyle(Theme.onDark.opacity(0.9))
                 }
@@ -47,15 +48,21 @@ struct PhoneRecordingStage: View {
                     .padding(.horizontal, 32)
                     .padding(.top, 16)
                 Spacer(minLength: 16)
-                HStack(spacing: 48) {
-                    if paused {
+                HStack(spacing: 36) {
+                    if !saving { markControl(disabled: paused) }
+                    if saving {
+                        // Converting to M4A; a long recording takes a few seconds (X18).
+                        ProgressView().tint(Theme.onDark).controlSize(.large).frame(height: 66)
+                    } else if paused {
                         control("继续", symbol: "play.fill", filled: false) { recorder.resume() }
                     } else {
                         control("暂停", symbol: "pause.fill", filled: false) { recorder.pause() }
                     }
-                    control("停止", symbol: "stop.fill", filled: true) {
-                        recorder.stop()
-                        close()
+                    if !saving {
+                        control("停止", symbol: "stop.fill", filled: true) {
+                            // The page closes once stored (below).
+                            Task { await recorder.stop() }
+                        }
                     }
                 }
                 .padding(.bottom, 32)
@@ -63,9 +70,36 @@ struct PhoneRecordingStage: View {
         }
         .preferredColorScheme(.dark)
         .interactiveDismissDisabled()
+        // Stored, after 停止 or after running out of space: close, so the tabs show the toast.
+        .onChange(of: recorder.isSaving) { wasSaving, saving in
+            if wasSaving, !saving, recorder.state == .idle { close() }
+        }
         .onChange(of: recorder.interruptionNotice) { _, notice in
             if let notice { UIAccessibility.post(notification: .announcement, argument: notice) }
         }
+    }
+
+    /// "标重点", with the number of marks so far, as on the card's recording page (features.md X7).
+    private func markControl(disabled: Bool) -> some View {
+        let count = recorder.marksMs.count
+        let title = count == 0 ? "标重点" : "标重点 · \(count)"
+        return Button { recorder.markNow() } label: {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle().fill(Theme.onDark.opacity(0.14))
+                    Image(systemName: "bookmark.fill").font(.title2).foregroundStyle(Theme.onDark)
+                }
+                .frame(width: 66, height: 66)
+                Text(title)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.onDark.opacity(0.8))
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.4 : 1)
+        .sensoryFeedback(.impact, trigger: count)
+        .accessibilityLabel(count == 0 ? "标重点" : "标重点，已标 \(count) 处")
     }
 
     private func control(_ title: String, symbol: String, filled: Bool, action: @escaping () -> Void) -> some View {
