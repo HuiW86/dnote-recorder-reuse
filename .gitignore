@@ -9,6 +9,18 @@ recordings/
 .DS_Store
 .bond.json
 
+# other audio (phone recordings, evaluation sets): never committed (CLAUDE.md rule 4)
+*.m4a
+*.wav
+*.mp3
+*.flac
+*.opus
+*.aac
+*.webm
+# ASR and summary evaluations: recordings, reference transcripts and outputs are other
+# people's conversations; only the counts go into docs (docs/asr-evaluation.md §3)
+eval/
+
 # realtime audio captured in the room; keep local, checksums in SHA256SUMS
 evidence/**/live.bin
 
