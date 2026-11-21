@@ -39,6 +39,8 @@ struct RecordingsView: View {
     @State private var pendingDelete: Recording?
     /// Files picker for importing audio (features.md E2).
     @State private var importing = false
+    /// 从链接导入 (features.md X12).
+    @State private var importingLink = false
     @State private var folderBeingRenamed: Folder?
     @State private var folderName = ""
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
@@ -54,7 +56,15 @@ struct RecordingsView: View {
                                openSwitcher: { showsSwitcher = true })
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { importing = true } label: {
+                    // 文件 (features.md E2) or a podcast link (X12).
+                    Menu {
+                        Button { importing = true } label: {
+                            Label("从「文件」导入", systemImage: "folder")
+                        }
+                        Button { importingLink = true } label: {
+                            Label("从链接导入", systemImage: "link")
+                        }
+                    } label: {
                         if model.isImporting {
                             ProgressView()
                         } else {
@@ -62,7 +72,8 @@ struct RecordingsView: View {
                         }
                     }
                     .disabled(model.isImporting)
-                    .accessibilityLabel("导入音频或文字文件")
+                    .accessibilityLabel("导入")
+                    .accessibilityHint("从「文件」导入音频或文字，或从播客链接导入")
                 }
             }
             .refreshable { await model.refresh() }
@@ -75,6 +86,11 @@ struct RecordingsView: View {
                     let opened = urls.filter { $0.startAccessingSecurityScopedResource() }
                     defer { opened.forEach { $0.stopAccessingSecurityScopedResource() } }
                     await model.importAudio(urls)
+                }
+            }
+            .sheet(isPresented: $importingLink) {
+                LinkImportSheet(model: LinkImportModel(library: model.session.library)) { title in
+                    model.toast = Toast(title.isEmpty ? "已导入" : "已导入「\(title)」")
                 }
             }
             .confirmationDialog("删除这条录音？", isPresented: deleteBinding, titleVisibility: .visible,

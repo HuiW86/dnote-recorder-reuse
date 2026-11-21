@@ -10,7 +10,7 @@ let package = Package(
     products: [
         .library(name: "ReviveKit", targets: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player",
-            "Transcription", "AppModel", "Assistant",
+            "Transcription", "AppModel", "Assistant", "LinkImport",
         ]),
     ],
     dependencies: [
@@ -39,10 +39,14 @@ let package = Package(
         // networking, enforced by scripts/check-m1-rules.sh like the M1 modules.
         .target(name: "Transcription", dependencies: ["Library", "Player"]),
         .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player",
-                                                 "Transcription", "Assistant"]),
+                                                 "Transcription", "Assistant", "LinkImport"]),
         // Summaries through a service the user configures (features.md X11, G1; ADR-009). The one
         // module allowed to use the network: no device module may depend on it (CLAUDE.md rule 3).
         .target(name: "Assistant", dependencies: ["Library", "Player", "Transcription"]),
+        // Podcast links -> audio files (features.md X12). Uses the network, only for the link the
+        // user pasted and Apple's podcast lookup; Foundation only, no other module. Like
+        // Assistant, no device or offline module may depend on it (scripts/check-m1-rules.sh).
+        .target(name: "LinkImport"),
 
         // Fake card and evidence replay for integration tests (test-spec.md §2). Lives under
         // Tests/ and is not part of the product, so it never ships in the app.
@@ -62,13 +66,14 @@ let package = Package(
         .testTarget(name: "AssistantTests", dependencies: [
             "Library", "Assistant", "Transcription", "Player", "CardProtocol", "CardTestSupport",
         ]),
+        .testTarget(name: "LinkImportTests", dependencies: ["LinkImport"]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "CardTestSupport",
         ]),
         .testTarget(name: "AppModelTests", dependencies: [
             "AppModel", "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "CardTestSupport",
-            "Assistant",
+            "Assistant", "LinkImport",
         ]),
         .testTarget(name: "ArchitectureTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player", "AppModel",
