@@ -9,6 +9,8 @@ import Transcription
 /// audio or text leaves the Mac only for the service the user set, and the pane says so.
 struct RecordingPane: View {
     @State private var model: RecordingDetailModel
+    @State private var renaming = false
+    @State private var newTitle = ""
 
     init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer, env: MacEnvironment) {
         // Read on every use, so a change in 设置 applies to an open pane too (#85).
@@ -47,6 +49,20 @@ struct RecordingPane: View {
                     Label(model.isStarred ? "取消星标" : "标星", systemImage: model.isStarred ? "star.fill" : "star")
                 }
             }
+            ToolbarItem {
+                Button {
+                    newTitle = model.editableTitle
+                    renaming = true
+                } label: { Label("重命名", systemImage: "pencil") }
+            }
+            ToolbarItem { exportMenu }
+        }
+        .alert("重命名", isPresented: $renaming) {
+            TextField("录音名称", text: $newTitle)
+            Button("保存") { model.rename(to: newTitle) }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("留空则恢复为录音时间。")
         }
         .onChange(of: model.isTranscribing) { _, running in
             if !running { model.reloadTranscript() }
@@ -67,6 +83,35 @@ struct RecordingPane: View {
             }
         }
         .onDisappear { model.leave() }
+    }
+
+    /// 导出: the iPhone's exports (E1a, E1b, E1c, J1), saved where the user picks.
+    private var exportMenu: some View {
+        Menu {
+            if model.hasAudio, !model.audioMissing {
+                Button("原始音频") { save(model.exportFile()) }
+                Button("M4A（大多数软件都能播放）") { Task { save(await model.exportM4A()) } }
+                Button("WAV（用于剪辑）") { Task { save(await model.exportWAV()) } }
+            }
+            if model.canExportMarkdown {
+                Divider()
+                Button("纪要和文字稿（Markdown）") { save(model.exportMarkdown()) }
+                Button("纪要和文字稿（PDF）") { save(model.exportPDF()) }
+                Button("纪要和文字稿（Word）") { save(model.exportDOCX()) }
+            }
+            if model.canExportMindMap {
+                Button("思维导图（OPML）") { save(model.exportMindMap()) }
+            }
+        } label: {
+            Label("导出", systemImage: "square.and.arrow.up")
+        }
+        .disabled(model.isExporting || !(model.hasAudio || model.canExportMarkdown))
+        .help("导出到这台 Mac 上的文件夹")
+    }
+
+    private func save(_ file: URL?) {
+        guard let file else { return }
+        FileSaver.save(file)
     }
 
     /// 转成文字 and 生成纪要, with what they send and where (ADR-009).
