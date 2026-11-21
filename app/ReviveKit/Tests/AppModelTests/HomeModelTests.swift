@@ -88,7 +88,7 @@ struct RecordingTextTests {
     }
 
     @Test func titleAndSubtitle() throws {
-        let start = try #require(SyncEngine.startDate(fileName: "20261107140211.opus"))
+        let start = try #require(CardFile.startDate(fileName: "20261107140211.opus"))
         let r = recording(file: "20261107140211.opus", startedAt: start, ms: 23 * 60_000 + 5_000)
         #expect(RecordingText.title(r, calendar: calendar) == "11月7日 14:02")
         #expect(RecordingText.subtitle(r, deviceName: nil, calendar: calendar) == "14:02 · 23 分钟")
@@ -98,7 +98,7 @@ struct RecordingTextTests {
 
     /// Chinese and 24-hour on a phone set to an English region too.
     @Test func dateTimeIgnoresPhoneRegion() throws {
-        let evening = try #require(SyncEngine.startDate(fileName: "20261108234600.opus"))
+        let evening = try #require(CardFile.startDate(fileName: "20261108234600.opus"))
         #expect(RecordingText.dateTime(evening, calendar: calendar) == "11月8日 23:46")
         #expect(RecordingText.time(evening, calendar: calendar) == "23:46")
     }

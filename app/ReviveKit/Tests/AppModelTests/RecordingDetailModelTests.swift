@@ -25,7 +25,7 @@ private final class DetailFixture {
         let data = audio ?? OggOpus.wrap(frames)
         let id = UUID()
         let path = try library.store.storeAudio(data, id: id)
-        let start = try #require(SyncEngine.startDate(fileName: "20261107140211.opus"))
+        let start = try #require(CardFile.startDate(fileName: "20261107140211.opus"))
         let r = Recording(id: id, deviceId: nil, source: .card, cardFileName: "20261107140211.opus",
                           cardFileSize: data.count, startedAt: start, durationMs: frames.count * 20,
                           audioPath: path, audioSha256: "", title: "2026-11-07 14:02", createdAt: start, updatedAt: start)

@@ -4,6 +4,8 @@
 #      0xB0/0xB1 firmware upgrade) anywhere in app sources. Test code is exempt
 #      so it can assert the whitelist.
 #   2. M1 modules in ReviveKit must not use networking APIs.
+#   3. SyncEngine knows devices only through DeviceSource (ADR-010): it must not import
+#      the D·NOTE modules, so a second device needs no change to the sync state machine.
 # Exit status is non-zero on any violation.
 set -euo pipefail
 
@@ -19,7 +21,7 @@ if [[ -n "$forbidden" ]]; then
   fail=1
 fi
 
-m1_modules=(CardProtocol CardLink CardService Library SyncEngine Player Transcription AppModel)
+m1_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription AppModel)
 for m in "${m1_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue
@@ -34,13 +36,26 @@ done
 
 # The Assistant module talks to AI services over the network. Device and offline modules
 # must not import it (CLAUDE.md rule 3): only the app shell and AppModel's AI screens may.
-offline_modules=(CardProtocol CardLink CardService Library SyncEngine Player Transcription)
+offline_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription)
 for m in "${offline_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue
   uses=$(grep -rnE '^[[:space:]]*(@testable[[:space:]]+)?import[[:space:]]+Assistant\b' "$dir" --include='*.swift' || true)
   if [[ -n "$uses" ]]; then
     echo "FAIL: offline module $m imports Assistant (CLAUDE.md rule 3):"
+    echo "$uses"
+    fail=1
+  fi
+done
+
+# SyncEngine and DeviceSource are device-neutral (ADR-010): no D·NOTE module behind them.
+for m in SyncEngine DeviceSource; do
+  dir="$app/ReviveKit/Sources/$m"
+  [[ -d "$dir" ]] || continue
+  uses=$(grep -rnE '^[[:space:]]*(@testable[[:space:]]+)?import[[:space:]]+(CardProtocol|CardLink|CardService)\b' \
+    "$dir" --include='*.swift' || true)
+  if [[ -n "$uses" ]]; then
+    echo "FAIL: device-neutral module $m imports a D·NOTE module (ADR-010):"
     echo "$uses"
     fail=1
   fi
