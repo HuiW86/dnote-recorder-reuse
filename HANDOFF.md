@@ -1,5 +1,5 @@
 # Handoff — 不需要真机的工作基本做完；下一步是装一个新构建，按 device-todo 做真机验收
-<!-- Edited by hand on 2026-11-21 to match main 598fe91 (PR #108–#117); not a /checkpoint run -->
+<!-- Edited by hand on 2026-11-21 to match main aed4bdb (PR #108–#124); not a /checkpoint run -->
 
 ## Objective
 复刻 D·NOTE 官方 App（Revive，显示名「闻笺」），面向三类人（`CLAUDE.md` 定位）。当前推进顺序的第 ① 项：M1 验收与 TestFlight 外部测试（#42，含 #66）。
@@ -20,15 +20,26 @@
 - PR #116：P11、P12 的文字跟上先不连卡和手机录音
 - PR #117：「什么时候创建蓝牙」的规则移到 `AppModel/BluetoothStart.swift` 并有测试
 - 顺带修了 `PlayerTests` `reachesEndAndResets` 在 CI 上的超时（等待 3 s → 30 s）
+- 之后（2026-11-21）：
+  - PR #118：本文件和 `device-todo.md` 跟上 main
+  - PR #119、#120、#122（另一个会话）：`SyncEngine` 改为依赖不绑定设备的 `DeviceSource`；多语言评估，决定先只做简体中文
+  - PR #110（另一个会话）：知识库提问只发和问题相关的纪要
+  - PR #121：ADR-011 提议稿，Mac 版用原生 macOS 目标、Developer ID 分发；状态 Proposed，等用户决定
+  - PR #123：ASR 对比的方法和打分工具（`docs/asr-evaluation.md`、`client/asr_eval.py`）
+  - PR #124：纪要提示词 × 模型的盲评方法和汇总工具（`docs/summary-evaluation.md`、`client/summary_scores.py`）
 
 ## In Progress
-- 无。PR #110（另一个会话，知识库提问只发相关的纪要）还开着；它和 main 只在 `docs/product-spec.md` 的修订记录表有一行冲突
+- 无。
 
 ## Next Actions
-1. 装一个包含 PR #117 的构建（TestFlight 要先把 `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 加 1），按 `docs/device-todo.md` 的顺序做真机检查。新增的几项都在 §6：T-M15-60 先不连卡（审核员走的路，外部测试前必须过）、T-M2-10 关掉「无线数据」、T-M4-17～21 手机录音
+1. 装一个当前 main 的构建（PR #124 之后；#110 也改了 App 代码）（TestFlight 要先把 `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 加 1），按 `docs/device-todo.md` 的顺序做真机检查。新增的几项都在 §6：T-M15-60 先不连卡（审核员走的路，外部测试前必须过）、T-M2-10 关掉「无线数据」、T-M4-17～21 手机录音
 2. #42：T-M1-50～57、多卡 #8（至少 3 张卡）、#66 的 TOC 统计
 3. 发布前：隐私政策托管到公开地址并填好占位符（`docs/release/testflight.md` §1、§5），录演示视频
-4. 需要用户决定或提供条件才能做的：M2 后端（云厂商账号）、M5 Mac 版的 ADR（原生还是 Catalyst）、M6 的设备真机
+4. 两项评估（`device-todo.md` §8a）：备好真卡录音和参考文本、服务商账号后，按 `asr-evaluation.md`、`summary-evaluation.md` 跑，结果填进去
+5. 需要用户决定或提供条件才能做的：
+   - ADR-011 文末的 3 个问题：原生还是 Catalyst；是否在 App Store 之外分发，证书和下载页谁提供；要不要先让 Mac 用户直接装 iPhone 版
+   - M2 后端：云厂商账号
+   - M6：两种设备的真机
 
 ## Risks & Decisions
 - 用户决定（2026-11-20）：加「先不连卡，直接用」
