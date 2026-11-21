@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "client/**"
+      - "scripts/build_privacy_page.py"
+      - "docs/release/privacy-policy.md"
       - "app/ReviveKit/scripts/make_fixtures.py"
       - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
       - "ios-prototype/Tests/Fixtures/**"
@@ -12,6 +14,8 @@ on:
   pull_request:
     paths:
       - "client/**"
+      - "scripts/build_privacy_page.py"
+      - "docs/release/privacy-policy.md"
       - "app/ReviveKit/scripts/make_fixtures.py"
       - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
       - "ios-prototype/Tests/Fixtures/**"
