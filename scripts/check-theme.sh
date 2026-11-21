@@ -26,7 +26,8 @@ patterns=(
 )
 regex="$(IFS='|'; echo "${patterns[*]}")"
 
-hits=$(grep -rnE "$regex" "$views" --include='*.swift' \
+# The Mac views (ADR-011) use system styling and have no Theme yet: no colour literals either.
+hits=$(grep -rnE "$regex" "$views" "$root/app/ReviveMac" --include='*.swift' \
   --exclude-dir=Debug | grep -v "^$views/Common/Theme.swift:" || true)
 
 if [[ -n "$hits" ]]; then

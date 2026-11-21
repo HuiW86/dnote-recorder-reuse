@@ -8,6 +8,7 @@ options:
   developmentLanguage: zh-Hans
   deploymentTarget:
     iOS: "17.0"
+    macOS: "14.0"
 packages:
   ReviveKit:
     path: ReviveKit
@@ -60,8 +61,45 @@ targets:
         # iPhone only: avoids iPad orientation/screenshot requirements; iPad runs it in compatibility mode.
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
+  # The Mac app (ADR-011, features.md X13): a native macOS target sharing ReviveKit and AppModel.
+  # Distributed outside the App Store with Developer ID (not sandboxed); M5 step one has no card
+  # functions yet, so it asks for no Bluetooth or microphone permission (speech recognition
+  # only once 本机转写 is on).
+  ReviveMac:
+    type: application
+    platform: macOS
+    sources: [ReviveMac]
+    dependencies:
+      - package: ReviveKit
+        product: ReviveKit
+    info:
+      path: ReviveMac/Info.plist
+      properties:
+        CFBundleName: 闻笺
+        CFBundleDisplayName: 闻笺
+        CFBundleDevelopmentRegion: zh-Hans
+        CFBundleLocalizations: [zh-Hans]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: 闻笺由独立开发者开发，不是录音卡厂商的官方 App。
+        # Asked only after the user turns on 本机转写 in 设置 (features.md X9).
+        NSSpeechRecognitionUsageDescription: 在这台 Mac 上把录音转成文字，录音不会离开这台 Mac
+    settings:
+      base:
+        # No third-party brand names (CLAUDE.md rule 5).
+        PRODUCT_BUNDLE_IDENTIFIER: com.huiw86.revive.mac
+        PRODUCT_NAME: Wenjian
+        GENERATE_INFOPLIST_FILE: NO
+        # Developer ID distribution needs the hardened runtime for notarization.
+        ENABLE_HARDENED_RUNTIME: YES
 schemes:
   Revive:
     build:
       targets:
         Revive: all
+  ReviveMac:
+    build:
+      targets:
+        ReviveMac: all

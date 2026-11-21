@@ -49,3 +49,10 @@ jobs:
           xcodegen generate
           xcodebuild build -project Revive.xcodeproj -scheme Revive \
             -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+
+      # ADR-011: the native Mac app shares ReviveKit and AppModel; it must build on every PR too.
+      - name: Build Mac app
+        working-directory: app
+        run: |
+          xcodebuild build -project Revive.xcodeproj -scheme ReviveMac \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
