@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Runs the Foundation-only part of ReviveKit's tests on Linux (cloud containers have no macOS).
 # Covers CardProtocol, CardLink (without CoreBluetooth), CardService, DeviceSource, Library,
-# SyncEngine and LinkImport: about 200 tests. Everything that needs AVFoundation, Speech,
-# CoreBluetooth, Security or SwiftUI is still tested only by app-ci on macOS, which stays the
-# gate for merging.
+# SyncEngine, LinkImport and LibraryTools, and builds the `revive` tool without audio: about 230
+# tests. Everything that needs AVFoundation, Speech, CoreBluetooth, Security or SwiftUI is still
+# tested only by app-ci on macOS, which stays the gate for merging.
 #
 #   app/ReviveKit/scripts/linux-test.sh             # all of the above
 #   app/ReviveKit/scripts/linux-test.sh --filter X  # extra arguments go to `swift test`

@@ -303,6 +303,20 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 实现：T-M5-10 是 `LinkTextTests`（6 个）和 `LinkResolverTests` `failuresReadAsAdvice` 里的视频网站一项。T-M5-11 是 `FeedParserTests`（4 个）、`PageScannerTests`（5 个）、`ApplePodcastsTests`（3 个）、`LinkResolverTests` 的前 9 个。T-M5-12 是 `LinkResolverTests` `failuresReadAsAdvice`、`everyErrorHasText`。T-M5-13 是 `EpisodeDownloaderTests`（6 个）。以上 35 个在 `LinkImportTests`，只用 Foundation，Linux 上也能跑。T-M5-14 是 `LinkImportModelTests`（6 个，要 `AudioImporter`，只在 macOS 上跑）。2026-11-21 另用同一个模块对真实的小宇宙单集页、Apple 播客的节目和单集链接、一个 RSS 地址各解析了一次，结果都对（不是自动用例，没有入库）。
 
+### 3.8 M5 接入 AI 助手（X19，#72）
+
+自动用例在临时文件夹里的录音库上跑，不启动任何助手。编号接着 §3.7：20～49 自动，70 起要真的 Mac 和助手。
+
+| 编号 | 对象 | 判据 |
+|---|---|---|
+| T-M5-20 | 读 | 搜索按标题、文字稿、纪要找，所有词都要出现，最新的在前，「最近删除」里的不出现；取一条按 8 位或完整编号，未知、太短、重复、已删除的编号给出原因；Markdown 里有时间、时长、来源、标签、人物、摘要、要点、待办（打勾的是 `[x]`）、大纲、金句、带时间的文字稿（文字录音不带时间），可以不要文字稿；待办只列没打勾的，按录音分组；概况的条数不含「最近删除」 |
+| T-M5-21 | 写 | 存入文字成为没有音频的一条，空文字拒绝；存入音频按「文件」导入转换，来源「导入」、标题默认用文件名、时间是存入时间，文件不存在或转换不了给出原因；只读时两项都拒绝，库里不多东西 |
+| T-M5-22 | 打开录音库 | 文件夹里没有录音库时不新建、给出提示；能打开另一个进程建的库；库被更新的版本迁移过时能读、标为只读 |
+| T-M5-23 | MCP 协议 | 每条回复一行；`initialize` 回应客户端要的版本（认识的），不认识时给最新的；通知不回；`ping`；`tools/list` 按能否写入、有没有音频转换列出工具，每个有 `inputSchema`；`tools/call` 返回文字，工具出错时 `isError` 为真而不是协议错误；解析错误 -32700、未知方法 -32601、参数错误或未知工具 -32602、不是请求 -32600 |
+| T-M5-70 | 真实助手 | 一台装了闻笺 Mac 版的 Mac 上，Claude 桌面版按 `assistant-tools.md` §3 配好后：问「有哪些没完成的待办」列出的和闻笺「总览」一致；按关键词找到一条并总结；让它存一段文字，重开闻笺后能看到；`--read-only` 时它说不能存 |
+
+实现：T-M5-20 是 `LibraryToolsTests` 的 `searchSkipsTheTrashAndShowsShortIds`、`getRendersSummaryTodosAndTimedTranscript`、`idsMustBeKnownUniqueAndNotTrashed`、`todosAreOpenOnesByRecording`、`overviewCountsWhatTheListShows`、`formatting`。T-M5-21 是 `addingTextAndAudio`、`readOnlyRefusesWrites`。T-M5-22 是 `ExistingLibraryTests`（2 个）。T-M5-23 是 `MCPServerTests`（4 个）。共 14 个，只依赖 Library，Linux 上也跑（`scripts/linux-test.sh`）。2026-11-22 另在 Linux 上对编译出的 `revive` 做过一次端到端：找不到录音库时退出码 1；`add-text`（文件和标准输入）、`overview`、`search`；`mcp` 用管道走完 `initialize`、`tools/list`、`tools/call`。
+
 ## 4. 真机测试方法与证据
 
 每次真机测试在 `evidence/<编号>/` 下留一份 README，写明：

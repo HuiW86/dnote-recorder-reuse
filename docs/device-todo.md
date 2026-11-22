@@ -123,5 +123,7 @@
 
 ## 9. 只要 Mac、不要真机的
 
+- T-M5-70 接入 AI 助手（X19）：装了闻笺 Mac 版的 Mac 上配好 Claude 桌面版（`assistant-tools.md` §3），问待办、按关键词找录音、让它存一段文字、`--read-only`。要等 Mac 版（#125）合并
+
 - `scripts/shots.sh`：模拟器截图（#89 已跑过一次；界面再改时重跑）
 - iOS 构建和 `swift test`：CI（`app-ci`，macOS）每个 PR 都跑
