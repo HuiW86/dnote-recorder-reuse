@@ -29,3 +29,6 @@ evidence/**/live.bin
 
 # local doc/commit co-change metrics; not tracked (#58)
 docs/.metrics/
+
+# Python package build metadata (pip install -e)
+*.egg-info/

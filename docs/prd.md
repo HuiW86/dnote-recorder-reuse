@@ -32,6 +32,7 @@
 
 - **M1 各层不引用任何网络库**。M2 的同步与 AI 模块单独成层，只读写 Library，不被设备层调用（`CLAUDE.md` 硬规则 3）。
 - 联网的模块目前有两个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）和 `LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）。
+- 读写录音库给 AI 助手用的 `LibraryTools`（X19）和命令行 `revive` 只依赖 Library（`revive` 在 Mac 上另依赖 Player 转换音频），和 M1 模块一样不联网（`scripts/check-m1-rules.sh`）。`revive` 在另一个进程里打开 Mac 版的录音库（`AppDatabase.existing`，写锁最多等 5 秒），只新增录音，不改不删；库被更新的版本迁移过时只读（`isNewerThanThisBuild`）。
 - 协议细节（命令字、帧格式、JSON 字段）只出现在 CardProtocol，上层只看到 Swift 类型。固件版本差异也在这一层处理。
 - 协议层从 `ios-prototype/Sources/DNoteProtocol.swift` 起步，原型的单元测试和样本一并迁移。
 - 代码位置：每层是 `app/ReviveKit/` 里的一个 Swift Package 目标，依赖方向在 `Package.swift` 里声明，以它为准；App 目标 `app/Revive/` 只负责界面（#36）。界面只和 AppModel 打交道，AppModel 直接依赖 CardLink、CardService、Library、SyncEngine、Player。
@@ -464,26 +465,27 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 ## 7. 后端接口契约（M2～M4，模块级）
 
-技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本在 M2 工程初始化时用 ADR 确认，候选：SQLAlchemy 2 + Alembic、Pydantic v2、procrastinate（基于 PostgreSQL 的任务队列）。
+技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列（候选 procrastinate）到转写那一片再定。代码在 `backend/`，第一片（账号、设备登记、意见反馈）已做，见 `backend/README.md`。
 
 ### 7.1 通用约定
 
 - 前缀 `/v1`；JSON；时间用 ISO 8601 带时区；id 用 UUID。
 - 鉴权：`Authorization: Bearer <access token>`。access token 15 分钟有效；refresh token 30 天有效，每次刷新换新，旧的立即作废。
 - **未登录时 App 不调用任何接口**（`backend-design.md` §4.6）。
-- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果。
+- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`。保存的响应加密存放（刷新令牌的响应里有令牌）。
+- **刷新令牌时一定要带 `Idempotency-Key`**：已作废的刷新令牌再次出现会被当成被盗用，整条登录链吊销；带了键，网络断开后的重试拿到的是同一对新令牌。
 
 ### 7.2 接口分组
 
 | 模块 | 里程碑 | 接口（示意） | 说明 |
 |---|---|---|---|
-| 账号 | M2 | `POST /auth/sms/send`、`POST /auth/sms/login`、`POST /auth/email/register`、`POST /auth/email/verify`、`POST /auth/password/login`、`POST /auth/password/reset`、`POST /auth/refresh`、`POST /auth/logout`、`DELETE /me` | K1；`DELETE /me` 是 App 内注销，删除账号及全部数据 |
-| 设备登记 | M2 | `GET /devices`、`PUT /devices/{sn_hash}`、`DELETE /devices/{sn_hash}` | A4b；上传 bondId（服务端加密存储），换手机时取回 |
+| 账号 | M2 | `POST /auth/sms/send`、`POST /auth/sms/login`、`POST /auth/email/register`、`POST /auth/email/verify`、`POST /auth/password/login`、`POST /auth/password/reset/send`、`POST /auth/password/reset`、`POST /auth/refresh`、`POST /auth/logout`、`GET /me`、`POST /me/password`、`DELETE /me` | K1；`DELETE /me` 是 App 内注销，删除账号及全部数据。**已做**（2026-11-22）。手机号第一次登录即建号；邮箱先注册再验证；验证码 6 位、10 分钟有效、最多试 5 次、同一目标 60 秒一条、每天 10 条；找回密码不论邮箱有没有注册都回同样的结果；改密码、重置密码后其他设备都要重新登录 |
+| 设备登记 | M2 | `GET /devices`、`PUT /devices/{sn_hash}`、`DELETE /devices/{sn_hash}` | A4b；上传 bondId（服务端加密存储），换手机时取回。`sn_hash` 是 App 算的 SHA-256(sn)（64 位十六进制）。**已做**（2026-11-22） |
 | 录音与上传 | M2 | `POST /recordings`（建元数据，返回 COS 预签名分片上传地址）、`POST /recordings/{id}/upload-complete`、`GET /recordings/{id}/audio-url` | 音频直传 COS，不经过应用服务器 |
 | 转写 | M2 | `POST /recordings/{id}/transcribe` → 任务 id；`GET /recordings/{id}/transcript`；`PATCH /recordings/{id}/speakers` | F1；说话人重命名 |
 | AI 生成 | M2 | `POST /recordings/{id}/summaries {template_id}` → 任务 id；`GET /recordings/{id}/summaries`；`GET /templates` | G1、G2a |
 | 任务 | M2 | `GET /tasks/{id}` | 状态见 §7.4 |
-| 意见反馈 | M2 | `POST /feedback` | O1b |
+| 意见反馈 | M2 | `POST /feedback` | O1b。**已做**（2026-11-22） |
 | 用量 | M2 | `GET /me/usage` | X2；超额返回 `quota_exceeded` |
 | 实时转写 | M3 | `WS /realtime?codec=opus&sample_rate=16000&language=zh` | H1；App 发 Opus 帧，服务端推流式文字；断线后 App 补传本地音频 |
 | AI 对话 | M4 | `POST /chat`（`recording_id` 可选，不带即全局），SSE 返回 | G3 |
@@ -519,10 +521,10 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 
 | 表 | 主要字段 | 里程碑 |
 |---|---|---|
-| `users` | id、phone（唯一，可空）、email（唯一，可空）、password_hash、created_at、deleted_at | M2 |
-| `refresh_tokens` | id、user_id、token_hash、expires_at、revoked_at、replaced_by | M2 |
-| `verification_codes` | id、target（手机或邮箱）、purpose、code_hash、expires_at、attempts | M2 |
-| `devices` | id、user_id、sn_hash、bond_id（加密存储）、name、firmware、updated_at | M2 |
+| `users` | id、phone（唯一，可空，`+86` 开头）、email（唯一，可空，小写）、email_verified_at、password_hash（Argon2id，手机号账号为空）、created_at；phone 和 email 至少有一个 | M2 |
+| `refresh_tokens` | id、user_id、token_hash（SHA-256）、family_id（同一次登录换出来的都属于一条链）、expires_at、revoked_at、replaced_by、created_at | M2 |
+| `verification_codes` | id、target（手机或邮箱）、purpose（sms_login、email_verify、password_reset）、code_hash（HMAC）、expires_at、attempts、consumed_at、created_at | M2 |
+| `devices` | id、user_id、sn_key（对 App 给的 SHA-256(sn) 再做服务端 HMAC，只用来查找）、secret（SHA-256(sn) 和 bondId 一起加密）、name、firmware、created_at、updated_at | M2 |
 | `recordings` | id、user_id、device_id、source、started_at、duration_ms、audio_object_key、audio_sha256、title、folder_id、version、updated_at、deleted | M2 |
 | `transcripts` | id、recording_id、language、segments（JSONB：开始、结束、说话人、文本）、speakers（JSONB：说话人名称）、asr_provider、created_at | M2 |
 | `summaries` | id、recording_id、template_id、kind（总结、大纲、思维导图、金句、标签）、content（JSONB）、model、created_at | M2 |
@@ -530,18 +532,19 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | `tasks` | 由任务队列库管理；业务侧另记 kind、recording_id、user_id、status、error_code | M2 |
 | `usage_records` | id、user_id、kind（asr_seconds、llm_tokens）、amount、occurred_at | M2 |
 | `feedback` | id、user_id、content、app_version、created_at | M2 |
+| `idempotency_records` | id、scope（调用方）、key、request_hash、status_code（处理中为空）、content_type、body（加密）、created_at；24 小时后清掉 | M2 |
 | `notes` | id、recording_id、offset_ms、text、image_keys、version、updated_at、deleted | M4 |
 | `folders` | id、user_id、name、version、updated_at、deleted | M4 |
 | `chat_messages` | id、user_id、recording_id（可空）、role、content、created_at | M4 |
 
-- 服务端只存 `sn` 的哈希，不存原值。bondId 加密存储，密钥由云厂商密钥管理服务托管。
+- 服务端只存 `sn` 哈希的 HMAC，不存原值，也不存裸哈希：序列号能被枚举，裸的 SHA-256 在数据库泄露时能反推出 sn，再加上仓库里公开的 `DEVICE_KEY_SECRET` 就能算出这张卡的音频密钥（ADR-006、ADR-012）。bondId 和 App 给的哈希一起用 AES-256-GCM 加密存储；现在密钥来自环境变量，上线前换成云厂商密钥管理服务托管的信封加密。
 - 原始音频是唯一的事实来源；转写和总结都能重算，所以保留 `asr_provider`、`model` 字段，便于换模型后批量重跑（`backend-design.md` §4.5）。
-- 注销账号（`DELETE /me`）：删除该用户的全部数据库记录和 COS 对象；用量记录匿名化后保留。
+- 注销账号（`DELETE /me`）：删除该用户的全部数据库记录和 COS 对象；用量记录匿名化后保留。现在的做法：用户表一行删除，令牌、设备、反馈通过 `ON DELETE CASCADE` 一起删掉（不留 `deleted_at`）；COS 和用量随那两片加入。
 
 ## 9. 待决定与待验证
 
 | 项 | 类型 | 何时解决 |
 |---|---|---|
 | App 本地数据库库选型（候选 GRDB） | 待决定 | M1 开工时，写 ADR |
-| 后端具体库与版本 | 待决定 | M2 工程初始化，写 ADR |
+| 后端具体库与版本 | ADR-012 已提出（Proposed），等确认 | 2026-11-22 |
 | 任务完成是否用推送通知 | 待决定 | M2 |

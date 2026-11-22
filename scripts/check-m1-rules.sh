@@ -21,7 +21,8 @@ if [[ -n "$forbidden" ]]; then
   fail=1
 fi
 
-m1_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription AppModel)
+# LibraryTools and the revive tool (features.md X19) are offline too, though not part of M1.
+m1_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription AppModel LibraryTools revive)
 for m in "${m1_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue
@@ -37,7 +38,7 @@ done
 # The Assistant module talks to AI services over the network, and LinkImport downloads podcast
 # links (features.md X12). Device and offline modules must not import either (CLAUDE.md rule 3):
 # only the app shell and AppModel's AI and link-import screens may.
-offline_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription)
+offline_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription LibraryTools revive)
 for m in "${offline_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue

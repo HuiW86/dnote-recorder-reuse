@@ -12,6 +12,8 @@ let package = Package(
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player",
             "Transcription", "AppModel", "Assistant", "LinkImport",
         ]),
+        // The library on the command line and as an MCP server for AI assistants (features.md X19).
+        .executable(name: "revive", targets: ["revive"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.12.0"),
@@ -47,6 +49,14 @@ let package = Package(
         // user pasted and Apple's podcast lookup; Foundation only, no other module. Like
         // Assistant, no device or offline module may depend on it (scripts/check-m1-rules.sh).
         .target(name: "LinkImport"),
+        // Search, read, list todos and add to the library for an AI assistant (features.md X19).
+        // Offline like the M1 modules: only Library, no networking (scripts/check-m1-rules.sh).
+        .target(name: "LibraryTools", dependencies: ["Library"]),
+        // `revive`: LibraryTools on the command line and over MCP stdio. Player converts added audio
+        // on the Mac; elsewhere (Linux test runs) the tool has no audio command.
+        .executableTarget(name: "revive", dependencies: [
+            "Library", "LibraryTools", .target(name: "Player", condition: .when(platforms: [.macOS])),
+        ]),
 
         // Fake card and evidence replay for integration tests (test-spec.md §2). Lives under
         // Tests/ and is not part of the product, so it never ships in the app.
@@ -67,6 +77,7 @@ let package = Package(
             "Library", "Assistant", "Transcription", "Player", "CardProtocol", "CardTestSupport",
         ]),
         .testTarget(name: "LinkImportTests", dependencies: ["LinkImport"]),
+        .testTarget(name: "LibraryToolsTests", dependencies: ["Library", "LibraryTools"]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "CardTestSupport",
