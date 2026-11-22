@@ -465,7 +465,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 ## 7. 后端接口契约（M2～M4，模块级）
 
-技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-22，Proposed）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）已做，见 `backend/README.md`。
+技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-22，Proposed）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）、第四片（AI 生成）已做，见 `backend/README.md`。
 
 ### 7.1 通用约定
 
@@ -483,7 +483,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 | 设备登记 | M2 | `GET /devices`、`PUT /devices/{sn_hash}`、`DELETE /devices/{sn_hash}` | A4b；上传 bondId（服务端加密存储），换手机时取回。`sn_hash` 是 App 算的 SHA-256(sn)（64 位十六进制）。**已做**（2026-11-22） |
 | 录音与上传 | M2 | `POST /recordings`（建元数据，返回预签名分片上传地址）、`POST /recordings/{id}/upload`（断点续传：新地址和已传的分片）、`POST /recordings/{id}/upload-complete`、`GET /recordings/{id}/audio-url`、`GET /recordings`、`GET /recordings/{id}`、`DELETE /recordings/{id}` | 音频直传对象存储，不经过应用服务器。**已做**（2026-11-22），COS 暂用本机替身。同一账号里同一 `audio_sha256` 只建一条，再提交返回已有的那条（未传完时带续传地址）；分片 8 MiB，地址 1 小时有效；完成时服务端按声明的大小核对每个分片再合并；7 天没传完的上传作废；删除留墓碑（`deleted_at`）供 M4 同步，音频从存储删除；没有音频的录音（文字导入）不上传 |
 | 转写 | M2 | `POST /recordings/{id}/transcribe {language, speakers}` → 任务；`GET /recordings/{id}/transcript`；`PATCH /recordings/{id}/speakers {speakers: {标签: 名称}}` | F1；说话人重命名。**骨架已做**（2026-11-22）：音频传完才能转写；同一条录音已有排队或进行中的转写时返回那个任务（200），否则新建（202）；结果是 `segments`（`start_ms`、`end_ms`、`speaker`、`text`）和 `speakers`（用户起的名字，只能给文字稿里出现的标签起名，空名删除，重新转写后清空）；转写成功记一条 `asr_seconds` 用量。识别引擎是可替换接口，现在是开发用替身（生产拒绝启动），真引擎等 ASR 对比和账号 |
-| AI 生成 | M2 | `POST /recordings/{id}/summaries {template_id}` → 任务 id；`GET /recordings/{id}/summaries`；`GET /templates` | G1、G2a |
+| AI 生成 | M2 | `POST /recordings/{id}/summaries {template_id, profession}` → 任务；`GET /recordings/{id}/summaries`；`GET /templates` | G1、G2a。**已做**（2026-11-22），大模型暂用开发替身（生产拒绝启动）。提示词、场景、长文分段（超过 9000 字先每 6000 字压缩一次）和回复解析与 App 的 `Summarizer` 完全相同（ADR-009「提示词只有一份来源」）：App 的 Swift 代码是来源，后端 `revive_api/summaries.py` 照它移植，`app/ReviveKit/Tests/AssistantTests/Fixtures/prompts` 里的样本两边的测试都逐字比对，改了一边不改另一边 CI 就失败。`template_id` 是场景代号，不给则由模型判断；职业截到 40 字。要先有文字稿（`409 no_transcript`）；同一条录音已有排队或进行中的生成时返回那个任务。每次生成都保留，列表新的在前；回复读不出来（`bad_reply`）按可重试处理。记一条 `llm_tokens` 用量。模板就是 10 种内置场景，从代码读，不建表（G2b 自定义模板不做） |
 | 任务 | M2 | `GET /tasks/{id}` | 状态见 §7.4。**已做**（2026-11-22）：返回 `status`、`attempts`、`error {code, message}`（重试等待中也带上一次的错误）、`finished_at`；只能读自己的任务 |
 | 意见反馈 | M2 | `POST /feedback` | O1b。**已做**（2026-11-22） |
 | 用量 | M2 | `GET /me/usage` | X2；超额返回 `quota_exceeded` |
@@ -530,8 +530,8 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | `recordings` | id、user_id、device_id（设备删掉后置空）、source（card、phone、import、realtime）、started_at、duration_ms、title、audio_sha256、audio_size、audio_content_type（没有音频时三项都为空）、audio_object_key（每次开始上传换一个新键）、upload_id（进行中的分片上传）、uploaded_at、version、created_at、updated_at、deleted_at；（user_id, audio_sha256）在未删除的行里唯一。folder_id 等 M4 | M2 |
 | `object_deletions` | id、object_key、upload_id（有值表示取消这次分片上传，空表示删除对象）、attempts、last_error、created_at；和删掉引用的那一步在同一个事务里写入，不属于任何用户，所以注销后仍在；请求结束后立即清，存储不可用时由 `maintenance` 重试 | M2 |
 | `transcripts` | recording_id（主键，一条录音一份，重新转写覆盖）、language、segments（JSONB：`start_ms`、`end_ms`、`speaker`、`text`）、speakers（JSONB：标签 → 用户起的名称）、asr_provider、created_at、updated_at | M2 |
-| `summaries` | id、recording_id、template_id、kind（总结、大纲、思维导图、金句、标签）、content（JSONB）、model、created_at | M2 |
-| `templates` | id、name、category、prompt、is_builtin | M2 |
+| `summaries` | id、recording_id、scene（用的模板，即场景代号）、content（JSONB：title、summary、sections、todos、tags、people、outline、quotes，和 App 的纪要同样的栏目，一次生成全部）、model、created_at；每次生成一行 | M2 |
+| `templates` | 暂不建表：内置模板就是 10 种场景，在代码里（`summaries.SCENES`，和 App 的 `RecordingScene` 一致）；有用户自定义模板时再建 | M2 |
 | `tasks` | 队列和业务状态是同一张表（ADR-013）：id、user_id、recording_id、kind（`transcribe`，之后加 AI 生成）、params（JSONB）、status、attempts、max_attempts、run_after、lease_until、error_code、error_message、created_at、updated_at、started_at、finished_at | M2 |
 | `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens）、amount、occurred_at | M2 |
 | `feedback` | id、user_id、content、app_version、created_at | M2 |

@@ -79,11 +79,11 @@ public struct Summarizer: Sendable {
                 try Task.checkCancellation()
                 let note = try await client.complete(config, system: Self.chunkPrompt(index: i + 1),
                                                      user: chunk, json: false)
-                notes.append("【第 \(i + 1) 段】\n" + note)
+                notes.append(note)
             }
-            material = notes.joined(separator: "\n\n")
+            material = Self.chunkNotes(notes)
         }
-        let user = "录音时长：\(Self.promptDuration(ms: durationMs))\n\n文字稿：\n\(material)"
+        let user = Self.userMessage(material: material, durationMs: durationMs)
         let reply = try await client.complete(config, system: Self.systemPrompt(fixedScene: fixedScene,
                                                                                 profession: config.profession),
                                               user: user, json: true)
@@ -125,6 +125,20 @@ public struct Summarizer: Sendable {
     }
 
     // MARK: Prompts
+    //
+    // The backend sends the same prompts (ADR-009: one source). `PromptFixtureTests` pins them to
+    // Tests/AssistantTests/Fixtures/prompts, which the backend's tests check too; change the
+    // prompts and the fixtures together.
+
+    /// The user message of the summary request.
+    public static func userMessage(material: String, durationMs: Int) -> String {
+        "录音时长：\(promptDuration(ms: durationMs))\n\n文字稿：\n\(material)"
+    }
+
+    /// The material of a long transcript: each chunk's notes under its number.
+    public static func chunkNotes(_ notes: [String]) -> String {
+        notes.enumerated().map { "【第 \($0.offset + 1) 段】\n" + $0.element }.joined(separator: "\n\n")
+    }
 
     static func chunkPrompt(index: Int) -> String {
         "你在帮人整理一段长录音的文字稿。这是其中第 \(index) 段。用简体中文列出这一段里的事实、观点、数字、人名、约定和待办，每条一行，不要评论，不要编造。"

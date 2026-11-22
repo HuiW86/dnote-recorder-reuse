@@ -1,5 +1,5 @@
 """Settings refuse weak secrets; production refuses to start without real code senders, a real
-object store or a real speech recognition engine."""
+object store, speech recognition engine or language model."""
 
 import pytest
 from pydantic import ValidationError
@@ -40,3 +40,11 @@ def test_production_needs_a_real_speech_engine(settings):
     prod = settings.model_copy(update={"environment": "prod"})
     with pytest.raises(RuntimeError, match="real speech recognition engine"):
         Runtime.build(prod, sms=MemorySender(), email=MemorySender(), store=object())
+
+
+def test_production_needs_a_real_language_model(settings):
+    from conftest import MemorySender
+
+    prod = settings.model_copy(update={"environment": "prod"})
+    with pytest.raises(RuntimeError, match="real language model"):
+        Runtime.build(prod, sms=MemorySender(), email=MemorySender(), store=object(), transcriber=object())

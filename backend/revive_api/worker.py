@@ -10,13 +10,16 @@ import logging
 import signal
 import time
 
-from . import maintenance, transcription
+from . import maintenance, summarize, transcription
 from .runtime import Runtime
 from .tasks import Handler, run_one
 
 log = logging.getLogger("revive_api")
 
-HANDLERS: dict[str, Handler] = {transcription.KIND: transcription.transcribe}
+HANDLERS: dict[str, Handler] = {
+    transcription.KIND: transcription.transcribe,
+    summarize.KIND: summarize.summarize,
+}
 
 
 async def work(run: Runtime, stop: asyncio.Event, idle_seconds: float = 1.0, maintenance_seconds: float = 600) -> None:

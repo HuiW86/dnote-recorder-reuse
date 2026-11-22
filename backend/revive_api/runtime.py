@@ -1,5 +1,5 @@
 """What the routes and the worker need: database, clock, code senders, object store, speech
-recognition, crypto helpers.
+recognition, language model, crypto helpers.
 
 Built once in `create_app` and kept on `app.state.runtime`; tests build their own with a
 movable clock and a sender that keeps codes in memory."""
@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from .asr import StandInTranscriber, Transcriber
 from .config import Settings
 from .errors import AppError
+from .llm import ChatModel, StandInChatModel
 from .security import Box, Codes, DeviceVault, Tokens
 from .storage import LocalStore, ObjectStore
 
@@ -68,6 +69,7 @@ class Runtime:
     email: CodeSender
     store: ObjectStore
     transcriber: Transcriber
+    chat: ChatModel
     tokens: Tokens
     codes: Codes
     vault: DeviceVault
@@ -82,6 +84,7 @@ class Runtime:
         email: CodeSender | None = None,
         store: ObjectStore | None = None,
         transcriber: Transcriber | None = None,
+        chat: ChatModel | None = None,
     ) -> "Runtime":
         if settings.environment == "prod" and (sms is None or email is None):
             # Codes must never end up only in a log in production.
@@ -91,6 +94,8 @@ class Runtime:
             raise RuntimeError("production needs a real object store")
         if settings.environment == "prod" and transcriber is None:
             raise RuntimeError("production needs a real speech recognition engine")
+        if settings.environment == "prod" and chat is None:
+            raise RuntimeError("production needs a real language model")
         engine = create_async_engine(settings.database_url, pool_pre_ping=True)
         return cls(
             settings=settings,
@@ -101,6 +106,7 @@ class Runtime:
             email=email or LoggingSender(),
             store=store or local_store(settings),
             transcriber=transcriber or StandInTranscriber(),
+            chat=chat or StandInChatModel(),
             tokens=Tokens(settings),
             codes=Codes(settings),
             vault=DeviceVault(settings),

@@ -230,6 +230,24 @@ class Transcript(Base):
     updated_at: Mapped[datetime] = _time()
 
 
+class Summary(Base):
+    """A summary the backend's model wrote (features.md G1). Every generation is kept, newest
+    first in GET /recordings/{id}/summaries; the app shows the newest."""
+
+    __tablename__ = "summaries"
+    __table_args__ = (Index("summaries_recording_time", "recording_id", "created_at"),)
+    id: Mapped[uuid.UUID] = _id()
+    recording_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recordings.id", ondelete="CASCADE"), nullable=False
+    )
+    # The scene code (summaries.SCENES): the template it was written with.
+    scene: Mapped[str] = mapped_column(String(16), nullable=False)
+    # title, summary, sections, todos, tags, people, outline, quotes (summaries.Draft)
+    content: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = _time()
+
+
 class UsageRecord(Base):
     """What a user consumed (prd.md §8, X2). Kept, without the user, when the account is deleted."""
 

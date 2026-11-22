@@ -24,6 +24,7 @@ if not TEST_URL:
 
 BACKEND = Path(__file__).resolve().parent.parent
 TABLES = [
+    "summaries",
     "usage_records",
     "transcripts",
     "tasks",

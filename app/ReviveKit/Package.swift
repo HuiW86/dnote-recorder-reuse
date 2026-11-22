@@ -73,9 +73,12 @@ let package = Package(
         ]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
         .testTarget(name: "TranscriptionTests", dependencies: ["Library", "Transcription"]),
-        .testTarget(name: "AssistantTests", dependencies: [
-            "Library", "Assistant", "Transcription", "Player", "CardProtocol", "CardTestSupport",
-        ]),
+        .testTarget(
+            name: "AssistantTests",
+            dependencies: ["Library", "Assistant", "Transcription", "Player", "CardProtocol", "CardTestSupport"],
+            // Read from the source tree by PromptFixtureTests; shared with the backend's tests.
+            exclude: ["Fixtures"]
+        ),
         .testTarget(name: "LinkImportTests", dependencies: ["LinkImport"]),
         .testTarget(name: "LibraryToolsTests", dependencies: ["Library", "LibraryTools"]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),

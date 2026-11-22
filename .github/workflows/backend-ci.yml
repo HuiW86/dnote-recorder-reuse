@@ -1,11 +1,12 @@
 name: backend-ci
 
+# The summary prompt fixtures are shared with the app (ADR-009): a change to them runs both CIs.
 on:
   push:
     branches: [main]
-    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+    paths: ["backend/**", "app/ReviveKit/Tests/AssistantTests/Fixtures/prompts/**", ".github/workflows/backend-ci.yml"]
   pull_request:
-    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+    paths: ["backend/**", "app/ReviveKit/Tests/AssistantTests/Fixtures/prompts/**", ".github/workflows/backend-ci.yml"]
 
 concurrency:
   group: backend-ci-${{ github.event.pull_request.number || github.ref }}

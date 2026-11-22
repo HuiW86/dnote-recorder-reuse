@@ -34,6 +34,7 @@
 ## In Progress
 - M2 后端第二片（分支 `claude/zen-allen-e62580`，等 CI 和合并）：录音与上传 `/v1/recordings`，预签名分片直传、断点续传、按 SHA-256 去重、下载地址、删除留墓碑；音频删除走 `object_deletions` 队列，注销时连音频一起删；COS 用本机替身 `LocalStore`（`/dev-storage` 签名地址，生产拒绝启动）；`python -m revive_api.maintenance` 清理存储挂掉时没删的、7 天没传完的。PR #134，backend-ci 已过
 - M2 后端第三片（同一分支，追加在 #134 上）：任务队列（ADR-013，Proposed：自己写，一张 `tasks` 表，自动重试 30/60/120 秒、15 分钟租约）、工作进程 `python -m revive_api.worker`（顺带每 10 分钟跑维护）、`GET /tasks/{id}`；转写骨架 `POST /recordings/{id}/transcribe`、文字稿、说话人命名、`asr_seconds` 用量；识别引擎是 `asr.Transcriber` 接口，暂用 `StandInTranscriber`（生产拒绝启动）。后端测试 61 个。ADR-012、ADR-013 都是 Proposed，等你确认
+- M2 后端第四片（同一分支，追加在 #134 上）：AI 纪要 `POST/GET /recordings/{id}/summaries`、`GET /templates`；提示词、长文分段、回复解析照 App 的 `Summarizer` 移植，`app/ReviveKit/Tests/AssistantTests/Fixtures/prompts` 的 7 个样本两边逐字比对（App 端 `PromptFixtureTests` 只能等 #134 的 app-ci 在 macOS 上验证）；大模型是 `llm.ChatModel` 接口，暂用 `StandInChatModel`。App 端 `Summarizer` 抽出 `userMessage`、`chunkNotes` 两个函数，行为不变。后端测试 79 个
 - 其他会话开着的：PR #125（Mac 版，ADR-011 已接受）、#129（公开隐私页的生成脚本）、#81（#79 的复验记录）。#130 改了 `privacy-policy.md` 的正文，#129 合并时可能要手动合一下
 
 ## Next Actions
@@ -44,7 +45,7 @@
 5. 需要用户决定或提供条件才能做的：
    - ADR-011 文末的 3 个问题：原生还是 Catalyst；是否在 App Store 之外分发，证书和下载页谁提供；要不要先让 Mac 用户直接装 iPhone 版
    - M2 后端：确认 ADR-012；腾讯云账号（服务器、PostgreSQL、COS、KMS）；短信签名和模板（个人主体能否申请要核实，不能就先只开邮箱登录，ADR-003）；发信用的邮件服务；域名 ICP 备案。有了这些才能把替身换成真实的短信、邮件和密钥服务并部署
-   - M2 后端下一片（不需要账号也能先做）：AI 生成（`POST /recordings/{id}/summaries`、`GET /templates`，大模型先用替身；提示词要和 App 内置的同一份，ADR-009）、`GET /me/usage` 与额度（额度多少要你定）。真 ASR 引擎等 ASR 对比结果和账号。COS 的真实 `ObjectStore` 实现等账号；到时 COS 上要配「7 天清掉未完成的分片上传」的生命周期规则
+   - M2 后端下一片（不需要账号也能先做）：`GET /me/usage` 与额度（额度多少要你定）、换角度重起标题；之后是 App 端的登录和「用闻笺账号」这条路。真 ASR 引擎等 ASR 对比结果和账号。COS 的真实 `ObjectStore` 实现等账号；到时 COS 上要配「7 天清掉未完成的分片上传」的生命周期规则
    - M6：两种设备的真机
 6. 从链接导入的真手机检查：`device-todo.md` §6a（T-M5-60～62），和 §6 的 T-M2-10 一起做
 
