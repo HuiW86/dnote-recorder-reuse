@@ -1,5 +1,5 @@
 # Handoff — 不需要真机的工作基本做完；下一步是装一个新构建，按 device-todo 做真机验收
-<!-- Edited by hand on 2026-11-21 to match main aed4bdb (PR #108–#124); not a /checkpoint run -->
+<!-- Edited by hand on 2026-11-21 to match main aed4bdb (PR #108–#124), then for PR #130; not a /checkpoint run -->
 
 ## Objective
 复刻 D·NOTE 官方 App（Revive，显示名「闻笺」），面向三类人（`CLAUDE.md` 定位）。当前推进顺序的第 ① 项：M1 验收与 TestFlight 外部测试（#42，含 #66）。
@@ -29,7 +29,10 @@
   - PR #124：纪要提示词 × 模型的盲评方法和汇总工具（`docs/summary-evaluation.md`、`client/summary_scores.py`）
 
 ## In Progress
-- 无。
+- PR #130（本会话，等 app-ci 和合并）：
+  - X12 的 iPhone 部分「从链接导入」：播客单集页面、RSS、Apple 播客、音频地址；新联网模块 `LinkImport`
+  - `app/ReviveKit/scripts/linux-test.sh`：没有 macOS 时在 Linux 上跑只用 Foundation 的那 217 个测试
+- 其他会话开着的：PR #125（Mac 版，ADR-011 已接受）、#129（公开隐私页的生成脚本）、#81（#79 的复验记录）。#130 也改了 `privacy-policy.md` 的正文，和 #129 合并时可能要手动合一下
 
 ## Next Actions
 1. 装一个当前 main 的构建（PR #124 之后；#110 也改了 App 代码）（TestFlight 要先把 `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 加 1），按 `docs/device-todo.md` 的顺序做真机检查。新增的几项都在 §6：T-M15-60 先不连卡（审核员走的路，外部测试前必须过）、T-M2-10 关掉「无线数据」、T-M4-17～21 手机录音
@@ -40,16 +43,19 @@
    - ADR-011 文末的 3 个问题：原生还是 Catalyst；是否在 App Store 之外分发，证书和下载页谁提供；要不要先让 Mac 用户直接装 iPhone 版
    - M2 后端：云厂商账号
    - M6：两种设备的真机
+   - 从链接导入与审核准则 5.2.3：读单集网页的 `og:audio` 是否保留（`testflight.md` §2 的【待核对】；退路是只留 RSS、Apple 播客和音频直链）
+6. 从链接导入的真手机检查：`device-todo.md` §6a（T-M5-60～62），和 §6 的 T-M2-10 一起做
 
 ## Risks & Decisions
 - 用户决定（2026-11-20）：加「先不连卡，直接用」
 - `AVAudioRecorder` 被杀掉时留下的 CAF 是否真的可读，单元测试只模拟了被截断的文件，要真机确认（T-M4-18）
 - 「无线数据」关掉时 iOS 报的是不是 `-1009`，要国行 iPhone 确认（T-M2-10）
 - 「设置 › 开发者 › 重置媒体服务」这一项是否存在没有核实（T-M4-21 用它触发）
-- 本容器没有 Swift 工具链：`swift test` 和 iOS 构建只能看 PR 的 app-ci；app-ci 只在 PR 和推送 main 时跑
+- 本容器默认没有 Swift 工具链：`app/ReviveKit/scripts/linux-test.sh --install` 下载 Swift 6.2（约 1 GB），之后能跑 CardProtocol、CardLink、CardService、DeviceSource、Library、SyncEngine、LinkImport 的测试。AVFoundation、Speech、CoreBluetooth、SwiftUI 的部分和 iOS 构建仍然只能看 PR 的 app-ci；app-ci 只在 PR 和推送 main 时跑
 
 ## Verify
 - `cd app/ReviveKit && swift test --disable-xctest`（macOS）
+- `app/ReviveKit/scripts/linux-test.sh`（Linux，只是其中一部分）
 - `scripts/check-m1-rules.sh`、`scripts/check-theme.sh`
 - `cd client && python3 -m pytest`
 - `cd app && xcodegen generate && xcodebuild build -project Revive.xcodeproj -scheme Revive -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO`

@@ -6,3 +6,4 @@ build/
 DerivedData/
 ReviveKit/.build/
 ReviveKit/.swiftpm/
+ReviveKit/.build-linux/

@@ -1,7 +1,7 @@
 # ASR 选型评估（方法与工具；数据待测）
 
 **用途**　#12 的前置任务「ASR 选型」和 #67 的两个补充候选，用同一套录音、同一个打分工具比较，结论写进 #12 的 ASR 选型 ADR，并决定 X9 的去留。
-**状态**　2026-11-21：方法和打分工具已就绪（`client/asr_eval.py`，有测试，client-ci 会跑）。下面所有数据都是 **待测**，没有一项是估计值。
+**状态**　2026-11-21：方法、批量转写和打分工具已就绪（`client/asr_transcribe.py`、`client/asr_eval.py`，都有测试，client-ci 会跑）。下面所有数据都是 **待测**，没有一项是估计值。
 **上游**　#12、#67、ADR-009；`features.md` X9、X11、F1
 **证据**　`evidence/v67-asr/`（测的时候新建）
 
@@ -32,21 +32,32 @@
 
 - **在 App 里测的两个**：转成文字后，在详情页「⋯ → 分享 → 纪要和文字稿 Markdown」导出。打分工具只读 Markdown 里「## 文字稿」那一节，去掉 `**00:01:05**` 这样的时间。
   - 一次只开一种转写方式。本机转写打开时 App 优先用它，测自配服务时先把它关掉。
+- **有 OpenAI 兼容 `/audio/transcriptions` 的引擎**（硅基流动的 SenseVoiceSmall、OpenAI、Groq 等）：用 `client/asr_transcribe.py` 批量转，一段录音一个 `.txt`，并记下每段的耗时（`timing.csv`）。已经有文字的录音会跳过，中断后可以接着跑。密钥只从环境变量读。
+
+```bash
+cd client
+export SILICONFLOW_API_KEY=…
+python asr_transcribe.py eval/audio eval/sensevoice \
+    --base-url https://api.siliconflow.cn/v1 --model FunAudioLLM/SenseVoiceSmall \
+    --key-env SILICONFLOW_API_KEY --language zh
+```
+
 - **其他引擎**：导出纯文本 `.txt`。
-- **目录**：每个引擎一个目录，文件名和参考文本相同（扩展名可以不同）：
+- **目录**：都放在 `client/eval/` 下。这个目录和常见的音频格式都在 `.gitignore` 里，录音和文字稿不会被误提交。每个引擎一个目录，文件名和参考文本相同（扩展名可以不同）：
 
 ```
-refs/meeting-30min.txt
-on-device/meeting-30min.md
-sensevoice/meeting-30min.md
-vendor-a/meeting-30min.txt
+eval/audio/meeting-30min.m4a
+eval/refs/meeting-30min.txt
+eval/on-device/meeting-30min.md
+eval/sensevoice/meeting-30min.txt
+eval/vendor-a/meeting-30min.txt
 ```
 
 ## 5. 打分
 
 ```bash
 cd client
-python asr_eval.py refs on-device sensevoice vendor-a
+python asr_eval.py eval/refs eval/on-device eval/sensevoice eval/vendor-a
 ```
 
 - 输出一张 Markdown 表：每个引擎的文件数、参考字数、替换、删除、插入、字错率、缺少的文件。加 `--json` 得到每个文件的明细。

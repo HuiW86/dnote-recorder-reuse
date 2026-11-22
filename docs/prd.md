@@ -31,6 +31,7 @@
 规则：
 
 - **M1 各层不引用任何网络库**。M2 的同步与 AI 模块单独成层，只读写 Library，不被设备层调用（`CLAUDE.md` 硬规则 3）。
+- 联网的模块目前有两个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）和 `LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）。
 - 协议细节（命令字、帧格式、JSON 字段）只出现在 CardProtocol，上层只看到 Swift 类型。固件版本差异也在这一层处理。
 - 协议层从 `ios-prototype/Sources/DNoteProtocol.swift` 起步，原型的单元测试和样本一并迁移。
 - 代码位置：每层是 `app/ReviveKit/` 里的一个 Swift Package 目标，依赖方向在 `Package.swift` 里声明，以它为准；App 目标 `app/Revive/` 只负责界面（#36）。界面只和 AppModel 打交道，AppModel 直接依赖 CardLink、CardService、Library、SyncEngine、Player。
