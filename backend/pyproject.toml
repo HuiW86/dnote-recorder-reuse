@@ -1,0 +1,51 @@
+[project]
+name = "revive-api"
+version = "0.1.0"
+description = "Backend for the 闻笺 app (M2): accounts, device registry, feedback. See docs/prd.md §7-§8."
+requires-python = ">=3.12"
+# Exact pins (ADR-012); upgrades go in their own PR.
+dependencies = [
+    "fastapi==0.165.0",
+    "uvicorn==0.54.0",
+    "pydantic==2.14.4",
+    "pydantic-settings==2.16.3",
+    "email-validator==2.4.0",
+    "sqlalchemy[asyncio]==2.1.9",
+    "psycopg[binary]==3.3.9",
+    "alembic==1.20.1",
+    "argon2-cffi==25.1.0",
+    "pyjwt==2.15.1",
+    "cryptography==50.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "pytest-asyncio==1.5.0",
+    "httpx==0.28.1",
+    "ruff==0.17.6",
+]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["revive_api*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC"]
+ignore = ["S101"]  # assert in tests
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106", "S107"]  # literal test passwords
