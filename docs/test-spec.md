@@ -285,6 +285,24 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 
 实现：T-M4-21 是 `PhoneRecorderTests` `failureWhenNotRecordingChangesNothing`；录音中失败的那一半要麦克风，只能真机验证。T-M4-20 是 `PhoneRecorderTests` `startNeedsRoom`、`lowSpaceOnlyMattersWhileRecording`；每 10 秒的检查和自动保存只能真机验证。T-M4-19 是 `PhoneRecorderTests` `marksAreKeptThroughRecovery`，`AppDatabaseTests` `phoneMarksStayWithTheRecording`、`v15LibraryUpgradesToV16`。T-M4-17 是 `PhoneRecorderTests` `interruptionPausesAndSaysWhy`、`pausingByHandIsNotAnInterruption`，通话打断只能真机验证。T-M4-18 是 `PhoneRecorderTests` `fileNameCarriesTheStartTime`、`cutOffRecordingIsStoredNextTime`、`unreadableLeftoverIsKeptAndNotRetried`、`emptyLeftoverIsRemoved`；`AVAudioRecorder` 被杀掉时留下的 CAF 是否真的可读，只能真机验证。T-M4-16 是 `TextImportTests`（4 个）、`PlayerTests` `textRecordingHasNoAudioToPlayOrExport`、`PolishAndLoopTests` `textOnlyRecordingHasNoAudio`、`HomeModelTests` `importsTextFilesAsRecordingsWithoutAudio`。T-M4-15 是 `WordGraderTests`（4 个）、`AppDatabaseTests` `wordListFollowsTheRecording`、`v14LibraryUpgradesToV15`，`PolishAndLoopTests` `listsWordsByLevel`。T-M4-14 是 `DOCXExportTests`（2 个）、`RecordingDetailModelTests` `exportsUnderTitle`。T-M4-13 是 `RewriterTests` `rewriteAndAnswerSendTheRightPrompts`、`PolishAndLoopTests` `explainsALine`。T-M4-11 是 `StreamTests`（6 个）、`RewriterTests` `rewriteAndAnswerSendTheRightPrompts`、`LibraryAskerTests` `answersWithItsCitationsAndSendsOnlySummaries`、`LibraryQuestionModelTests`、`PolishAndLoopTests` `rewriteOpensTheSheetAndFillsIt`。T-M4-12 是 `MindMapExportTests`、`PolishAndLoopTests` `exportsTheMindMap`。T-M4-10 是 `AppDatabaseTests` `tagsRenameMergeAndDeleteAcrossSummaries`、`v13LibraryUpgradesToV14`，`TagsModelTests`。T-M4-09 是 `HomeModelTests` `lastSeenFollowsEachPass`、`AppDatabaseTests` `markSyncedStampsTheCard`、`v12LibraryUpgradesToV13`。T-M4-08 是 `PDFExportTests`（2 个，只在 macOS 上跑）、`RecordingDetailModelTests` `exportsUnderTitle`。T-M4-06 是 `PolishAndLoopTests` `loopRangeAndSteps`、`loopsALine`（「暂停不停止循环」只在代码里，没有测试）。T-M4-07 是 `PlayerTests` `exportsWAV`。T-M4-05 是 `HomeModelTests` `sourceChipNarrowsTheList`、`subtitleNamesTheSourceOfNonCardRecordings`。T-M4-04 是 `RichTextTests`（2 个，只在 macOS 上跑：Linux 的 Foundation 没有 Markdown 解析）。T-M4-03 是 `LibraryAskerTests`（3 个）、`LibraryQuestionModelTests`。T-M4-01 是 `AppDatabaseTests` `foldersHoldRecordings`、`v7LibraryUpgradesToV8`；T-M4-02 是 `HomeModelTests` `folderChipNarrowsTheList`、`RecordingDetailModelTests` `movesBetweenFolders`。
 
+
+### 3.7 M5 链接导入（X12，iPhone 部分，#72）
+
+自动用例都不联网：页面、RSS 和 Apple 查询的回复是测试里手写的，下载用 `URLProtocol` 桩。编号 10～49 是自动用例，60 起是要真手机、真网络的检查（01～09 留给 Mac 版）。
+
+| 编号 | 对象 | 判据 |
+|---|---|---|
+| T-M5-10 | 从分享文字里找链接 | 播客 App 分享的整段文字（含中文标点、尾随的句号括号）里取出第一个 http(s) 链接；没有链接、`ftp:` 不算；视频网站（B 站、YouTube、抖音等，含子域名）认出来，不发任何请求，提示「暂时不能导入视频网站的链接」 |
+| T-M5-11 | 读 RSS、Atom、单集网页、Apple 播客 | RSS：节目名、每期标题（含 CDATA）、`<enclosure>` 的地址（相对地址补全）、大小、`itunes:duration` 三种写法、`pubDate`；图片附件和没有音频的条目丢掉；按日期从新到旧。Atom 读 `rel="enclosure"`。网页：`og:audio` 优先（`&amp;` 解码，空的 `<audio src="">` 不算），其次 `<audio>`、带音频类型的 `<source>`，视频的 `<source>` 不算；没有音频时跟着 `<link rel="alternate">` 去读 RSS。Apple 播客：链接里取节目编号、`i=` 单集编号和国家代码，查询只带这几个值；单集在查询结果里就直接导入，不在就退回节目的 RSS 让用户挑，节目链接列出查询结果 |
+| T-M5-12 | 打不开、不让下载时的提示 | 401/402/403 是「要登录或付费」，404/410 是「页面不存在了」，其他状态带错误码；没联网和关了「无线数据」（`-1009`、`dataNotAllowed`）提示去哪里打开；页面里没有音频时说明能粘贴哪几种链接；音频地址就是文件时解析阶段不发请求；`http://` 的链接改用 `https://` 访问（App 不开 ATS 例外） |
+| T-M5-13 | 下载 | 边收边写进文件，扩展名先看地址、再看 `Content-Type`；进度按 `Content-Length` 报、只增不减；收到网页（`text/*`）、401/403 时不存；超过上限立即停止并提示「超过 1 GB」；`Content-Length` 显示放不下（留 200 MB 余量）时不下载；取消后不留文件 |
+| T-M5-14 | 「从链接导入」页 | 一期节目直接下载并存成来源为「导入」的录音，标题是这一期的标题，时间是导入时间，临时文件清掉；节目列出最多 100 期，选一期才下载；解析失败、下载的不是音频时显示原因，录音库里不多出任何东西；下载中取消回到空闲，不存录音；取消后马上换一个链接，取消的那次晚到的结果不改新的状态；列表里连点两期只下载第一期 |
+| T-M5-60 | 真手机、真网络 | 小宇宙、Apple 播客的单集链接各导入一次（从这两个 App 里「分享 › 拷贝链接」再粘贴）；一个节目的 RSS 地址列出单集，选一期导入；导入的录音能播放到结尾、能本机转写；30 分钟以上的一期导入后时长正确 |
+| T-M5-61 | 关掉「无线数据」 | 「设置 › 闻笺 › 无线数据」关掉后粘贴链接，提示去哪里打开，没有转圈不停；打开后同一个链接能导入 |
+| T-M5-62 | 下载中离开 | 下载中点「取消」、下拉关闭不了（下载中不能拖动关闭）；切到后台再回来，下载继续或给出失败原因，不留下半截录音 |
+
+实现：T-M5-10 是 `LinkTextTests`（6 个）和 `LinkResolverTests` `failuresReadAsAdvice` 里的视频网站一项。T-M5-11 是 `FeedParserTests`（4 个）、`PageScannerTests`（5 个）、`ApplePodcastsTests`（3 个）、`LinkResolverTests` 的前 9 个。T-M5-12 是 `LinkResolverTests` `failuresReadAsAdvice`、`everyErrorHasText`。T-M5-13 是 `EpisodeDownloaderTests`（6 个）。以上 35 个在 `LinkImportTests`，只用 Foundation，Linux 上也能跑。T-M5-14 是 `LinkImportModelTests`（6 个，要 `AudioImporter`，只在 macOS 上跑）。2026-11-21 另用同一个模块对真实的小宇宙单集页、Apple 播客的节目和单集链接、一个 RSS 地址各解析了一次，结果都对（不是自动用例，没有入库）。
+
 ## 4. 真机测试方法与证据
 
 每次真机测试在 `evidence/<编号>/` 下留一份 README，写明：
