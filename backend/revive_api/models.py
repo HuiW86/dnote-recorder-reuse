@@ -17,7 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -177,3 +177,69 @@ class ObjectDeletion(Base):
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _time()
+
+
+class Task(Base):
+    """An asynchronous job and its state (prd.md §7.4); queue rules in tasks.py (ADR-013)."""
+
+    __tablename__ = "tasks"
+    __table_args__ = (
+        CheckConstraint("status IN ('queued', 'running', 'succeeded', 'failed')", name="tasks_status"),
+        Index("tasks_due", "run_after", postgresql_where=text("status = 'queued'")),
+        Index("tasks_leased", "lease_until", postgresql_where=text("status = 'running'")),
+        Index("tasks_recording_kind", "recording_id", "kind"),
+    )
+    id: Mapped[uuid.UUID] = _id()
+    user_id: Mapped[uuid.UUID] = _owner()
+    recording_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recordings.id", ondelete="CASCADE")
+    )
+    # transcribe (later: summarize)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    params: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    run_after: Mapped[datetime] = _time()
+    lease_until: Mapped[datetime | None] = _time(nullable=True)
+    # The last failure, kept while a retry waits so the app can show it.
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = _time()
+    updated_at: Mapped[datetime] = _time()
+    started_at: Mapped[datetime | None] = _time(nullable=True)
+    finished_at: Mapped[datetime | None] = _time(nullable=True)
+
+
+class Transcript(Base):
+    """A recording's transcript from server-side ASR (features.md F1). One per recording;
+    transcribing again replaces it."""
+
+    __tablename__ = "transcripts"
+    recording_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recordings.id", ondelete="CASCADE"), primary_key=True
+    )
+    language: Mapped[str] = mapped_column(String(16), nullable=False)
+    # [{start_ms, end_ms, speaker, text}]
+    segments: Mapped[list] = mapped_column(JSONB, nullable=False)
+    # The user's names for the engine's speaker labels: {"S1": "张三"}
+    speakers: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # Which engine made it, so transcripts can be redone when a better one comes (backend-design.md §4.5).
+    asr_provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = _time()
+    updated_at: Mapped[datetime] = _time()
+
+
+class UsageRecord(Base):
+    """What a user consumed (prd.md §8, X2). Kept, without the user, when the account is deleted."""
+
+    __tablename__ = "usage_records"
+    __table_args__ = (
+        CheckConstraint("kind IN ('asr_seconds', 'llm_tokens')", name="usage_records_kind"),
+        Index("usage_records_user_time", "user_id", "occurred_at"),
+    )
+    id: Mapped[uuid.UUID] = _id()
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    occurred_at: Mapped[datetime] = _time()

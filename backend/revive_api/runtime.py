@@ -1,5 +1,5 @@
-"""What the routes need besides the request: database, clock, code senders, object store, crypto
-helpers.
+"""What the routes and the worker need: database, clock, code senders, object store, speech
+recognition, crypto helpers.
 
 Built once in `create_app` and kept on `app.state.runtime`; tests build their own with a
 movable clock and a sender that keeps codes in memory."""
@@ -15,6 +15,7 @@ from typing import Annotated, Protocol
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
+from .asr import StandInTranscriber, Transcriber
 from .config import Settings
 from .errors import AppError
 from .security import Box, Codes, DeviceVault, Tokens
@@ -66,6 +67,7 @@ class Runtime:
     sms: CodeSender
     email: CodeSender
     store: ObjectStore
+    transcriber: Transcriber
     tokens: Tokens
     codes: Codes
     vault: DeviceVault
@@ -79,6 +81,7 @@ class Runtime:
         sms: CodeSender | None = None,
         email: CodeSender | None = None,
         store: ObjectStore | None = None,
+        transcriber: Transcriber | None = None,
     ) -> "Runtime":
         if settings.environment == "prod" and (sms is None or email is None):
             # Codes must never end up only in a log in production.
@@ -86,6 +89,8 @@ class Runtime:
         if settings.environment == "prod" and store is None:
             # Audio on the API server's disk, served by the API, is for development only.
             raise RuntimeError("production needs a real object store")
+        if settings.environment == "prod" and transcriber is None:
+            raise RuntimeError("production needs a real speech recognition engine")
         engine = create_async_engine(settings.database_url, pool_pre_ping=True)
         return cls(
             settings=settings,
@@ -95,6 +100,7 @@ class Runtime:
             sms=sms or LoggingSender(),
             email=email or LoggingSender(),
             store=store or local_store(settings),
+            transcriber=transcriber or StandInTranscriber(),
             tokens=Tokens(settings),
             codes=Codes(settings),
             vault=DeviceVault(settings),

@@ -465,7 +465,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 ## 7. 后端接口契约（M2～M4，模块级）
 
-技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列（候选 procrastinate）到转写那一片再定。代码在 `backend/`，第一片（账号、设备登记、意见反馈）和第二片（录音与上传）已做，见 `backend/README.md`。
+技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-22，Proposed）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）已做，见 `backend/README.md`。
 
 ### 7.1 通用约定
 
@@ -482,9 +482,9 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 | 账号 | M2 | `POST /auth/sms/send`、`POST /auth/sms/login`、`POST /auth/email/register`、`POST /auth/email/verify`、`POST /auth/password/login`、`POST /auth/password/reset/send`、`POST /auth/password/reset`、`POST /auth/refresh`、`POST /auth/logout`、`GET /me`、`POST /me/password`、`DELETE /me` | K1；`DELETE /me` 是 App 内注销，删除账号及全部数据。**已做**（2026-11-22）。手机号第一次登录即建号；邮箱先注册再验证；验证码 6 位、10 分钟有效、最多试 5 次、同一目标 60 秒一条、每天 10 条；找回密码不论邮箱有没有注册都回同样的结果；改密码、重置密码后其他设备都要重新登录 |
 | 设备登记 | M2 | `GET /devices`、`PUT /devices/{sn_hash}`、`DELETE /devices/{sn_hash}` | A4b；上传 bondId（服务端加密存储），换手机时取回。`sn_hash` 是 App 算的 SHA-256(sn)（64 位十六进制）。**已做**（2026-11-22） |
 | 录音与上传 | M2 | `POST /recordings`（建元数据，返回预签名分片上传地址）、`POST /recordings/{id}/upload`（断点续传：新地址和已传的分片）、`POST /recordings/{id}/upload-complete`、`GET /recordings/{id}/audio-url`、`GET /recordings`、`GET /recordings/{id}`、`DELETE /recordings/{id}` | 音频直传对象存储，不经过应用服务器。**已做**（2026-11-22），COS 暂用本机替身。同一账号里同一 `audio_sha256` 只建一条，再提交返回已有的那条（未传完时带续传地址）；分片 8 MiB，地址 1 小时有效；完成时服务端按声明的大小核对每个分片再合并；7 天没传完的上传作废；删除留墓碑（`deleted_at`）供 M4 同步，音频从存储删除；没有音频的录音（文字导入）不上传 |
-| 转写 | M2 | `POST /recordings/{id}/transcribe` → 任务 id；`GET /recordings/{id}/transcript`；`PATCH /recordings/{id}/speakers` | F1；说话人重命名 |
+| 转写 | M2 | `POST /recordings/{id}/transcribe {language, speakers}` → 任务；`GET /recordings/{id}/transcript`；`PATCH /recordings/{id}/speakers {speakers: {标签: 名称}}` | F1；说话人重命名。**骨架已做**（2026-11-22）：音频传完才能转写；同一条录音已有排队或进行中的转写时返回那个任务（200），否则新建（202）；结果是 `segments`（`start_ms`、`end_ms`、`speaker`、`text`）和 `speakers`（用户起的名字，只能给文字稿里出现的标签起名，空名删除，重新转写后清空）；转写成功记一条 `asr_seconds` 用量。识别引擎是可替换接口，现在是开发用替身（生产拒绝启动），真引擎等 ASR 对比和账号 |
 | AI 生成 | M2 | `POST /recordings/{id}/summaries {template_id}` → 任务 id；`GET /recordings/{id}/summaries`；`GET /templates` | G1、G2a |
-| 任务 | M2 | `GET /tasks/{id}` | 状态见 §7.4 |
+| 任务 | M2 | `GET /tasks/{id}` | 状态见 §7.4。**已做**（2026-11-22）：返回 `status`、`attempts`、`error {code, message}`（重试等待中也带上一次的错误）、`finished_at`；只能读自己的任务 |
 | 意见反馈 | M2 | `POST /feedback` | O1b。**已做**（2026-11-22） |
 | 用量 | M2 | `GET /me/usage` | X2；超额返回 `quota_exceeded` |
 | 实时转写 | M3 | `WS /realtime?codec=opus&sample_rate=16000&language=zh` | H1；App 发 Opus 帧，服务端推流式文字；断线后 App 补传本地音频 |
@@ -508,6 +508,8 @@ queued ──▶ running ──▶ succeeded
                └──▶ failed（retryable=true 时服务端自动重试，最多 3 次）
 ```
 
+实现（ADR-013）：一次执行算一次尝试，最多 4 次（第一次加 3 次重试），重试前分别等 30、60、120 秒，等待中 `status` 回到 `queued` 并保留上一次的错误；工作进程取任务时拿 15 分钟租约，进程挂了租约过期由别的进程接手（算一次新的尝试），4 次都没回来就 `failed`（`worker_lost`）；写结果时要求任务仍在这一次尝试中，过期的那次结果丢弃。删除录音时，它没完成的任务改为 `failed`（`recording_deleted`），进行中的那次结果不写入。
+
 App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推送通知在 M2 内再决定是否做。后端或网络故障时，App 本地记录待提交的任务，恢复后补交（§7.1 第 5 条）。
 
 ### 7.5 同步模型（M4）
@@ -527,11 +529,11 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | `devices` | id、user_id、sn_key（对 App 给的 SHA-256(sn) 再做服务端 HMAC，只用来查找）、secret（SHA-256(sn) 和 bondId 一起加密）、name、firmware、created_at、updated_at | M2 |
 | `recordings` | id、user_id、device_id（设备删掉后置空）、source（card、phone、import、realtime）、started_at、duration_ms、title、audio_sha256、audio_size、audio_content_type（没有音频时三项都为空）、audio_object_key（每次开始上传换一个新键）、upload_id（进行中的分片上传）、uploaded_at、version、created_at、updated_at、deleted_at；（user_id, audio_sha256）在未删除的行里唯一。folder_id 等 M4 | M2 |
 | `object_deletions` | id、object_key、upload_id（有值表示取消这次分片上传，空表示删除对象）、attempts、last_error、created_at；和删掉引用的那一步在同一个事务里写入，不属于任何用户，所以注销后仍在；请求结束后立即清，存储不可用时由 `maintenance` 重试 | M2 |
-| `transcripts` | id、recording_id、language、segments（JSONB：开始、结束、说话人、文本）、speakers（JSONB：说话人名称）、asr_provider、created_at | M2 |
+| `transcripts` | recording_id（主键，一条录音一份，重新转写覆盖）、language、segments（JSONB：`start_ms`、`end_ms`、`speaker`、`text`）、speakers（JSONB：标签 → 用户起的名称）、asr_provider、created_at、updated_at | M2 |
 | `summaries` | id、recording_id、template_id、kind（总结、大纲、思维导图、金句、标签）、content（JSONB）、model、created_at | M2 |
 | `templates` | id、name、category、prompt、is_builtin | M2 |
-| `tasks` | 由任务队列库管理；业务侧另记 kind、recording_id、user_id、status、error_code | M2 |
-| `usage_records` | id、user_id、kind（asr_seconds、llm_tokens）、amount、occurred_at | M2 |
+| `tasks` | 队列和业务状态是同一张表（ADR-013）：id、user_id、recording_id、kind（`transcribe`，之后加 AI 生成）、params（JSONB）、status、attempts、max_attempts、run_after、lease_until、error_code、error_message、created_at、updated_at、started_at、finished_at | M2 |
+| `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens）、amount、occurred_at | M2 |
 | `feedback` | id、user_id、content、app_version、created_at | M2 |
 | `idempotency_records` | id、scope（调用方）、key、request_hash、status_code（处理中为空）、content_type、body（加密）、created_at；24 小时后清掉 | M2 |
 | `notes` | id、recording_id、offset_ms、text、image_keys、version、updated_at、deleted | M4 |
@@ -540,7 +542,7 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 
 - 服务端只存 `sn` 哈希的 HMAC，不存原值，也不存裸哈希：序列号能被枚举，裸的 SHA-256 在数据库泄露时能反推出 sn，再加上仓库里公开的 `DEVICE_KEY_SECRET` 就能算出这张卡的音频密钥（ADR-006、ADR-012）。bondId 和 App 给的哈希一起用 AES-256-GCM 加密存储；现在密钥来自环境变量，上线前换成云厂商密钥管理服务托管的信封加密。
 - 原始音频是唯一的事实来源；转写和总结都能重算，所以保留 `asr_provider`、`model` 字段，便于换模型后批量重跑（`backend-design.md` §4.5）。
-- 注销账号（`DELETE /me`）：删除该用户的全部数据库记录和 COS 对象；用量记录匿名化后保留。现在的做法：用户表一行删除，令牌、设备、反馈、录音通过 `ON DELETE CASCADE` 一起删掉（不留 `deleted_at`）；存储里的音频在同一事务里记入 `object_deletions`，响应后立即删除，删不掉的稍后重试。用量随那一片加入。
+- 注销账号（`DELETE /me`）：删除该用户的全部数据库记录和 COS 对象；用量记录匿名化后保留。现在的做法：用户表一行删除，令牌、设备、反馈、录音通过 `ON DELETE CASCADE` 一起删掉（不留 `deleted_at`）；存储里的音频在同一事务里记入 `object_deletions`，响应后立即删除，删不掉的稍后重试。用量记录的 user_id 置空后保留（`ON DELETE SET NULL`）；任务、文字稿随录音一起删掉。
 
 ## 9. 待决定与待验证
 
@@ -548,4 +550,5 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 |---|---|---|
 | App 本地数据库库选型（候选 GRDB） | 待决定 | M1 开工时，写 ADR |
 | 后端具体库与版本 | ADR-012 已提出（Proposed），等确认 | 2026-11-22 |
+| 任务队列用库还是自己写 | ADR-013 已提出（Proposed）：自己写，一张 `tasks` 表；等确认 | 2026-11-22 |
 | 任务完成是否用推送通知 | 待决定 | M2 |

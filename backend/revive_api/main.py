@@ -8,7 +8,7 @@ from sqlalchemy import text
 from . import errors
 from .config import Settings
 from .idempotency import IdempotencyMiddleware
-from .routers import auth, dev_storage, devices, feedback, me, recordings
+from .routers import auth, dev_storage, devices, feedback, me, recordings, transcripts
 from .runtime import Run, Runtime
 
 
@@ -27,7 +27,7 @@ def create_app(runtime: Runtime | None = None) -> FastAPI:
     app.add_middleware(IdempotencyMiddleware)
 
     v1 = APIRouter(prefix="/v1")
-    for module in (auth, me, devices, recordings, feedback):
+    for module in (auth, me, devices, recordings, transcripts, feedback):
         v1.include_router(module.router)
     app.include_router(v1)
     app.include_router(dev_storage.router)

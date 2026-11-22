@@ -33,6 +33,7 @@ from ..maintenance import drain_deletions, queue_deletion
 from ..models import Device, Recording, User
 from ..runtime import DB, Run, Runtime
 from ..storage import StoredPart, UploadMismatch
+from ..tasks import cancel as cancel_tasks
 
 router = APIRouter(prefix="/recordings", tags=["recordings"])
 
@@ -282,6 +283,7 @@ async def delete_recording(
     recording.deleted_at = now
     recording.updated_at = now
     recording.version += 1
+    await cancel_tasks(db, run, recording.id, "recording_deleted", "录音已删除")
     return Response(status_code=204)
 
 

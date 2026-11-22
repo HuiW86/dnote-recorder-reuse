@@ -2,7 +2,8 @@
 nothing refers to any more, and dropping uploads that were never finished.
 
 Requests that delete audio drain their own rows right after the response; anything left (the
-store was down) is retried here. Until the task queue exists (ADR-012), run it from cron:
+store was down) is retried here. The worker runs this every 10 minutes (worker.py); it can also be
+run by hand:
 
     python -m revive_api.maintenance
 
