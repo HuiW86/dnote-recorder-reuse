@@ -50,9 +50,14 @@ app/ReviveKit/scripts/linux-test.sh [--install]    # 没有 macOS 时（云端�
 cd app && xcodegen generate && xcodebuild build -project Revive.xcodeproj -scheme Revive -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
 scripts/check-m1-rules.sh                         # 禁发命令字与 M1 模块不联网的静态检查（CI 同样会跑）
 python3 app/ReviveKit/scripts/make_fixtures.py    # 用 Python 客户端重新生成协议测试样本（Swift 输出须与之逐字节一致）
+
+# 后端（backend/，M2）：要 PostgreSQL 16，测试会清空 TEST_DATABASE_URL 指向的库；详见 backend/README.md
+cd backend && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+TEST_DATABASE_URL=postgresql+psycopg://postgres@127.0.0.1:5432/revive_test .venv/bin/pytest
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```
 
-`swift test` 必须带 `--disable-xctest`：测试只用 Swift Testing，不带这个参数时 XCTest 运行器找不到测试包，命令会以失败退出。`Revive.xcodeproj` 和 `Revive/Info.plist` 由 XcodeGen 生成，不入库；`Info.plist` 的键只改 `app/project.yml` 的 `info.properties`。后端命令在 M2 工程搭起来后补上。
+`swift test` 必须带 `--disable-xctest`：测试只用 Swift Testing，不带这个参数时 XCTest 运行器找不到测试包，命令会以失败退出。`Revive.xcodeproj` 和 `Revive/Info.plist` 由 XcodeGen 生成，不入库；`Info.plist` 的键只改 `app/project.yml` 的 `info.properties`。
 
 ## 文档地图
 
