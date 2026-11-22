@@ -153,6 +153,12 @@ struct LinkImportModelTests {
         model.text = "https://example.com/4"
         model.submit()
         #expect(model.phase == .resolving)
+        // Wait for the new run to reach its download (a busy CI runner can take longer than a fixed
+        // 200 ms; app-ci saw it still resolving), then give the cancelled run time to interfere.
+        for _ in 0..<300 {
+            if model.phase != .resolving { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
         try await Task.sleep(nanoseconds: 200_000_000)
         guard case .downloading = model.phase else {
             Issue.record("the cancelled run changed the new one: \(model.phase)")
