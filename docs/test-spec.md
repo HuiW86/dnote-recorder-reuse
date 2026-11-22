@@ -372,9 +372,13 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 | T-M2-27 | 注销 | `DELETE /me` 后这个账号的设备、反馈、令牌全部删除，别的账号不受影响；旧 access token 失效 |
 | T-M2-30 | 设备登记 | 上传后取回的 `sn_hash`、`bond_id` 和上传的一致；数据库里既没有 `sn_hash` 也没有绑定码的明文，查找用的键也不等于 `sn_hash`；同一张卡在两个账号下各存各的；格式不对返回 `422`，删不存在的返回 `404 device_not_found`；密文换到别的账号下打不开 |
 | T-M2-31 | 意见反馈 | 登录后能提交；空内容 `422`；没登录 `401` |
-| T-M2-32 | 通用约定 | 错误都是 `{"error": {"code", "message", "retryable"}}`；`Idempotency-Key` 重复时返回第一次的结果并带 `Idempotent-Replayed`，换了内容 `422`，按用户区分（换了 access token 仍算同一个人），24 小时后失效，键过长 `400`；保存的响应是加密的；生产环境没有真实短信和邮件发送时拒绝启动；密钥太短拒绝启动；迁移与模型一致，能降级再升级 |
+| T-M2-32 | 通用约定 | 错误都是 `{"error": {"code", "message", "retryable"}}`；`Idempotency-Key` 重复时返回第一次的结果并带 `Idempotent-Replayed`，换了内容 `422`，按用户区分（换了 access token 仍算同一个人），24 小时后失效，键过长 `400`；保存的响应是加密的；生产环境没有真实短信和邮件发送、没有真实对象存储时拒绝启动；密钥太短拒绝启动；迁移与模型一致，能降级再升级 |
+| T-M2-33 | 录音上传（§7.2） | 按 8 MiB（测试里 1 KiB）分片，每片一个预签名地址，传完后合并，下载回来的字节和 SHA-256 一致，文件名用标题加扩展名；只传了一部分时完成返回 `409 upload_incomplete`，续传接口标出已传的分片和 ETag，补传后能完成；ETag 不对 `409 upload_mismatch`；分片大小不对不合并；完成两次不报错；存储忘了这次上传时 `409 upload_expired`，再取地址从头开始；没有音频的录音不上传（`409 no_audio`、`409 audio_not_uploaded`）；音频过大 `413`，来源、时间没有时区、时长为负、哈希格式、类型不是 `audio/*` 返回 `422` |
+| T-M2-34 | 去重与归属 | 同一账号同一 `audio_sha256` 只建一条：传完前再提交返回同一条和同一次上传，传完后返回不带上传地址的同一条，元数据不被覆盖；另一个账号同样的音频各建各的；别人的录音读不到、删不了（`404 recording_not_found`）；登记过的卡在录音上显示 `device_sn_hash`，没登记的为空，卡删掉后变空；列表按开始时间从新到旧分页，游标不对 `422`；带 `Idempotency-Key` 重复建没有音频的录音只建一条 |
+| T-M2-35 | 删除与清理 | 删除后读不到、存储里的音频没了、留下墓碑（`deleted_at`、版本加 1），同样的音频能再传成新的一条；传到一半删除，已传的分片删掉，之后再传分片 `404`；注销后这个账号的音频和未完成的分片全部删掉，别的账号的不动；存储不可用时删除仍成功，待删记录留下（次数、错误），恢复后 `drain_deletions` 删掉；存储不可用时开始上传 `502 storage_unavailable`（可重试）且不留下录音；7 天没传完的上传作废，再取地址换新键从头传；`/dev-storage` 的地址改了分片号、改了路径、过期都是 `403`，分片超过大小 `413` |
 
-实现：T-M2-20～27 在 `tests/test_auth.py`（15 个）和 `test_account_data.py` 的前 3 个；T-M2-30、31 在 `test_account_data.py`；T-M2-32 分散在 `test_account_data.py`、`test_config.py`、`test_migrations.py`。2026-11-22 另用 uvicorn 起了真实服务，curl 走完健康检查、发验证码、登录、`/v1/me`。
+
+实现：T-M2-20～27 在 `tests/test_auth.py`（15 个）和 `test_account_data.py` 的前 3 个；T-M2-30、31 在 `test_account_data.py`；T-M2-32 分散在 `test_account_data.py`、`test_config.py`、`test_migrations.py`。T-M2-33～35 在 `tests/test_recordings.py`（17 个），对象存储用 `LocalStore` 放在临时目录里，分片真的经由 `/dev-storage` 地址上传。2026-11-22 另用 uvicorn 起了真实服务，curl 走完健康检查、发验证码、登录、`/v1/me`；同一天第二片也对真实服务用 httpx 脚本走了一遍：20 MB 音频分 3 片上传、完成、下载回来哈希一致、删除后存储目录为空，`python -m revive_api.maintenance` 能跑。腾讯云 COS 的实现要等账号，到时用同一组用例加一次真 COS 的手动检查。
 
 ## 7. 持续集成
 

@@ -1,6 +1,7 @@
 """Settings from environment variables (prefix REVIVE_). Secrets are never defaulted."""
 
 import base64
+from pathlib import Path
 from typing import Literal
 
 from pydantic import SecretStr, field_validator
@@ -31,6 +32,18 @@ class Settings(BaseSettings):
     code_resend_seconds: int = 60
     code_daily_limit: int = 10
     idempotency_ttl_hours: int = 24
+
+    # Recording audio (prd.md §7.2). Until there is a COS account, `storage.LocalStore` keeps
+    # files in `storage_dir` and serves them at `public_base_url`/dev-storage (not in prod).
+    public_base_url: str = "http://127.0.0.1:8000"
+    storage_dir: Path = Path(".storage")
+    # COS allows 1 MiB to 5 GiB per part (except the last) and 10 000 parts.
+    upload_part_bytes: int = 8 * 1024 * 1024
+    max_audio_bytes: int = 2 * 1024 * 1024 * 1024
+    upload_url_ttl_seconds: int = 60 * 60
+    audio_url_ttl_seconds: int = 60 * 60
+    # An upload not finished in this many days is dropped (maintenance.sweep_stale_uploads).
+    stale_upload_days: int = 7
 
     @field_validator("jwt_secret", "code_secret", "sn_pepper")
     @classmethod

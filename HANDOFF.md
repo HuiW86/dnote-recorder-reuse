@@ -1,5 +1,5 @@
 # Handoff — 不需要真机的工作基本做完；下一步是装一个新构建，按 device-todo 做真机验收
-<!-- Edited by hand on 2026-11-22 to match main 3addac1 (PR #108–#132) plus the M2 backend branch; not a /checkpoint run -->
+<!-- Edited by hand on 2026-11-22 to match main 2e98f7f (PR #108–#133) plus the M2 slice 2 branch; not a /checkpoint run -->
 
 ## Objective
 复刻 D·NOTE 官方 App（Revive，显示名「闻笺」），面向三类人（`CLAUDE.md` 定位）。当前推进顺序的第 ① 项：M1 验收与 TestFlight 外部测试（#42，含 #66）。
@@ -29,9 +29,10 @@
   - PR #124：纪要提示词 × 模型的盲评方法和汇总工具（`docs/summary-evaluation.md`、`client/summary_scores.py`）
 - 2026-11-22：PR #130 合并：X12 的 iPhone 部分「从链接导入」（单集页面的 `og:audio`、RSS、Apple 播客、音频地址；联网模块 `LinkImport`）；`app/ReviveKit/scripts/linux-test.sh` 在 Linux 上跑 217 个 Swift 测试。用户决定先保留读网页的 `og:audio`（审核准则 5.2.3，退路见 `testflight.md` §2）
 - 2026-11-22：PR #132 合并：X19 接入 AI 助手，`revive` 命令行与 MCP 服务（`docs/assistant-tools.md`）；打进 Mac 版要等 #125
+- 2026-11-22：PR #133 合并：M2 后端第一片，账号（K1）、设备登记（A4b）、意见反馈（O1b）
 
 ## In Progress
-- M2 后端第一片（本会话的 PR，等 CI 和合并）：`backend/` 工程，账号（K1）、设备登记（A4b）、意见反馈（O1b）的接口，30 个测试连真实 PostgreSQL；ADR-012（库与版本）是 Proposed，等你确认
+- M2 后端第二片（分支 `claude/zen-allen-e62580`，等 CI 和合并）：录音与上传 `/v1/recordings`，预签名分片直传、断点续传、按 SHA-256 去重、下载地址、删除留墓碑；音频删除走 `object_deletions` 队列，注销时连音频一起删；COS 用本机替身 `LocalStore`（`/dev-storage` 签名地址，生产拒绝启动）；`python -m revive_api.maintenance` 清理存储挂掉时没删的、7 天没传完的。后端测试 48 个（新增 18 个）；ADR-012（库与版本）仍是 Proposed，等你确认
 - 其他会话开着的：PR #125（Mac 版，ADR-011 已接受）、#129（公开隐私页的生成脚本）、#81（#79 的复验记录）。#130 改了 `privacy-policy.md` 的正文，#129 合并时可能要手动合一下
 
 ## Next Actions
@@ -42,7 +43,7 @@
 5. 需要用户决定或提供条件才能做的：
    - ADR-011 文末的 3 个问题：原生还是 Catalyst；是否在 App Store 之外分发，证书和下载页谁提供；要不要先让 Mac 用户直接装 iPhone 版
    - M2 后端：确认 ADR-012；腾讯云账号（服务器、PostgreSQL、COS、KMS）；短信签名和模板（个人主体能否申请要核实，不能就先只开邮箱登录，ADR-003）；发信用的邮件服务；域名 ICP 备案。有了这些才能把替身换成真实的短信、邮件和密钥服务并部署
-   - M2 后端下一片（不需要账号也能先做）：录音元数据与 COS 预签名上传（存储接口加替身）、任务队列（定 procrastinate 与否）、转写和 AI 生成的任务骨架
+   - M2 后端下一片（不需要账号也能先做）：任务队列（定 procrastinate 与否，ADR-012 那一行）、`GET /tasks/{id}`、转写和 AI 生成的任务骨架（ASR、大模型先用替身）。COS 的真实 `ObjectStore` 实现等账号；到时 COS 上要配「7 天清掉未完成的分片上传」的生命周期规则
    - M6：两种设备的真机
 6. 从链接导入的真手机检查：`device-todo.md` §6a（T-M5-60～62），和 §6 的 T-M2-10 一起做
 
@@ -58,4 +59,5 @@
 - `app/ReviveKit/scripts/linux-test.sh`（Linux，只是其中一部分）
 - `scripts/check-m1-rules.sh`、`scripts/check-theme.sh`
 - `cd client && python3 -m pytest`
+- `cd backend && TEST_DATABASE_URL=... .venv/bin/pytest`（容器里：`service postgresql start`，给 postgres 设密码，建 `revive_test` 库）
 - `cd app && xcodegen generate && xcodebuild build -project Revive.xcodeproj -scheme Revive -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO`

@@ -1,4 +1,5 @@
-"""Settings refuse weak secrets; production refuses to start without real code senders."""
+"""Settings refuse weak secrets; production refuses to start without real code senders or a real
+object store."""
 
 import pytest
 from pydantic import ValidationError
@@ -23,3 +24,11 @@ def test_production_needs_real_senders(settings):
     prod = settings.model_copy(update={"environment": "prod"})
     with pytest.raises(RuntimeError, match="real SMS and email senders"):
         Runtime.build(prod)
+
+
+def test_production_needs_a_real_object_store(settings):
+    from conftest import MemorySender
+
+    prod = settings.model_copy(update={"environment": "prod"})
+    with pytest.raises(RuntimeError, match="real object store"):
+        Runtime.build(prod, sms=MemorySender(), email=MemorySender())

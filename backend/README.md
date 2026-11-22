@@ -1,22 +1,23 @@
 # 后端（M2）
 
-闻笺的后端：账号、设备登记、意见反馈，之后是录音上传、转写、AI 整理（`docs/prd.md` §7、§8）。选型见 ADR-002、ADR-003，库与版本见 ADR-012。
+闻笺的后端：账号、设备登记、意见反馈、录音上传，之后是转写、AI 整理（`docs/prd.md` §7、§8）。选型见 ADR-002、ADR-003，库与版本见 ADR-012。
 
 App 没登录时不调用这里的任何接口；设备功能（配对、录音、同步、播放、导出）完全不依赖后端（`CLAUDE.md` 硬规则 3）。
 
-## 现在有什么（第一片）
+## 现在有什么（第一、二片）
 
 | 模块 | 接口 | 对应 |
 |---|---|---|
 | 账号 | `POST /v1/auth/sms/send`、`/sms/login`、`/email/register`、`/email/verify`、`/password/login`、`/password/reset/send`、`/password/reset`、`/refresh`、`/logout` | K1 |
 | 当前账号 | `GET /v1/me`、`POST /v1/me/password`、`DELETE /v1/me`（注销，删除全部数据） | K1 |
 | 设备登记 | `GET /v1/devices`、`PUT /v1/devices/{sn_hash}`、`DELETE /v1/devices/{sn_hash}` | A4b |
+| 录音与上传 | `POST /v1/recordings`、`GET /v1/recordings`、`GET /v1/recordings/{id}`、`DELETE /v1/recordings/{id}`、`POST /v1/recordings/{id}/upload`、`/upload-complete`、`GET /v1/recordings/{id}/audio-url` | §7.2，X3 的后端部分 |
 | 意见反馈 | `POST /v1/feedback` | O1b |
 | 通用 | 统一错误结构、写操作的 `Idempotency-Key`、`GET /healthz` | §7.1、§7.3 |
 
-还没有：录音上传（COS）、转写、AI 生成、任务、用量（M2 后面几片）。
+还没有：转写、AI 生成、任务、用量（M2 后面几片）。
 
-**替身**：短信、邮件、KMS 要腾讯云账号。现在验证码由 `LoggingSender` 打到日志里（生产环境会拒绝启动），绑定码用环境变量里的密钥加密。账号到位后各自换成真实实现（`revive_api/runtime.py` 的 `CodeSender`，`security.py` 的 `Box`）。
+**替身**：短信、邮件、COS、KMS 要腾讯云账号。现在验证码由 `LoggingSender` 打到日志里，音频由 `LocalStore` 存在 `REVIVE_STORAGE_DIR`（默认 `backend/.storage/`）并由本服务在 `/dev-storage` 下按签名地址收发（这两个替身在生产环境都会拒绝启动），绑定码用环境变量里的密钥加密。账号到位后各自换成真实实现（`revive_api/runtime.py` 的 `CodeSender`，`storage.py` 的 `ObjectStore`，`security.py` 的 `Box`）。
 
 ## 本机运行
 
@@ -40,7 +41,13 @@ export REVIVE_BOND_KEY=$(python3 -c "import base64,os;print(base64.b64encode(os.
 .venv/bin/uvicorn revive_api.main:app --reload
 ```
 
-接口文档在 `http://127.0.0.1:8000/docs`。
+接口文档在 `http://127.0.0.1:8000/docs`。不在 8000 端口跑时设 `REVIVE_PUBLIC_BASE_URL`，上传和下载地址按它拼。
+
+存储不可用时没删掉的音频、7 天没传完的上传，由维护命令清理（任务队列定下来之前放进 cron，每小时一次）：
+
+```bash
+.venv/bin/python -m revive_api.maintenance
+```
 
 ## 测试
 
@@ -63,4 +70,6 @@ CI 是 `.github/workflows/backend-ci.yml`（Linux，PostgreSQL 16 服务容器�
 - **刷新令牌**：每次刷新换新，旧的作废；作废的再出现就整条链吊销。App 刷新时要带 `Idempotency-Key`，网络断了重试才拿得回同一对令牌，而不是被当成盗用。
 - **幂等**：按「令牌里的用户」区分调用方（access token 换新了也算同一个人），没登录时是匿名；第一次的响应加密保存 24 小时。
 - **秘密不落明文**：密码 Argon2id；验证码、刷新令牌只存摘要；序列号只存「客户端 SHA-256 再做服务端 HMAC」，绑定码加密（理由见 ADR-012）。
+- **上传音频**：App 先 `POST /v1/recordings` 拿每个分片的预签名地址，直接 PUT 到存储，再 `upload-complete`；断了就 `POST /recordings/{id}/upload` 看哪些分片已经在了。同一段音频（按 SHA-256）在一个账号里只存一份。每次开始上传都换一个新的对象键，所以排队待删的旧对象不会误删新传的音频。
+- **删除存储里的东西**：不在请求里直接删，而是在同一事务里写一行 `object_deletions`，响应发出后再删（`maintenance.drain_deletions`）；存储挂了也不丢。COS 上另外要配生命周期规则，清掉 7 天以上未完成的分片上传（App 服务器建了上传、数据库却回滚时会留下）。
 - **迁移**：改模型后 `alembic revision --autogenerate`，审一遍再提交；`tests/test_migrations.py` 会检查模型和迁移一致。

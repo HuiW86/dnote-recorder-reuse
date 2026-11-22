@@ -1,8 +1,10 @@
 """Tests run against a real PostgreSQL named by TEST_DATABASE_URL; its public schema is wiped and
-rebuilt with the migrations. Senders keep codes in memory and the clock only moves when told."""
+rebuilt with the migrations. Senders keep codes in memory, the clock only moves when told, and
+audio goes to a LocalStore in a temporary directory, uploaded through its /dev-storage URLs."""
 
 import base64
 import os
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -21,7 +23,16 @@ if not TEST_URL:
     pytest.exit("set TEST_DATABASE_URL=postgresql+psycopg://... to a database the tests may wipe", returncode=2)
 
 BACKEND = Path(__file__).resolve().parent.parent
-TABLES = ["idempotency_records", "feedback", "devices", "refresh_tokens", "verification_codes", "users"]
+TABLES = [
+    "idempotency_records",
+    "object_deletions",
+    "recordings",
+    "feedback",
+    "devices",
+    "refresh_tokens",
+    "verification_codes",
+    "users",
+]
 
 
 @dataclass
@@ -45,6 +56,12 @@ class Harness:
     sms: MemorySender
     email: MemorySender
     run: Runtime
+
+    @property
+    def files(self) -> list[Path]:
+        """Every object and unfinished part the store holds."""
+        root = self.run.settings.storage_dir
+        return sorted(p for p in root.rglob("*") if p.is_file() and p.name not in {"key", "content-type"})
 
     async def count(self, table: str) -> int:
         async with self.run.engine.connect() as connection:
@@ -74,7 +91,7 @@ def bearer(tokens: dict) -> dict:
 
 
 @pytest.fixture(scope="session")
-def settings() -> Settings:
+def settings(tmp_path_factory) -> Settings:
     return Settings(
         environment="test",
         database_url=TEST_URL,
@@ -82,6 +99,11 @@ def settings() -> Settings:
         code_secret="c" * 40,
         sn_pepper="p" * 40,
         bond_key=base64.b64encode(bytes(range(32))).decode(),
+        public_base_url="http://test",
+        storage_dir=tmp_path_factory.mktemp("storage"),
+        # Small parts so a few kilobytes of test audio spans several.
+        upload_part_bytes=1024,
+        max_audio_bytes=1024 * 1024,
     )
 
 
@@ -104,6 +126,7 @@ async def h(settings: Settings):
     run = Runtime.build(settings, clock=clock, sms=sms, email=email)
     async with run.engine.begin() as connection:
         await connection.execute(text(f"TRUNCATE {', '.join(TABLES)} CASCADE"))
+    shutil.rmtree(settings.storage_dir, ignore_errors=True)
     transport = httpx.ASGITransport(app=create_app(run))
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         yield Harness(client, clock, sms, email, run)

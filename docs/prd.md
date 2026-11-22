@@ -465,7 +465,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 ## 7. 后端接口契约（M2～M4，模块级）
 
-技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列（候选 procrastinate）到转写那一片再定。代码在 `backend/`，第一片（账号、设备登记、意见反馈）已做，见 `backend/README.md`。
+技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列（候选 procrastinate）到转写那一片再定。代码在 `backend/`，第一片（账号、设备登记、意见反馈）和第二片（录音与上传）已做，见 `backend/README.md`。
 
 ### 7.1 通用约定
 
@@ -481,7 +481,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 |---|---|---|---|
 | 账号 | M2 | `POST /auth/sms/send`、`POST /auth/sms/login`、`POST /auth/email/register`、`POST /auth/email/verify`、`POST /auth/password/login`、`POST /auth/password/reset/send`、`POST /auth/password/reset`、`POST /auth/refresh`、`POST /auth/logout`、`GET /me`、`POST /me/password`、`DELETE /me` | K1；`DELETE /me` 是 App 内注销，删除账号及全部数据。**已做**（2026-11-22）。手机号第一次登录即建号；邮箱先注册再验证；验证码 6 位、10 分钟有效、最多试 5 次、同一目标 60 秒一条、每天 10 条；找回密码不论邮箱有没有注册都回同样的结果；改密码、重置密码后其他设备都要重新登录 |
 | 设备登记 | M2 | `GET /devices`、`PUT /devices/{sn_hash}`、`DELETE /devices/{sn_hash}` | A4b；上传 bondId（服务端加密存储），换手机时取回。`sn_hash` 是 App 算的 SHA-256(sn)（64 位十六进制）。**已做**（2026-11-22） |
-| 录音与上传 | M2 | `POST /recordings`（建元数据，返回 COS 预签名分片上传地址）、`POST /recordings/{id}/upload-complete`、`GET /recordings/{id}/audio-url` | 音频直传 COS，不经过应用服务器 |
+| 录音与上传 | M2 | `POST /recordings`（建元数据，返回预签名分片上传地址）、`POST /recordings/{id}/upload`（断点续传：新地址和已传的分片）、`POST /recordings/{id}/upload-complete`、`GET /recordings/{id}/audio-url`、`GET /recordings`、`GET /recordings/{id}`、`DELETE /recordings/{id}` | 音频直传对象存储，不经过应用服务器。**已做**（2026-11-22），COS 暂用本机替身。同一账号里同一 `audio_sha256` 只建一条，再提交返回已有的那条（未传完时带续传地址）；分片 8 MiB，地址 1 小时有效；完成时服务端按声明的大小核对每个分片再合并；7 天没传完的上传作废；删除留墓碑（`deleted_at`）供 M4 同步，音频从存储删除；没有音频的录音（文字导入）不上传 |
 | 转写 | M2 | `POST /recordings/{id}/transcribe` → 任务 id；`GET /recordings/{id}/transcript`；`PATCH /recordings/{id}/speakers` | F1；说话人重命名 |
 | AI 生成 | M2 | `POST /recordings/{id}/summaries {template_id}` → 任务 id；`GET /recordings/{id}/summaries`；`GET /templates` | G1、G2a |
 | 任务 | M2 | `GET /tasks/{id}` | 状态见 §7.4 |
@@ -525,7 +525,8 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | `refresh_tokens` | id、user_id、token_hash（SHA-256）、family_id（同一次登录换出来的都属于一条链）、expires_at、revoked_at、replaced_by、created_at | M2 |
 | `verification_codes` | id、target（手机或邮箱）、purpose（sms_login、email_verify、password_reset）、code_hash（HMAC）、expires_at、attempts、consumed_at、created_at | M2 |
 | `devices` | id、user_id、sn_key（对 App 给的 SHA-256(sn) 再做服务端 HMAC，只用来查找）、secret（SHA-256(sn) 和 bondId 一起加密）、name、firmware、created_at、updated_at | M2 |
-| `recordings` | id、user_id、device_id、source、started_at、duration_ms、audio_object_key、audio_sha256、title、folder_id、version、updated_at、deleted | M2 |
+| `recordings` | id、user_id、device_id（设备删掉后置空）、source（card、phone、import、realtime）、started_at、duration_ms、title、audio_sha256、audio_size、audio_content_type（没有音频时三项都为空）、audio_object_key（每次开始上传换一个新键）、upload_id（进行中的分片上传）、uploaded_at、version、created_at、updated_at、deleted_at；（user_id, audio_sha256）在未删除的行里唯一。folder_id 等 M4 | M2 |
+| `object_deletions` | id、object_key、upload_id（有值表示取消这次分片上传，空表示删除对象）、attempts、last_error、created_at；和删掉引用的那一步在同一个事务里写入，不属于任何用户，所以注销后仍在；请求结束后立即清，存储不可用时由 `maintenance` 重试 | M2 |
 | `transcripts` | id、recording_id、language、segments（JSONB：开始、结束、说话人、文本）、speakers（JSONB：说话人名称）、asr_provider、created_at | M2 |
 | `summaries` | id、recording_id、template_id、kind（总结、大纲、思维导图、金句、标签）、content（JSONB）、model、created_at | M2 |
 | `templates` | id、name、category、prompt、is_builtin | M2 |
@@ -539,7 +540,7 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 
 - 服务端只存 `sn` 哈希的 HMAC，不存原值，也不存裸哈希：序列号能被枚举，裸的 SHA-256 在数据库泄露时能反推出 sn，再加上仓库里公开的 `DEVICE_KEY_SECRET` 就能算出这张卡的音频密钥（ADR-006、ADR-012）。bondId 和 App 给的哈希一起用 AES-256-GCM 加密存储；现在密钥来自环境变量，上线前换成云厂商密钥管理服务托管的信封加密。
 - 原始音频是唯一的事实来源；转写和总结都能重算，所以保留 `asr_provider`、`model` 字段，便于换模型后批量重跑（`backend-design.md` §4.5）。
-- 注销账号（`DELETE /me`）：删除该用户的全部数据库记录和 COS 对象；用量记录匿名化后保留。现在的做法：用户表一行删除，令牌、设备、反馈通过 `ON DELETE CASCADE` 一起删掉（不留 `deleted_at`）；COS 和用量随那两片加入。
+- 注销账号（`DELETE /me`）：删除该用户的全部数据库记录和 COS 对象；用量记录匿名化后保留。现在的做法：用户表一行删除，令牌、设备、反馈、录音通过 `ON DELETE CASCADE` 一起删掉（不留 `deleted_at`）；存储里的音频在同一事务里记入 `object_deletions`，响应后立即删除，删不掉的稍后重试。用量随那一片加入。
 
 ## 9. 待决定与待验证
 
