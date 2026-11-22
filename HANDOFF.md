@@ -1,5 +1,5 @@
 # Handoff — 不需要真机的工作基本做完；下一步是装一个新构建，按 device-todo 做真机验收
-<!-- Edited by hand on 2026-11-21 to match main aed4bdb (PR #108–#124), then for PR #130; not a /checkpoint run -->
+<!-- Edited by hand on 2026-11-22 to match main 40840da (PR #108–#130); not a /checkpoint run -->
 
 ## Objective
 复刻 D·NOTE 官方 App（Revive，显示名「闻笺」），面向三类人（`CLAUDE.md` 定位）。当前推进顺序的第 ① 项：M1 验收与 TestFlight 外部测试（#42，含 #66）。
@@ -27,12 +27,10 @@
   - PR #121：ADR-011 提议稿，Mac 版用原生 macOS 目标、Developer ID 分发；状态 Proposed，等用户决定
   - PR #123：ASR 对比的方法和打分工具（`docs/asr-evaluation.md`、`client/asr_eval.py`）
   - PR #124：纪要提示词 × 模型的盲评方法和汇总工具（`docs/summary-evaluation.md`、`client/summary_scores.py`）
+- 2026-11-22：PR #130 合并：X12 的 iPhone 部分「从链接导入」（单集页面的 `og:audio`、RSS、Apple 播客、音频地址；联网模块 `LinkImport`）；`app/ReviveKit/scripts/linux-test.sh` 在 Linux 上跑 217 个 Swift 测试。用户决定先保留读网页的 `og:audio`（审核准则 5.2.3，退路见 `testflight.md` §2）
 
 ## In Progress
-- PR #130（本会话，等 app-ci 和合并）：
-  - X12 的 iPhone 部分「从链接导入」：播客单集页面、RSS、Apple 播客、音频地址；新联网模块 `LinkImport`
-  - `app/ReviveKit/scripts/linux-test.sh`：没有 macOS 时在 Linux 上跑只用 Foundation 的那 217 个测试
-- 其他会话开着的：PR #125（Mac 版，ADR-011 已接受）、#129（公开隐私页的生成脚本）、#81（#79 的复验记录）。#130 也改了 `privacy-policy.md` 的正文，和 #129 合并时可能要手动合一下
+- 其他会话开着的：PR #125（Mac 版，ADR-011 已接受）、#129（公开隐私页的生成脚本）、#81（#79 的复验记录）。#130 改了 `privacy-policy.md` 的正文，#129 合并时可能要手动合一下
 
 ## Next Actions
 1. 装一个当前 main 的构建（PR #124 之后；#110 也改了 App 代码）（TestFlight 要先把 `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 加 1），按 `docs/device-todo.md` 的顺序做真机检查。新增的几项都在 §6：T-M15-60 先不连卡（审核员走的路，外部测试前必须过）、T-M2-10 关掉「无线数据」、T-M4-17～21 手机录音
@@ -43,7 +41,6 @@
    - ADR-011 文末的 3 个问题：原生还是 Catalyst；是否在 App Store 之外分发，证书和下载页谁提供；要不要先让 Mac 用户直接装 iPhone 版
    - M2 后端：云厂商账号
    - M6：两种设备的真机
-   - 从链接导入与审核准则 5.2.3：读单集网页的 `og:audio` 是否保留（`testflight.md` §2 的【待核对】；退路是只留 RSS、Apple 播客和音频直链）
 6. 从链接导入的真手机检查：`device-todo.md` §6a（T-M5-60～62），和 §6 的 T-M2-10 一起做
 
 ## Risks & Decisions
