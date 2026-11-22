@@ -227,6 +227,23 @@ public final class AppDatabase: Sendable {
         return try AppDatabase(pool)
     }
 
+    /// Opens an existing on-disk library from another process (the `revive` command-line tool,
+    /// features.md X19) without creating one, waiting up to `busyTimeout` seconds when the app
+    /// holds the write lock. nil when `directory` holds no library.
+    public static func existing(directory: URL, busyTimeout: TimeInterval = 5) throws -> AppDatabase? {
+        let path = directory.appendingPathComponent("library.sqlite").path
+        guard FileManager.default.fileExists(atPath: path) else { return nil }
+        var configuration = Configuration()
+        configuration.busyMode = .timeout(busyTimeout)
+        return try AppDatabase(try DatabasePool(path: path, configuration: configuration))
+    }
+
+    /// The library was last opened by a newer build that added migrations this one does not
+    /// know. Reading still works (new columns are ignored); writing should be left to that build.
+    public func isNewerThanThisBuild() throws -> Bool {
+        try writer.read { try Self.migrator.hasBeenSuperseded($0) }
+    }
+
     /// In-memory database for tests.
     public static func inMemory() throws -> AppDatabase {
         try AppDatabase(DatabaseQueue())

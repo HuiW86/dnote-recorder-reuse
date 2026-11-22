@@ -42,6 +42,11 @@ jobs:
         working-directory: app/ReviveKit
         run: swift test --disable-xctest
 
+      # The `revive` command-line tool and MCP server (features.md X19), with the Mac-only audio import.
+      - name: Build revive
+        working-directory: app/ReviveKit
+        run: swift build --product revive
+
       - name: Build iOS app
         working-directory: app
         run: |

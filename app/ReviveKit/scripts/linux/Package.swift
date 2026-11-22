@@ -1,6 +1,7 @@
 // swift-tools-version:6.0
 // Linux-only manifest for scripts/linux-test.sh: the ReviveKit modules that need nothing but
-// Foundation (plus GRDB and swift-crypto in place of CryptoKit). CoreBluetooth, AVFoundation,
+// Foundation (plus GRDB and swift-crypto in place of CryptoKit). The `revive` executable builds
+// without Player (no add-audio on Linux). CoreBluetooth, AVFoundation,
 // Speech, Security and SwiftUI code is left out and is tested on macOS CI only. Never used by
 // the app; the real manifest is app/ReviveKit/Package.swift.
 import PackageDescription
@@ -23,6 +24,8 @@ let package = Package(
         .target(name: "Library", dependencies: [.product(name: "GRDB", package: "GRDB.swift"), crypto]),
         .target(name: "SyncEngine", dependencies: ["DeviceSource", "Library", "os", "ThreadingShim", crypto]),
         .target(name: "LinkImport"),
+        .target(name: "LibraryTools", dependencies: ["Library", "ThreadingShim"]),
+        .executableTarget(name: "revive", dependencies: ["Library", "LibraryTools"]),
         .target(name: "CardTestSupport", dependencies: ["CardProtocol", "CardLink"], path: "Tests/CardTestSupport",
                 exclude: ["SyntheticOpus.swift"]),
         .testTarget(name: "CardProtocolTests", dependencies: ["CardProtocol", "CardTestSupport"],
@@ -33,6 +36,7 @@ let package = Package(
         ]),
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
         .testTarget(name: "LinkImportTests", dependencies: ["LinkImport"]),
+        .testTarget(name: "LibraryToolsTests", dependencies: ["Library", "LibraryTools"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "CardTestSupport",
         ]),
