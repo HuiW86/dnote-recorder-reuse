@@ -104,3 +104,4 @@
 - 2026-11-21：Mac 上加转文字和生成纪要。设置窗口（⌘,）用 iPhone 同一个 `AssistantSettingsModel`；选用哪个服务、哪种转写的逻辑从 iOS 的 `AppEnvironment` 移到 `AppModel`（`AssistantConfigSource.saved()`、`TranscriberChoice`），两边共用。密钥用同一个 `KeychainKeyStore` 存；macOS 上没有指定数据保护钥匙串，预计落在登录钥匙串里，iOS 的「只在本机」属性在那里不起作用。这一点还没有在 Mac 上实际保存、读取过（`device-todo.md` §9）。Mac 和 iPhone 的密钥不互通。
 - 2026-11-21：Mac 上加重命名和导出。导出用 `RecordingDetailModel` 现成的导出（与 iPhone 相同的文件），iPhone 的分享面板在 Mac 上换成保存面板（`FileSaver`）。
 - 2026-11-23：Mac 上加改写和单条提问，用 `RecordingDetailModel` 的 `rewrite`、`ask` 和流式回复；回复窗口在 Mac 上用拷贝代替分享。
+- 2026-11-23：Mac 上加从链接导入（X12 的播客部分）：工具栏「从链接导入」，用 iPhone 同一个 `LinkImportModel`，Mac 只加了弹出窗口。Mac 版不开沙盒，下载不需要另加网络权限；视频网站要命令行下载器，留到之后。
