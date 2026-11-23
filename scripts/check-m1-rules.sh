@@ -35,14 +35,15 @@ for m in "${m1_modules[@]}"; do
   fi
 done
 
-# The Assistant module talks to AI services over the network, and LinkImport downloads podcast
-# links (features.md X12). Device and offline modules must not import either (CLAUDE.md rule 3):
-# only the app shell and AppModel's AI and link-import screens may.
+# The Assistant module talks to AI services over the network, LinkImport downloads podcast
+# links (features.md X12), and Account talks to our backend (features.md K1). Device and offline
+# modules must not import any of them (CLAUDE.md rule 3): only the app shell and AppModel's AI,
+# link-import and account screens may.
 offline_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription LibraryTools revive)
 for m in "${offline_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue
-  uses=$(grep -rnE '^[[:space:]]*(@testable[[:space:]]+)?import[[:space:]]+(Assistant|LinkImport)\b' "$dir" --include='*.swift' || true)
+  uses=$(grep -rnE '^[[:space:]]*(@testable[[:space:]]+)?import[[:space:]]+(Assistant|LinkImport|Account)\b' "$dir" --include='*.swift' || true)
   if [[ -n "$uses" ]]; then
     echo "FAIL: offline module $m imports a networking module (CLAUDE.md rule 3):"
     echo "$uses"

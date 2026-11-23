@@ -23,6 +23,8 @@
         ├─ SyncEngine ───── 设备上的文件 → 本地录音库，按 §4 状态机（只依赖 DeviceSource 和 Library，§2.6）
         │     └─ DeviceSource ── 与设备无关的接口 `SyncSource`；D·NOTE 卡由 CardService 里的 `CardSyncSource` 实现（ADR-010）
         │
+        ├─ Account ──────── 闻笺账号（M2，K1、O1b）：登录、刷新令牌、注销、意见反馈；联网，只在用户打开账号页时用，设备模块不能依赖它（§7.1）
+        │
         ├─ Library ──────── 本地数据库与音频文件（§5）
         │
         └─ Player ───────── 解密后的 OGG 播放；导出分享（Exporter）也在这个模块里（依赖 Library）
@@ -471,7 +473,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 - 前缀 `/v1`；JSON；时间用 ISO 8601 带时区；id 用 UUID。
 - 鉴权：`Authorization: Bearer <access token>`。access token 15 分钟有效；refresh token 30 天有效，每次刷新换新，旧的立即作废。
-- **未登录时 App 不调用任何接口**（`backend-design.md` §4.6）。
+- **未登录时 App 不调用任何接口**（`backend-design.md` §4.6）。App 端在 `Account` 模块（`AccountClient`）：会话（两个令牌和账号信息）只存钥匙串，不进备份；构建里没有服务器地址时没有任何账号入口（`product-spec.md` P17）。
 - 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`。保存的响应加密存放（刷新令牌的响应里有令牌）。
 - **刷新令牌时一定要带 `Idempotency-Key`**：已作废的刷新令牌再次出现会被当成被盗用，整条登录链吊销；带了键，网络断开后的重试拿到的是同一对新令牌。
 

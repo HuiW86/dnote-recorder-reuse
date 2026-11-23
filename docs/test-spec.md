@@ -378,9 +378,11 @@ T-M15-50、54 会删除卡上文件，只用测试录音，不用有价值的录
 | T-M2-27 | 注销 | `DELETE /me` 后这个账号的设备、反馈、令牌全部删除，别的账号不受影响；旧 access token 失效 |
 | T-M2-30 | 设备登记 | 上传后取回的 `sn_hash`、`bond_id` 和上传的一致；数据库里既没有 `sn_hash` 也没有绑定码的明文，查找用的键也不等于 `sn_hash`；同一张卡在两个账号下各存各的；格式不对返回 `422`，删不存在的返回 `404 device_not_found`；密文换到别的账号下打不开 |
 | T-M2-31 | 意见反馈 | 登录后能提交；空内容 `422`；没登录 `401` |
+| T-M2-50 | App 端账号客户端（`Account`，替身服务器） | 写请求都带 `Idempotency-Key`，读请求不带；`token_expired` 时只刷新一次再重发，重发换新键；几个请求同时过期只刷新一次；刷新请求断网后用同一个键重发；刷新被拒（`401`）或令牌无效时清掉本机登录；没登录时不发任何请求；没网也能退出登录；注销成功才清掉登录；服务器错误显示服务器的 `message`，非 JSON 的错误保留状态码；断网、关了「无线数据」显示 §7.3a 那一句 |
+| T-M2-51 | App 端登录与账号页面模型（`AppModel`） | 手机号、邮箱、验证码、密码先在本机检查，不合格不发请求；验证码倒计时内不重发；邮箱没验证时转到注册并保留邮箱和密码；重设密码后回到邮箱登录；打开账号页只读钥匙串、不发请求；反馈空内容或超过 5000 字不发；服务器说登录失效时回到没登录；服务器地址只接受 https（本机调试除外），为空时没有入口 |
 | T-M2-32 | 通用约定 | 错误都是 `{"error": {"code", "message", "retryable"}}`；`Idempotency-Key` 重复时返回第一次的结果并带 `Idempotent-Replayed`，换了内容 `422`，按用户区分（换了 access token 仍算同一个人），24 小时后失效，键过长 `400`；保存的响应是加密的；生产环境没有真实短信和邮件发送时拒绝启动；密钥太短拒绝启动；迁移与模型一致，能降级再升级 |
 
-实现：T-M2-20～27 在 `tests/test_auth.py`（15 个）和 `test_account_data.py` 的前 3 个；T-M2-30、31 在 `test_account_data.py`；T-M2-32 分散在 `test_account_data.py`、`test_config.py`、`test_migrations.py`。2026-11-22 另用 uvicorn 起了真实服务，curl 走完健康检查、发验证码、登录、`/v1/me`。
+实现：T-M2-20～27 在 `tests/test_auth.py`（15 个）和 `test_account_data.py` 的前 3 个；T-M2-30、31 在 `test_account_data.py`；T-M2-32 分散在 `test_account_data.py`、`test_config.py`、`test_migrations.py`。2026-11-22 另用 uvicorn 起了真实服务，curl 走完健康检查、发验证码、登录、`/v1/me`。T-M2-50 在 `app/ReviveKit/Tests/AccountTests/AccountClientTests.swift`，T-M2-51 在 `Tests/AppModelTests/AccountModelTests.swift`；都用替身服务器，不联网。
 
 ## 7. 持续集成
 
