@@ -37,7 +37,8 @@
 - M2 后端第四片（同一分支，追加在 #134 上）：AI 纪要 `POST/GET /recordings/{id}/summaries`、`GET /templates`；提示词、长文分段、回复解析照 App 的 `Summarizer` 移植，`app/ReviveKit/Tests/AssistantTests/Fixtures/prompts` 的 7 个样本两边逐字比对（App 端 `PromptFixtureTests` 只能等 #134 的 app-ci 在 macOS 上验证）；大模型是 `llm.ChatModel` 接口，暂用 `StandInChatModel`。App 端 `Summarizer` 抽出 `userMessage`、`chunkNotes` 两个函数，行为不变。后端测试 79 个。#134 的 CI（backend-ci、macOS 上的 app-ci）都已通过
 - M2 后端第五片（同一分支，2026-11-23）：用量与额度骨架，`GET /me/usage`、按北京时间自然月、转写按时长预占、纪要 token 用完即止、`429 quota_exceeded`、每人最多 10 个排队任务；额度数值未定（配置项，生产环境必须设）。后端测试 87 个
 - M2 后端第六片（同一分支，2026-11-23）：换角度重起标题 `POST /recordings/{id}/retitle`，新标题在任务的 `result` 里（`tasks` 加 `result` 列），录音标题由 App 决定是否替换；App 端抽出 `Summarizer.retitleMessage`，提示词样本 8 个。后端测试 92 个。M2 后端里不需要外部条件的部分到这里做完了
-- 其他会话开着的：PR #125（Mac 版，ADR-011 已接受）、#129（公开隐私页的生成脚本）、#81（#79 的复验记录）。#130 改了 `privacy-policy.md` 的正文，#129 合并时可能要手动合一下
+- PR #125（Mac 原生版，ADR-011）已于 2026-11-23 合并，main 已并入本分支
+- 其他会话开着的：#129（公开隐私页的生成脚本）、#81（#79 的复验记录）。#130 改了 `privacy-policy.md` 的正文，#129 合并时可能要手动合一下
 
 ## Next Actions
 1. 装一个当前 main 的构建（PR #124 之后；#110 也改了 App 代码）（TestFlight 要先把 `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 加 1），按 `docs/device-todo.md` 的顺序做真机检查。新增的几项都在 §6：T-M15-60 先不连卡（审核员走的路，外部测试前必须过）、T-M2-10 关掉「无线数据」、T-M4-17～21 手机录音
