@@ -486,7 +486,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 | AI 生成 | M2 | `POST /recordings/{id}/summaries {template_id, profession}` → 任务；`GET /recordings/{id}/summaries`；`GET /templates` | G1、G2a。**已做**（2026-11-22），大模型暂用开发替身（生产拒绝启动）。提示词、场景、长文分段（超过 9000 字先每 6000 字压缩一次）和回复解析与 App 的 `Summarizer` 完全相同（ADR-009「提示词只有一份来源」）：App 的 Swift 代码是来源，后端 `revive_api/summaries.py` 照它移植，`app/ReviveKit/Tests/AssistantTests/Fixtures/prompts` 里的样本两边的测试都逐字比对，改了一边不改另一边 CI 就失败。`template_id` 是场景代号，不给则由模型判断；职业截到 40 字。要先有文字稿（`409 no_transcript`）；同一条录音已有排队或进行中的生成时返回那个任务。每次生成都保留，列表新的在前；回复读不出来（`bad_reply`）按可重试处理。记一条 `llm_tokens` 用量。模板就是 10 种内置场景，从代码读，不建表（G2b 自定义模板不做） |
 | 任务 | M2 | `GET /tasks/{id}` | 状态见 §7.4。**已做**（2026-11-22）：返回 `status`、`attempts`、`error {code, message}`（重试等待中也带上一次的错误）、`finished_at`；只能读自己的任务 |
 | 意见反馈 | M2 | `POST /feedback` | O1b。**已做**（2026-11-22） |
-| 用量 | M2 | `GET /me/usage` | X2；超额返回 `quota_exceeded` |
+| 用量 | M2 | `GET /me/usage` | X2；超额返回 `quota_exceeded`。**骨架已做**（2026-11-22）：按北京时间的自然月统计，返回本月起止、转写秒数（已用、排队中预占、额度、剩余）和大模型 token（已用、额度、剩余），额度为空表示不限。提交转写时，本月已用 + 排队中的录音时长 + 这一条超过额度就 `429 quota_exceeded`（不可重试），失败的任务把预占退回；纪要的 token 事先算不出，本月用完才拒绝，最后一次可能略超。每个账号同时排队和进行中的任务最多 10 个（`429 too_many_tasks`，可重试）。检查和入队在锁住用户行之后进行，并发请求不会一起钻空子。额度是配置项 `REVIVE_ASR_MONTHLY_SECONDS`、`REVIVE_LLM_MONTHLY_TOKENS`，**多少还没定**；生产环境没设就拒绝启动 |
 | 实时转写 | M3 | `WS /realtime?codec=opus&sample_rate=16000&language=zh` | H1；App 发 Opus 帧，服务端推流式文字；断线后 App 补传本地音频 |
 | AI 对话 | M4 | `POST /chat`（`recording_id` 可选，不带即全局），SSE 返回 | G3 |
 | 同步 | M4 | `GET /sync?since=<cursor>`、`POST /sync` | N1；见 §7.5 |

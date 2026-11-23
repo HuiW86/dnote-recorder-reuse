@@ -10,6 +10,7 @@ from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from .. import usage
 from ..accounts import CurrentUser
 from ..errors import AppError
 from ..models import Recording, Task, Transcript
@@ -98,8 +99,10 @@ class SpeakersIn(BaseModel):
 async def transcribe(
     recording_id: uuid.UUID, user: CurrentUser, db: DB, run: Run, response: Response, body: TranscribeIn | None = None
 ) -> TaskOut:
-    """202 with a new task; 200 with the one already queued or running for this recording."""
+    """202 with a new task; 200 with the one already queued or running for this recording.
+    429 `quota_exceeded` when this month's transcription time would run out (usage.py)."""
     body = body or TranscribeIn()
+    await usage.lock(db, user)  # user row first, as DELETE /me does
     recording = await db.scalar(
         select(Recording)
         .where(Recording.id == recording_id, Recording.user_id == user.id, Recording.deleted_at.is_(None))
@@ -117,6 +120,8 @@ async def transcribe(
     if pending is not None:
         response.status_code = 200
         return TaskOut.of(pending)
+    await usage.check_pending(db, run, user)
+    await usage.check_transcribe(db, run, user, recording.duration_ms)
     task = await enqueue(db, run, user_id=user.id, kind=TRANSCRIBE, recording_id=recording.id, params=body.model_dump())
     return TaskOut.of(task)
 

@@ -96,6 +96,11 @@ class Runtime:
             raise RuntimeError("production needs a real speech recognition engine")
         if settings.environment == "prod" and chat is None:
             raise RuntimeError("production needs a real language model")
+        if settings.environment == "prod" and (
+            settings.asr_monthly_seconds is None or settings.llm_monthly_tokens is None
+        ):
+            # Unlimited ASR and model use is a cost decision someone must make on purpose.
+            raise RuntimeError("production needs REVIVE_ASR_MONTHLY_SECONDS and REVIVE_LLM_MONTHLY_TOKENS")
         engine = create_async_engine(settings.database_url, pool_pre_ping=True)
         return cls(
             settings=settings,

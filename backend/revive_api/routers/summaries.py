@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from .. import summaries as prompts
+from .. import usage
 from ..accounts import CurrentUser
 from ..errors import AppError
 from ..models import Recording, Summary, Task, Transcript
@@ -83,10 +84,12 @@ async def templates(user: CurrentUser) -> list[TemplateOut]:
 async def summarize(
     recording_id: uuid.UUID, user: CurrentUser, db: DB, run: Run, response: Response, body: SummarizeIn | None = None
 ) -> TaskOut:
-    """202 with a new task; 200 with the one already queued or running for this recording."""
+    """202 with a new task; 200 with the one already queued or running for this recording.
+    429 `quota_exceeded` once this month's model allowance is used up (usage.py)."""
     body = body or SummarizeIn()
     if body.template_id is not None and body.template_id not in prompts.BY_CODE:
         raise AppError(422, "unknown_template", "没有这个模板")
+    await usage.lock(db, user)  # user row first, as DELETE /me does
     recording = await db.scalar(
         select(Recording)
         .where(Recording.id == recording_id, Recording.user_id == user.id, Recording.deleted_at.is_(None))
@@ -104,6 +107,8 @@ async def summarize(
     if pending is not None:
         response.status_code = 200
         return TaskOut.of(pending)
+    await usage.check_pending(db, run, user)
+    await usage.check_summarize(db, run, user)
     params = {"scene": body.template_id, "profession": body.profession.strip()[: prompts.PROFESSION_LIMIT]}
     return TaskOut.of(await enqueue(db, run, user_id=user.id, kind=SUMMARIZE, recording_id=recording.id, params=params))
 

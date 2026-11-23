@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     # An upload not finished in this many days is dropped (maintenance.sweep_stale_uploads).
     stale_upload_days: int = 7
 
+    # Monthly allowances per account (features.md X2; usage.py). None means no limit; production
+    # refuses to start until both are set, so a missing value is a decision, not an accident.
+    asr_monthly_seconds: int | None = None
+    llm_monthly_tokens: int | None = None
+    # Months begin at midnight in this UTC offset (Beijing time; China has no daylight saving).
+    usage_utc_offset_hours: int = 8
+    # At most this many tasks queued or running per account, against abuse.
+    max_pending_tasks: int = 10
+
     @field_validator("jwt_secret", "code_secret", "sn_pepper")
     @classmethod
     def long_enough(cls, value: SecretStr) -> SecretStr:
