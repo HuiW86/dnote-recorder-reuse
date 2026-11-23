@@ -19,32 +19,11 @@ final class AppEnvironment {
     let preferences = Preferences()
     /// The user's AI service, read fresh each time (features.md X11): nil until an address and
     /// a model are saved. The key comes from the Keychain.
-    let assistantConfig = AssistantConfigSource {
-        let defaults = UserDefaults.standard
-        let config = ServiceConfig(baseURL: defaults.string(forKey: Preferences.assistantBaseURLKey) ?? "",
-                                   model: defaults.string(forKey: Preferences.assistantModelKey) ?? "",
-                                   apiKey: (try? KeychainKeyStore().read()) ?? "",
-                                   profession: defaults.string(forKey: Preferences.assistantProfessionKey) ?? "")
-        return config.isComplete ? config : nil
-    }
+    let assistantConfig = AssistantConfigSource.saved()
 
-    /// The same service for transcription, when the user gave it a transcription model; nil
-    /// otherwise, and then no audio is ever uploaded (ADR-009).
-    var cloudTranscriptionConfig: ServiceConfig? {
-        guard let chat = assistantConfig.current() else { return nil }
-        let model = preferences.assistantTranscriptionModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !model.isEmpty else { return nil }
-        return ServiceConfig(baseURL: chat.baseURL, model: model, apiKey: chat.apiKey)
-    }
-
-    /// The transcriber the recording page and 录完自动整理 use, read on every use so a change in
-    /// settings applies at once (#85). On the phone when 本机转写 is on (#67 keeps it behind a
-    /// switch); otherwise the user's own service, if they gave it a transcription model (the
-    /// audio is then uploaded, and the page says so); nil when neither.
+    /// The transcriber the recording page and 录完自动整理 use (`TranscriberChoice`).
     func transcriber(library: RecordingLibrary) -> (any SpeechTranscribing)? {
-        if preferences.onDeviceTranscriptEnabled { return OnDeviceTranscriber(library: library) }
-        if let cloud = cloudTranscriptionConfig { return CloudTranscriber(library: library, config: cloud) }
-        return nil
+        TranscriberChoice.current(preferences: preferences, library: library, assistant: assistantConfig)
     }
 
     /// 录完自动整理 (features.md X22); nil without a library.
