@@ -1,3 +1,4 @@
+import Account
 import AppModel
 import SwiftUI
 
@@ -5,8 +6,12 @@ import SwiftUI
 struct SettingsView: View {
     let diagnostics: DiagnosticLog
     @Bindable var preferences: Preferences
+    /// Nil unless the build names a server: then there is no 账号 row at all.
+    var account: AccountSession?
     /// The system refused notifications when the switch was turned on.
     @State private var notificationsRefused = false
+    /// "未登录" or the signed-in account, for the 账号 row.
+    @State private var accountName = "未登录"
 
     var body: some View {
         List {
@@ -34,6 +39,16 @@ struct SettingsView: View {
                      : "闻笺不在前台时，录音同步到手机后提醒你。通知只在这部手机上产生。")
             }
             .surfaceRows()
+            if account != nil {
+                Section {
+                    NavigationLink(value: Route.account) {
+                        LabeledContent("账号", value: accountName)
+                    }
+                } footer: {
+                    Text("登录后可以用闻笺的服务器转写和整理录音。录音卡、录音、同步、播放不需要登录。")
+                }
+                .surfaceRows()
+            }
             Section {
                 NavigationLink(value: Route.assistant) {
                     LabeledContent("AI 服务", value: preferences.assistantBaseURL.isEmpty ? "未设置" : "已设置")
@@ -80,6 +95,10 @@ struct SettingsView: View {
         // Notifications turned off in system Settings: the switch follows, instead of showing
         // a promise the system no longer keeps (#85).
         .task {
+            if let account {
+                let user = await account.user
+                accountName = user?.displayName ?? "未登录"
+            }
             guard preferences.syncNotificationsEnabled, await SyncNotifier.isDenied() else { return }
             preferences.syncNotificationsEnabled = false
             notificationsRefused = true

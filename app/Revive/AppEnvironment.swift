@@ -1,3 +1,4 @@
+import Account
 import AppModel
 import CardLink
 import CardService
@@ -20,6 +21,10 @@ final class AppEnvironment {
     /// The user's AI service, read fresh each time (features.md X11): nil until an address and
     /// a model are saved. The key comes from the Keychain.
     let assistantConfig = AssistantConfigSource.saved()
+
+    /// The 闻笺 account (features.md K1); nil unless the build names a server (`ReviveAPIBaseURL`),
+    /// so a build without one shows no account anywhere. Never needed by the card (CLAUDE.md rule 3).
+    let account: AccountSession? = AccountService.session()
 
     /// The transcriber the recording page and 录完自动整理 use (`TranscriberChoice`).
     func transcriber(library: RecordingLibrary) -> (any SpeechTranscribing)? {
@@ -170,5 +175,16 @@ final class AppEnvironment {
         case .notDetermined: .notDetermined
         default: .denied
         }
+    }
+}
+
+/// Where the account lives: the server named in Info.plist (`ReviveAPIBaseURL`, from
+/// project.yml), the refresh token in the Keychain.
+enum AccountService {
+    static func session(bundle: Bundle = .main) -> AccountSession? {
+        guard let text = bundle.object(forInfoDictionaryKey: "ReviveAPIBaseURL") as? String,
+              let url = URL(string: text.trimmingCharacters(in: .whitespaces)),
+              url.scheme == "https", url.host != nil else { return nil }
+        return AccountSession(client: AccountClient(baseURL: url), store: KeychainSessionStore())
     }
 }

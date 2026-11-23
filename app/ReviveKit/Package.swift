@@ -10,7 +10,7 @@ let package = Package(
     products: [
         .library(name: "ReviveKit", targets: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player",
-            "Transcription", "AppModel", "Assistant", "LinkImport",
+            "Transcription", "AppModel", "Assistant", "LinkImport", "Account",
         ]),
         // The library on the command line and as an MCP server for AI assistants (features.md X19).
         .executable(name: "revive", targets: ["revive"]),
@@ -49,6 +49,10 @@ let package = Package(
         // user pasted and Apple's podcast lookup; Foundation only, no other module. Like
         // Assistant, no device or offline module may depend on it (scripts/check-m1-rules.sh).
         .target(name: "LinkImport"),
+        // The optional 闻笺 account on our backend (features.md K1). Uses the network; Foundation only
+        // (Security for the Keychain where it exists). No device or offline module may depend on it
+        // (CLAUDE.md rule 3; scripts/check-m1-rules.sh): the card works without an account.
+        .target(name: "Account"),
         // Search, read, list todos and add to the library for an AI assistant (features.md X19).
         // Offline like the M1 modules: only Library, no networking (scripts/check-m1-rules.sh).
         .target(name: "LibraryTools", dependencies: ["Library"]),
@@ -80,6 +84,7 @@ let package = Package(
             exclude: ["Fixtures"]
         ),
         .testTarget(name: "LinkImportTests", dependencies: ["LinkImport"]),
+        .testTarget(name: "AccountTests", dependencies: ["Account"]),
         .testTarget(name: "LibraryToolsTests", dependencies: ["Library", "LibraryTools"]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
         .testTarget(name: "SyncEngineTests", dependencies: [

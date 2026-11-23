@@ -31,7 +31,7 @@
 规则：
 
 - **M1 各层不引用任何网络库**。M2 的同步与 AI 模块单独成层，只读写 Library，不被设备层调用（`CLAUDE.md` 硬规则 3）。
-- 联网的模块目前有两个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）和 `LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）。
+- 联网的模块目前有三个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）、`LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）和 `Account`（闻笺账号，K1；只用 Foundation，钥匙串在有 Security 的平台上用，不依赖其他模块；它的页面状态 `AccountModel` 也放在这个模块里，好在 Linux 上测，App 目标直接引用，AppModel 不依赖它）。
 - 读写录音库给 AI 助手用的 `LibraryTools`（X19）和命令行 `revive` 只依赖 Library（`revive` 在 Mac 上另依赖 Player 转换音频），和 M1 模块一样不联网（`scripts/check-m1-rules.sh`）。`revive` 在另一个进程里打开 Mac 版的录音库（`AppDatabase.existing`，写锁最多等 5 秒），只新增录音，不改不删；库被更新的版本迁移过时只读（`isNewerThanThisBuild`）。
 - 协议细节（命令字、帧格式、JSON 字段）只出现在 CardProtocol，上层只看到 Swift 类型。固件版本差异也在这一层处理。
 - 协议层从 `ios-prototype/Sources/DNoteProtocol.swift` 起步，原型的单元测试和样本一并迁移。
