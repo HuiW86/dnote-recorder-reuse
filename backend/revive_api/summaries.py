@@ -68,6 +68,11 @@ RETITLE_PROMPT = (
 )
 
 
+def retitle_message(material: str, current: str) -> str:
+    """The user message of the new-title request (Summarizer.retitleMessage)."""
+    return f"现在的标题：{current}\n\n内容：\n{material[:LONG_TRANSCRIPT_THRESHOLD]}"
+
+
 def profession_rule(job: str) -> str:
     return (
         f"用户的职业是「{job}」。职业只影响先写哪些要点、用什么说法：把这个职业会关心的结论、数字、风险和后续动作排在前面，"
@@ -205,6 +210,32 @@ def _strings(value) -> list[str]:
     if not isinstance(value, list):
         return []
     return [v.strip() for v in value if isinstance(v, str) and v.strip()]
+
+
+def parse_title(reply: str) -> str:
+    """The `title` of a JSON reply; a reply that is just a line of text is taken as the title
+    (Summarizer.parseTitle). At most 30 characters."""
+    text = strip_thinking(reply)
+    start, end = text.find("{"), text.rfind("}")
+    obj = None
+    if 0 <= start < end:
+        try:
+            obj = json.loads(text[start : end + 1])
+        except ValueError:
+            obj = None
+    if isinstance(obj, dict):
+        title = _trimmed(obj.get("title"))
+    else:
+        first = next((line for line in text.splitlines() if line), "")
+        title = first
+        while True:  # quote marks and spaces in any order, as Swift's trimmingCharacters(in:)
+            trimmed = title.strip().strip(" \"'“”「」《》")
+            if trimmed == title:
+                break
+            title = trimmed
+    if not title:
+        raise BadReply("没有标题")
+    return title[:30]
 
 
 def parse(reply: str, fixed_scene: str | None) -> Draft:

@@ -21,6 +21,7 @@ CASES = {
     "chunk-notes.txt": s.chunk_notes(["第一段的要点", "第二段的要点"]),
     "user-65min.txt": s.user_message("第一句。\n第二句。", 3_900_000),
     "retitle.txt": s.RETITLE_PROMPT,
+    "retitle-user.txt": s.retitle_message("周会\n下周三上线。", "2026-11-20 09:30"),
 }
 
 

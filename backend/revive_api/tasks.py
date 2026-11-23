@@ -133,16 +133,25 @@ async def claim(run: Runtime) -> Claimed | None:
             return Claimed(task.id, task.user_id, task.recording_id, task.kind, dict(task.params), task.attempts)
 
 
+@dataclass
+class Finishing:
+    db: AsyncSession
+    # Set to keep a small answer on the task (Task.result).
+    result: dict | None = None
+
+
 @asynccontextmanager
-async def finishing(run: Runtime, claimed: Claimed) -> AsyncIterator[AsyncSession]:
+async def finishing(run: Runtime, claimed: Claimed) -> AsyncIterator[Finishing]:
     """A transaction for the task's results that also marks it succeeded. Raises LostLease, writing
     nothing, when the task is no longer running this attempt."""
     async with run.sessions() as db, db.begin():
         task = await _this_attempt(db, claimed)
         if task is None:
             raise LostLease(str(claimed.id))
-        yield db
+        done = Finishing(db)
+        yield done
         now = run.clock.now()
+        task.result = done.result
         task.status = SUCCEEDED
         task.lease_until = None
         task.error_code = task.error_message = None

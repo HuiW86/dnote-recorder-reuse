@@ -41,6 +41,8 @@ class TaskOut(BaseModel):
     status: str
     attempts: int
     error: TaskErrorOut | None
+    # Kinds that answer on the task itself: retitle gives {"title", "model"}. Null otherwise.
+    result: dict | None = None
     created_at: datetime
     updated_at: datetime
     finished_at: datetime | None
@@ -54,6 +56,7 @@ class TaskOut(BaseModel):
             status=task.status,
             attempts=task.attempts,
             error=TaskErrorOut(code=task.error_code, message=task.error_message or "") if task.error_code else None,
+            result=task.result,
             created_at=task.created_at,
             updated_at=task.updated_at,
             finished_at=task.finished_at,

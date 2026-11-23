@@ -10,7 +10,7 @@ import logging
 import signal
 import time
 
-from . import maintenance, summarize, transcription
+from . import maintenance, retitle, summarize, transcription
 from .runtime import Runtime
 from .tasks import Handler, run_one
 
@@ -19,6 +19,7 @@ log = logging.getLogger("revive_api")
 HANDLERS: dict[str, Handler] = {
     transcription.KIND: transcription.transcribe,
     summarize.KIND: summarize.summarize,
+    retitle.KIND: retitle.retitle,
 }
 
 

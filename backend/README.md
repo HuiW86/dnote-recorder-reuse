@@ -4,7 +4,7 @@
 
 App 没登录时不调用这里的任何接口；设备功能（配对、录音、同步、播放、导出）完全不依赖后端（`CLAUDE.md` 硬规则 3）。
 
-## 现在有什么（第一到五片）
+## 现在有什么（第一到六片）
 
 | 模块 | 接口 | 对应 |
 |---|---|---|
@@ -14,12 +14,12 @@ App 没登录时不调用这里的任何接口；设备功能（配对、录音�
 | 设备登记 | `GET /v1/devices`、`PUT /v1/devices/{sn_hash}`、`DELETE /v1/devices/{sn_hash}` | A4b |
 | 录音与上传 | `POST /v1/recordings`、`GET /v1/recordings`、`GET /v1/recordings/{id}`、`DELETE /v1/recordings/{id}`、`POST /v1/recordings/{id}/upload`、`/upload-complete`、`GET /v1/recordings/{id}/audio-url` | §7.2，X3 的后端部分 |
 | 转写 | `POST /v1/recordings/{id}/transcribe`、`GET /v1/recordings/{id}/transcript`、`PATCH /v1/recordings/{id}/speakers` | F1（识别引擎暂用替身） |
-| AI 纪要 | `POST /v1/recordings/{id}/summaries`、`GET /v1/recordings/{id}/summaries`、`GET /v1/templates` | G1、G2a（大模型暂用替身） |
+| AI 纪要 | `POST /v1/recordings/{id}/summaries`、`GET /v1/recordings/{id}/summaries`、`GET /v1/templates`、`POST /v1/recordings/{id}/retitle`（新标题在任务的 `result` 里） | G1、G2a（大模型暂用替身） |
 | 任务 | `GET /v1/tasks/{id}`；工作进程 `python -m revive_api.worker` | §7.4，ADR-013 |
 | 意见反馈 | `POST /v1/feedback` | O1b |
 | 通用 | 统一错误结构、写操作的 `Idempotency-Key`、`GET /healthz` | §7.1、§7.3 |
 
-还没有：真实的识别引擎和大模型、换角度重起标题。额度的数值还没定（`REVIVE_ASR_MONTHLY_SECONDS`、`REVIVE_LLM_MONTHLY_TOKENS`，不设表示不限，生产环境必须设）。
+还没有：真实的识别引擎和大模型。额度的数值还没定（`REVIVE_ASR_MONTHLY_SECONDS`、`REVIVE_LLM_MONTHLY_TOKENS`，不设表示不限，生产环境必须设）。
 
 **替身**：短信、邮件、COS、KMS、ASR、大模型要腾讯云账号（ASR 和大模型还要等 `docs/asr-evaluation.md`、`docs/summary-evaluation.md` 的对比）。识别引擎现在是 `StandInTranscriber`，文字稿只有一句「替身转写」；大模型是 `StandInChatModel`，纪要只摘开头两句。现在验证码由 `LoggingSender` 打到日志里，音频由 `LocalStore` 存在 `REVIVE_STORAGE_DIR`（默认 `backend/.storage/`）并由本服务在 `/dev-storage` 下按签名地址收发（这几个替身在生产环境都会拒绝启动），绑定码用环境变量里的密钥加密。账号到位后各自换成真实实现（`revive_api/runtime.py` 的 `CodeSender`，`storage.py` 的 `ObjectStore`，`asr.py` 的 `Transcriber`，`llm.py` 的 `ChatModel`，`security.py` 的 `Box`）。
 

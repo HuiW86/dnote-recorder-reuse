@@ -94,9 +94,15 @@ public struct Summarizer: Sendable {
     /// in the same JSON shape as a summary's title. `avoiding` is the title to move away from.
     public func retitle(material: String, avoiding current: String, config: ServiceConfig) async throws -> String {
         guard config.isComplete else { throw AssistantError.notConfigured }
-        let user = "现在的标题：\(current)\n\n内容：\n\(String(material.prefix(Self.longTranscriptThreshold)))"
-        let reply = try await client.complete(config, system: Self.retitlePrompt, user: user, json: true)
+        let reply = try await client.complete(config, system: Self.retitlePrompt,
+                                              user: Self.retitleMessage(material: material, current: current), json: true)
         return try Self.parseTitle(reply)
+    }
+
+    /// The user message of the new-title request: the title to move away from and the material,
+    /// cut to `longTranscriptThreshold` characters.
+    public static func retitleMessage(material: String, current: String) -> String {
+        "现在的标题：\(current)\n\n内容：\n\(String(material.prefix(longTranscriptThreshold)))"
     }
 
     static let retitlePrompt = """

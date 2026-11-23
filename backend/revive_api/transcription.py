@@ -37,7 +37,8 @@ async def transcribe(run: Runtime, claimed: Claimed) -> None:
     except TranscriberError as error:
         raise TaskError(error.code, error.message, error.retryable) from error
 
-    async with finishing(run, claimed) as db:
+    async with finishing(run, claimed) as done:
+        db = done.db
         recording = await db.scalar(select(Recording).where(Recording.id == claimed.recording_id).with_for_update())
         if recording is None or recording.deleted_at is not None or recording.audio_object_key != key:
             raise TaskError("recording_deleted", "录音已删除")

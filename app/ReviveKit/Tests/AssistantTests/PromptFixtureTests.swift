@@ -28,5 +28,7 @@ struct PromptFixtureTests {
         #expect(Summarizer.userMessage(material: "第一句。\n第二句。", durationMs: 3_900_000)
             == (try fixture("user-65min.txt")))
         #expect(Summarizer.retitlePrompt == (try fixture("retitle.txt")))
+        #expect(Summarizer.retitleMessage(material: "周会\n下周三上线。", current: "2026-11-20 09:30")
+            == (try fixture("retitle-user.txt")))
     }
 }

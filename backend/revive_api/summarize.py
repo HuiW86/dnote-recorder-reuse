@@ -56,7 +56,8 @@ async def summarize(run: Runtime, claimed: Claimed) -> None:
         # Models vary between tries; another one may well be readable.
         raise TaskError("bad_reply", f"AI 的回答格式不对（{error}）", retryable=True) from error
 
-    async with finishing(run, claimed) as db:
+    async with finishing(run, claimed) as done:
+        db = done.db
         recording = await db.scalar(select(Recording).where(Recording.id == claimed.recording_id).with_for_update())
         if recording is None or recording.deleted_at is not None:
             raise TaskError("recording_deleted", "录音已删除")

@@ -194,7 +194,7 @@ class Task(Base):
     recording_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("recordings.id", ondelete="CASCADE")
     )
-    # transcribe (later: summarize)
+    # transcribe, summarize, retitle
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     params: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -205,6 +205,8 @@ class Task(Base):
     # The last failure, kept while a retry waits so the app can show it.
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(String(500))
+    # A small answer kept on the task itself, for kinds with no table of their own (retitle: {"title"}).
+    result: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _time()
     updated_at: Mapped[datetime] = _time()
     started_at: Mapped[datetime | None] = _time(nullable=True)
