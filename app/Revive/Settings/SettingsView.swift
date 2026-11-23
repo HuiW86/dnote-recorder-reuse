@@ -5,6 +5,8 @@ import SwiftUI
 struct SettingsView: View {
     let diagnostics: DiagnosticLog
     @Bindable var preferences: Preferences
+    /// nil while the build has no server address: no account row at all (product-spec.md P17).
+    let account: AccountModel?
     /// The system refused notifications when the switch was turned on.
     @State private var notificationsRefused = false
 
@@ -69,6 +71,14 @@ struct SettingsView: View {
                 Text("诊断信息记录连接和同步的过程，不含录音，序列号已脱敏。只在你分享时离开这部手机。")
             }
             .surfaceRows()
+            if let account {
+                Section("闻笺账号") {
+                    NavigationLink(value: Route.account) {
+                        LabeledContent("闻笺账号", value: account.user?.displayName ?? "登录或注册")
+                    }
+                }
+                .surfaceRows()
+            }
             Section("关于") {
                 NavigationLink("关于", value: Route.about)
                 NavigationLink("隐私政策", value: Route.privacy)
@@ -84,6 +94,8 @@ struct SettingsView: View {
             preferences.syncNotificationsEnabled = false
             notificationsRefused = true
         }
+        // The stored sign-in, from the Keychain only (prd.md §7.1).
+        .task { await account?.load() }
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
     }

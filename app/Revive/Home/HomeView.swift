@@ -17,6 +17,8 @@ enum Route: Hashable {
     case assistant
     /// 设置 → 纠错词库 (#75).
     case corrections
+    /// 设置 → 闻笺账号 and its 意见反馈 (product-spec.md P17, P19).
+    case account, feedback
     /// 知识库 → 标签, and one tag's recordings (features.md D1c).
     case tags
     case tag(String)

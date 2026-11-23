@@ -1,3 +1,4 @@
+import Account
 import AppModel
 import CardLink
 import CardService
@@ -20,6 +21,11 @@ final class AppEnvironment {
     /// The user's AI service, read fresh each time (features.md X11): nil until an address and
     /// a model are saved. The key comes from the Keychain.
     let assistantConfig = AssistantConfigSource.saved()
+    /// 闻笺账号 (product-spec.md P17): nil while the build has no server address
+    /// (`ReviveAPIBaseURL`), and then the app has no account pages and sends nothing to the backend.
+    let account: AccountModel? = AccountServer.baseURL(Bundle.main.infoDictionary).map {
+        AccountModel(client: AccountClient(baseURL: $0, store: KeychainAccountSessionStore()))
+    }
 
     /// The transcriber the recording page and 录完自动整理 use (`TranscriberChoice`).
     func transcriber(library: RecordingLibrary) -> (any SpeechTranscribing)? {
