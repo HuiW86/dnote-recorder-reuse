@@ -27,9 +27,7 @@ private final class AccountStub: AccountTransport, @unchecked Sendable {
 
     func send(_ request: URLRequest) async throws -> (Data, Int) {
         let path = request.url?.path ?? ""
-        lock.lock()
-        recorded.append(path)
-        lock.unlock()
+        lock.withLock { recorded.append(path) }
         let (status, body) = handler(path)
         return (Data(body.utf8), status)
     }

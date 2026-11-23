@@ -25,10 +25,7 @@ final class StubServer: AccountTransport, @unchecked Sendable {
     }
 
     func send(_ request: URLRequest) async throws -> (Data, Int) {
-        lock.lock()
-        recorded.append(request)
-        let handler = self.handler
-        lock.unlock()
+        lock.withLock { recorded.append(request) }
         let (status, body) = try handler(request)
         return (Data(body.utf8), status)
     }
