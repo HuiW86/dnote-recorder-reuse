@@ -137,10 +137,9 @@ struct LinkImportModelTests {
                                     downloader: StubDownloader(.hang))
         model.text = "https://example.com/3"
         model.submit()
-        for _ in 0..<100 {
-            if case .downloading = model.phase { break }
-            try await Task.sleep(nanoseconds: 10_000_000)
-        }
+        // Patient, like every wait in AppModelTests: on CI all main-actor suites share one busy
+        // thread, so a fixed short wait can expire before the run is even scheduled.
+        await waitUntil("downloading") { if case .downloading = model.phase { true } else { false } }
         guard case .downloading(let current, _, _) = model.phase else {
             Issue.record("not downloading: \(model.phase)")
             return
@@ -153,12 +152,8 @@ struct LinkImportModelTests {
         model.text = "https://example.com/4"
         model.submit()
         #expect(model.phase == .resolving)
-        // Wait for the new run to reach its download (a busy CI runner can take longer than a fixed
-        // 200 ms; app-ci saw it still resolving), then give the cancelled run time to interfere.
-        for _ in 0..<300 {
-            if model.phase != .resolving { break }
-            try await Task.sleep(nanoseconds: 10_000_000)
-        }
+        await waitUntil("the new run downloading") { if case .downloading = model.phase { true } else { false } }
+        // The cancelled run has had time to finish late by now; it must not have reset the new one.
         try await Task.sleep(nanoseconds: 200_000_000)
         guard case .downloading = model.phase else {
             Issue.record("the cancelled run changed the new one: \(model.phase)")
