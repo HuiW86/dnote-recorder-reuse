@@ -3,7 +3,7 @@
 > **维护说明（发布时删掉本框）**
 > - 用途：App Store Connect 与 TestFlight 要填的「隐私政策 URL」。仓库是私有的，本文要另外托管到一个公开地址（`docs/release/testflight.md` §1）。
 > - 与 App 内 P11 隐私政策（`app/Revive/Onboarding/InfoPages.swift` 的 `PrivacyView`）保持一致：改其中一处，另一处同时改。本文比 App 内多了开发者信息、权限、导出与导入、TestFlight 与政策变更几节，这些是公开页面的常规内容。
-> - 【方括号】是待填的占位符。
+> - 【方括号】是待填的占位符。发布用 `scripts/build_privacy_page.py` 生成：它去掉本框，填占位符，有没填的就拒绝生成（`testflight.md` §1）。
 > - 不出现对方商标，唯一允许的写法是「适用于 D·NOTE 录音卡」（`CLAUDE.md` 硬规则 5）。
 
 ---
