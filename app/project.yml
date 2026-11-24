@@ -51,6 +51,9 @@ targets:
           - CFBundleTypeName: 音频
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.audio]
+        # The 闻笺 account's server (features.md K1, backend/). Empty: no account anywhere in the app,
+        # as until the backend is deployed. Only https is accepted (AppEnvironment.AccountService).
+        ReviveAPIBaseURL: ""
         # Export compliance answered in App Store Connect for 0.1.0 (1): standard algorithms only
         # (ChaCha20 to read the card's own audio), not distributed in France; skips the question on later uploads.
         ITSAppUsesNonExemptEncryption: false

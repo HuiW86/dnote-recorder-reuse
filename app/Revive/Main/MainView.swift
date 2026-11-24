@@ -294,10 +294,12 @@ struct RouteDestination: View {
         case .recordingSummary(let id):
             RecordingDetailView(env: env, recordingId: id, initialPane: .summary) { model.offerUndo(forTrashed: $0) }
         case .device(let id): DeviceView(env: env, deviceId: id)
-        case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences)
+        case .settings: SettingsView(diagnostics: env.diagnostics, preferences: env.preferences, account: env.account)
         case .trash: TrashView(env: env)
         case .assistant: AssistantSettingsView(preferences: env.preferences)
         case .corrections: CorrectionsView(env: env)
+        case .account:
+            if let session = env.account { AccountView(session: session) }
         case .tags: TagsView(env: env)
         case .tag(let name): TagRecordingsView(env: env, tag: name, model: model, path: $path)
         case .about: AboutView()
