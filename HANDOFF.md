@@ -15,10 +15,9 @@
 - `docs/device-run-2.md`：第 2 轮真机验收脚本（A 部分 TestFlight、B 部分 DEBUG，约 3 小时）；结果模板 `evidence/v42-round2/README.md`，判据已预先写好
 - `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 改为 7（下一次上传）；`device-todo.md` 指向新脚本
 
-## 开着的 PR（2026-11-24 查过）
-- #81（#79 构建 (5) 的复验记录，只改 `evidence/v79-sync-retry/README.md`）：能干净合并，可以直接合
-- #129（公开隐私页的生成脚本）：能干净合并，CI 通过；合并后照 `docs/release/testflight.md` §1 托管
-- #135（Mac 上改写和提问）：CI 通过，但 `docs/features.md`、`docs/product-spec.md` 和 main 冲突，要在它的分支上合一下 main。按上面的决定，也可以等 ① 之后再合
+## 开着的 PR（2026-11-24）
+- #81（#79 构建 (5) 的复验记录）、#129（公开隐私页的生成脚本 `scripts/build_privacy_page.py`）已于 2026-11-24 合并。合并后在 main 上跑过 `client/tests/test_privacy_page.py`（5 个通过）；脚本现在因为 3 个占位符没填（日期、开发者名称、联系邮箱）拒绝生成，这是预期行为，填好后照 `docs/release/testflight.md` §1 托管
+- #135（Mac 上改写和提问）：CI 通过，但 `docs/features.md`、`docs/product-spec.md` 和 main 冲突，要在它的分支上合一下 main。按上面的决定，等 ① 之后再合
 
 ## Next Actions
 1. **你来做**：照 `docs/device-run-2.md` 打 0.1.0 (7)、装同一提交的 DEBUG 构建、跑 A、B 两部分，结果填 `evidence/v42-round2/README.md`。注意要先做 A1 升级，后面会删 App 重装
