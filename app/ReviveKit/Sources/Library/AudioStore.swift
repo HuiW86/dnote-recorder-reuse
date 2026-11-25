@@ -113,11 +113,6 @@ public struct AudioStore: Sendable {
         }
     }
 
-    /// Ids of the OGG files in `audio/`.
-    public func storedAudioIds() -> [UUID] {
-        storedAudioFiles().filter { $0.path.hasSuffix(".ogg") }.map(\.id)
-    }
-
     /// Every audio file in `audio/` named after a recording id: card OGG files and phone M4A
     /// files. `path` is relative to `root`.
     public func storedAudioFiles() -> [(id: UUID, path: String)] {

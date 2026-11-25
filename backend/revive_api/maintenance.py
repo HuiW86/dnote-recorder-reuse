@@ -31,9 +31,9 @@ async def drain_deletions(run: Runtime, limit: int = 200) -> int:
         async with run.sessions() as db, db.begin():
             row = await db.scalar(
                 select(ObjectDeletion)
+                # Rows that keep failing go to the back.
                 .order_by(ObjectDeletion.attempts, ObjectDeletion.created_at)
                 .limit(1)
-                # Rows that keep failing go to the back.
                 .with_for_update(skip_locked=True)
             )
             if row is None:

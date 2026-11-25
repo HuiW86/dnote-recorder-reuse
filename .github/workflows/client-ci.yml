@@ -21,8 +21,8 @@ on:
       - "ios-prototype/Tests/Fixtures/**"
       - ".github/workflows/client-ci.yml"
 
-# A newer push to the same PR or branch cancels the run it supersedes: macOS minutes are
-# scarce, and only the latest commit's result counts.
+# A newer push to the same PR or branch cancels the run it supersedes: only the latest
+# commit's result counts.
 concurrency:
   group: client-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
