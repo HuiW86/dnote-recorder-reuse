@@ -14,9 +14,10 @@ app="$root/app"
 fail=0
 
 # The Python client and the iOS prototype talk to real cards too: same rule, same exemption for tests.
+# client/check_log.py only reads exported logs to assert these were never sent, so it is exempt too.
 forbidden=$(grep -rniE '0x(93|94|b0|b1)\b' "$app" "$root/client" "$root/ios-prototype" \
   --include='*.swift' --include='*.py' --exclude-dir=Tests --exclude-dir=tests --exclude-dir=.build \
-  --exclude-dir=.build-linux --exclude-dir=.venv || true)
+  --exclude-dir=.build-linux --exclude-dir=.venv --exclude=check_log.py || true)
 if [[ -n "$forbidden" ]]; then
   echo "FAIL: irreversible device command literal found (CLAUDE.md rule 1):"
   echo "$forbidden"
