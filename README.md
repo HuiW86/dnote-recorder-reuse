@@ -35,10 +35,11 @@ iOS App 的构建与测试命令见 [`CLAUDE.md`](CLAUDE.md) 的「常用命令�
 
 | 路径 | 内容 |
 |---|---|
-| `app/` | 正式 iOS App（代号 Revive，显示名「闻笺」）：`ReviveKit/` 是各模块所在的 Swift Package，`project.yml` 用 XcodeGen 生成工程 |
+| `app/` | 正式 iOS App（代号 Revive，显示名「闻笺」）：`ReviveKit/` 是各模块所在的 Swift Package，`ReviveMac/` 是 Mac 版，`project.yml` 用 XcodeGen 生成工程 |
+| `backend/` | 后端（M2）：FastAPI + PostgreSQL，运行和测试见 [`backend/README.md`](backend/README.md) |
 | `client/` | Python 命令行客户端：协议库 + OGG 封装，真机验证用；`probe_*.py` 是真机探测脚本 |
 | `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用 |
-| `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查（CI 也跑） |
+| `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查；`check-theme.sh`：界面颜色只取 Theme（两个 CI 都跑）；`shots.sh`：模拟器截图；`build_privacy_page.py`：生成公开隐私政策页 |
 | `design/` | App 图标原图 |
 | `evidence/` | 真机验证证据（按验证编号分目录） |
 | `HANDOFF.md` | 最近一次开发会话的交接：做完了什么、下一步、风险 |
@@ -48,6 +49,7 @@ iOS App 的构建与测试命令见 [`CLAUDE.md`](CLAUDE.md) 的「常用命令�
 | `docs/product-spec.md` | 页面清单、流程、界面状态与错误提示 |
 | `docs/test-spec.md` | 测试策略、用例、真机证据格式 |
 | `docs/adr/` | 选型决策记录 |
+| `docs/release/` | TestFlight 要填的内容、公开隐私政策草稿 |
 | `docs/PROTOCOL.md` | 完整 BLE 协议规格 |
 | `docs/official-app-analysis.md` | 官方 App 功能盘点 |
 | `docs/official-ui-walkthrough.md` | 官方 App 的页面走查 |
@@ -59,7 +61,7 @@ iOS App 的构建与测试命令见 [`CLAUDE.md`](CLAUDE.md) 的「常用命令�
 
 阶段 0（设备与平台可行性）已完成：离线配对、录音、蓝牙下载、解密、实时音频、WiFi 快传、iOS 原型均已真机跑通，证据见 `evidence/`。阶段 1（规格与选型，#10）已完成。
 
-M1 离线闭环（#11）：代码已合并（PR #46），首个 TestFlight 内部构建「闻笺」0.1.0 (1) 已上传（PR #56）；真机验收在 #42，暂缓的真机项在 #54。M2～M4（#12～#14）未开始，仓库里还没有后端代码。
+M1 离线闭环（#11）：代码已合并（PR #46），首个 TestFlight 内部构建「闻笺」0.1.0 (1) 已上传（PR #56）；真机验收在 #42，暂缓的真机项在 #54。M1.5（#70）、界面改版、Mac 版第一步（#72）的代码已合并，真机检查见 `docs/device-todo.md`。M2（#12）：后端（`backend/`）里不需要外部条件的部分已做完（账号、设备登记、上传、转写与纪要任务、用量），短信、邮件、对象存储、识别引擎和大模型仍是替身，等云账号和选型；App 端只做了账号页。M3、M4 未开始。
 
 进度以 GitHub milestone 和 issue 为准。
 
