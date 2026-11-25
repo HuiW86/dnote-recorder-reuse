@@ -50,7 +50,7 @@
 - 无
 
 ## Next Actions
-1. 装一个当前 main 的构建（PR #124 之后；#110 也改了 App 代码）（TestFlight 要先把 `app/project.yml` 的 `CURRENT_PROJECT_VERSION` 加 1），按 `docs/device-todo.md` 的顺序做真机检查。新增的几项都在 §6：T-M15-60 先不连卡（审核员走的路，外部测试前必须过）、T-M2-10 关掉「无线数据」、T-M4-17～21 手机录音
+1. 真机测试按 `docs/device-todo.md`（2026-11-25 按「准备 → Claude 独立完成 → 需要人配合」重排）：要装两个构建，DEBUG（Xcode 装，有协议日志）和 TestFlight 0.1.0 (7)（构建号已设为 7）；结果交到 `evidence/v42-device-acceptance/`，日志用 `client/check_log.py` 判读。新增的几项都在 §6：T-M15-60 先不连卡（审核员走的路，外部测试前必须过）、T-M2-10 关掉「无线数据」、T-M4-17～21 手机录音
 2. #42：T-M1-50～57、多卡 #8（至少 3 张卡）、#66 的 TOC 统计
 3. 发布前：隐私政策托管到公开地址并填好占位符（`docs/release/testflight.md` §1、§5），录演示视频
 4. 两项评估（`device-todo.md` §8a）：备好真卡录音和参考文本、服务商账号后，按 `asr-evaluation.md`、`summary-evaluation.md` 跑，结果填进去
