@@ -115,6 +115,17 @@ def _transcripts(directory: Path) -> dict[str, str]:
     return found
 
 
+def read_prompt(path: Path) -> str:
+    """The system prompt in `path`. Lines starting with "# " at the very top say where the prompt
+    comes from (prompts/b-beanpod.txt); they and the blank line after them are not sent."""
+    lines = path.read_text(encoding="utf-8").split("\n")
+    while lines and lines[0].startswith("# "):
+        lines.pop(0)
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    return "\n".join(lines)
+
+
 def generate(transcripts: dict[str, str], prompts: dict[str, str], models: list[Model],
              post: Post = _urllib_post, clock: Callable[[], float] = time.monotonic,
              log: Callable[[str], None] = print) -> tuple[list[Output], list[str]]:
@@ -191,7 +202,7 @@ def main(argv: list[str] | None = None, post: Post = _urllib_post) -> int:
     args = parser.parse_args(argv)
     try:
         transcripts = _transcripts(args.transcripts)
-        prompts = {name: Path(path).read_text(encoding="utf-8")
+        prompts = {name: read_prompt(Path(path))
                    for name, path in (parse_pair(p, "--prompt") for p in args.prompt)}
         models = [parse_model(m) for m in args.model]
         if prompts and not models:
