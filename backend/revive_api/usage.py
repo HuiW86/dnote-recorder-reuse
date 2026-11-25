@@ -10,10 +10,15 @@ are checked when a task is asked for, so a request over the limit is refused rig
 - Summaries: tokens are not known in advance, so a summary is refused only once the month's
   tokens are used up; the last one may go over a little.
 
+Model tokens an attempt spent without producing a result (an unreadable reply that is retried, a
+recording deleted meanwhile) are recorded as `llm_unbilled`: they are what running the service
+cost, but the user got nothing for them, so they never count against the allowance.
+
 Every account may also have only `max_pending_tasks` tasks queued or running at a time.
 Checks and the enqueue that follows run under a lock on the user's row, so two requests at once
 cannot both slip under the limit."""
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 
@@ -25,7 +30,9 @@ from .models import Recording, Task, UsageRecord, User
 from .runtime import Runtime
 from .tasks import QUEUED, RUNNING
 
-ASR_SECONDS, LLM_TOKENS = "asr_seconds", "llm_tokens"
+ASR_SECONDS, LLM_TOKENS, LLM_UNBILLED = "asr_seconds", "llm_tokens", "llm_unbilled"
+
+log = logging.getLogger("revive_api")
 
 
 @dataclass(frozen=True)
@@ -101,3 +108,15 @@ async def check_summarize(db: AsyncSession, run: Runtime, user: User) -> None:
     period = current_period(run.clock.now(), run.settings.usage_utc_offset_hours)
     if await used(db, user.id, LLM_TOKENS, period) >= limit:
         raise AppError(429, "quota_exceeded", "本月 AI 整理的额度用完了，下个月 1 日恢复")
+
+
+async def record_unbilled(run: Runtime, user_id, tokens: int) -> None:
+    """Keeps the tokens of an attempt that produced nothing, outside the failed attempt's own
+    transaction. Never raises: losing this record must not hide why the attempt failed."""
+    if tokens <= 0:
+        return
+    try:
+        async with run.sessions() as db, db.begin():
+            db.add(UsageRecord(user_id=user_id, kind=LLM_UNBILLED, amount=tokens, occurred_at=run.clock.now()))
+    except Exception:
+        log.exception("could not record %d unbilled tokens", tokens)

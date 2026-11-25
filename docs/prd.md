@@ -465,14 +465,14 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 ## 7. 后端接口契约（M2～M4，模块级）
 
-技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-22，Proposed）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）、第四片（AI 生成）已做，见 `backend/README.md`。
+技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-25 Accepted）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-25 Accepted）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）、第四片（AI 生成）、第五片（用量与额度）、第六片（换角度重起标题）已做，见 `backend/README.md`。
 
 ### 7.1 通用约定
 
 - 前缀 `/v1`；JSON；时间用 ISO 8601 带时区；id 用 UUID。
 - 鉴权：`Authorization: Bearer <access token>`。access token 15 分钟有效；refresh token 30 天有效，每次刷新换新，旧的立即作废。
 - **未登录时 App 不调用任何接口**（`backend-design.md` §4.6）。
-- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`。保存的响应加密存放（刷新令牌的响应里有令牌）。
+- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`；第一次处理中服务端挂掉、没留下结果的，5 分钟后视为放弃，同一个请求再来就重新处理（`REVIVE_IDEMPOTENCY_ABANDONED_SECONDS`），不用干等 24 小时。保存的响应加密存放（刷新令牌的响应里有令牌）。
 - **刷新令牌时一定要带 `Idempotency-Key`**：已作废的刷新令牌再次出现会被当成被盗用，整条登录链吊销；带了键，网络断开后的重试拿到的是同一对新令牌。
 
 ### 7.2 接口分组
@@ -533,7 +533,7 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | `summaries` | id、recording_id、scene（用的模板，即场景代号）、content（JSONB：title、summary、sections、todos、tags、people、outline、quotes，和 App 的纪要同样的栏目，一次生成全部）、model、created_at；每次生成一行 | M2 |
 | `templates` | 暂不建表：内置模板就是 10 种场景，在代码里（`summaries.SCENES`，和 App 的 `RecordingScene` 一致）；有用户自定义模板时再建 | M2 |
 | `tasks` | 队列和业务状态是同一张表（ADR-013）：id、user_id、recording_id、kind（`transcribe`、`summarize`、`retitle`）、params（JSONB）、status、attempts、max_attempts、run_after、lease_until、error_code、error_message、result（JSONB，没有自己的表的任务把小结果放这里，如 retitle 的新标题）、created_at、updated_at、started_at、finished_at | M2 |
-| `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens）、amount、occurred_at | M2 |
+| `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens；llm_unbilled 是没产出结果的尝试花掉的 token，比如读不出来要重试的回答，只用于看成本，不计入用户额度）、amount、occurred_at | M2 |
 | `feedback` | id、user_id、content、app_version、created_at | M2 |
 | `idempotency_records` | id、scope（调用方）、key、request_hash、status_code（处理中为空）、content_type、body（加密）、created_at；24 小时后清掉 | M2 |
 | `notes` | id、recording_id、offset_ms、text、image_keys、version、updated_at、deleted | M4 |
@@ -549,6 +549,6 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | 项 | 类型 | 何时解决 |
 |---|---|---|
 | App 本地数据库库选型（候选 GRDB） | 待决定 | M1 开工时，写 ADR |
-| 后端具体库与版本 | ADR-012 已提出（Proposed），等确认 | 2026-11-22 |
-| 任务队列用库还是自己写 | ADR-013 已提出（Proposed）：自己写，一张 `tasks` 表；等确认 | 2026-11-22 |
+| 后端具体库与版本 | ADR-012 Accepted | 2026-11-25 |
+| 任务队列用库还是自己写 | ADR-013 Accepted：自己写，一张 `tasks` 表 | 2026-11-25 |
 | 任务完成是否用推送通知 | 待决定 | M2 |

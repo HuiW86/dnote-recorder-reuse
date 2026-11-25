@@ -95,6 +95,13 @@ async def test_retitle_failures_and_quota(h, model):
     await tasks.run_one(h.run, HANDLERS)
     tokens = await h.sms_login()
     assert (await task_of(h, tokens, task_id))["result"]["title"] == "新标题"
+    async with h.run.engine.connect() as connection:
+        rows = (
+            await connection.execute(
+                text("SELECT kind, sum(amount) FROM usage_records WHERE kind LIKE 'llm%' GROUP BY kind ORDER BY kind")
+            )
+        ).all()
+    assert [tuple(r) for r in rows] == [("llm_tokens", 120), ("llm_unbilled", 120)]
 
     model.replies = [ChatModelError("llm_refused", "内容不合规，模型拒绝回答", retryable=False)]
     task_id = (await h.http.post(path, headers=bearer(tokens))).json()["id"]
