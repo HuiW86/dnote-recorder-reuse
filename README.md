@@ -38,8 +38,8 @@ iOS App 的构建与测试命令见 [`CLAUDE.md`](CLAUDE.md) 的「常用命令�
 | `app/` | 正式 iOS App（代号 Revive，显示名「闻笺」）：`ReviveKit/` 是各模块所在的 Swift Package，`ReviveMac/` 是 Mac 版，`project.yml` 用 XcodeGen 生成工程 |
 | `backend/` | 后端（M2）：FastAPI + PostgreSQL，运行和测试见 [`backend/README.md`](backend/README.md) |
 | `client/` | Python 命令行客户端：协议库 + OGG 封装，真机验证用；`probe_*.py` 是真机探测脚本 |
-| `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用 |
-| `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查；`check-theme.sh`：界面颜色只取 Theme（两个 CI 都跑）；`shots.sh`：模拟器截图；`build_privacy_page.py`：生成公开隐私政策页 |
+| `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用，不再开发；保留是为了能复现 `evidence/v7-ios/`（硬规则 6） |
+| `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查；`check_evidence.py`：证据脱敏检查；`check-theme.sh`：界面颜色只取 Theme（两个 CI 都跑）；`shots.sh`：模拟器截图；`build_privacy_page.py`：生成公开隐私政策页 |
 | `design/` | App 图标原图 |
 | `evidence/` | 真机验证证据（按验证编号分目录） |
 | `HANDOFF.md` | 最近一次开发会话的交接：做完了什么、下一步、风险 |

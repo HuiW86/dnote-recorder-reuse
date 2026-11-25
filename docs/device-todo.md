@@ -61,7 +61,7 @@
 
 ## 5. 界面改版第二步的剩余项（#89）
 
-`evidence/89-ui-step-two/README.md` 里标为「部分通过」的部分：
+`evidence/v89-ui-step-two/README.md` 里标为「部分通过」的部分：
 
 - 底栏五个位置和录音键的 VoiceOver 实际播报
 - 文字稿播放时的自动滚动，以及开启「减弱动态效果」前后的对比

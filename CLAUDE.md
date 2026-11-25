@@ -48,7 +48,8 @@ xcodebuild test -project DNoteProbe.xcodeproj -scheme DNoteProbe -destination 'p
 cd app/ReviveKit && swift test --disable-xctest   # 单元 + 模拟卡集成测试，在 macOS 上跑，不需要模拟器
 app/ReviveKit/scripts/linux-test.sh [--install]    # 没有 macOS 时（云端容器）：只用 Foundation 的那部分测试，约 250 个；不能代替 macOS 的 CI
 cd app && xcodegen generate && xcodebuild build -project Revive.xcodeproj -scheme Revive -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
-scripts/check-m1-rules.sh                         # 禁发命令字与 M1 模块不联网的静态检查（CI 同样会跑）
+scripts/check-m1-rules.sh                         # 禁发命令字（app、client、ios-prototype）与 M1 模块不联网的静态检查（CI 同样会跑）
+python3 scripts/check_evidence.py                 # evidence/ 里没有原始 sn、完整 btaddr、bondId（硬规则 4；ADR-006 的旧文件单列，CI 同样会跑）
 python3 app/ReviveKit/scripts/make_fixtures.py    # 用 Python 客户端重新生成协议测试样本（Swift 输出须与之逐字节一致）
 
 # 后端（backend/，M2）：要 PostgreSQL 16，测试会清空 TEST_DATABASE_URL 指向的库；详见 backend/README.md

@@ -1,7 +1,7 @@
 # ADR-010：接入其他录音设备时复用 BeanKit
 
 **日期**　2026-11-16
-**状态**　Proposed
+**状态**　Proposed（按背景第一条进入 M6 时定稿。2026-11-25：「决定」里三种方案都要做的第一步已完成，`SyncEngine` 只依赖与设备无关的 `DeviceSource`，PR #119、#120；A/B 的选择等手上有第二种设备再定）
 **来源**　#73；评估依据 `docs/beanpod-evaluation.md` §4.7（#65）
 
 ## 背景

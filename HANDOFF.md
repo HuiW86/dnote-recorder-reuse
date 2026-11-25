@@ -33,13 +33,18 @@
 
 ## Completed（2026-11-22～24，都已合并到 main）
 - M2 后端第二片（PR #134）：录音与上传 `/v1/recordings`，预签名分片直传、断点续传、按 SHA-256 去重、下载地址、删除留墓碑；音频删除走 `object_deletions` 队列，注销时连音频一起删；COS 用本机替身 `LocalStore`（`/dev-storage` 签名地址，生产拒绝启动）；`python -m revive_api.maintenance` 清理存储挂掉时没删的、7 天没传完的。PR #134 于 2026-11-24 合并
-- M2 后端第三片（PR #134）：任务队列（ADR-013，Proposed：自己写，一张 `tasks` 表，自动重试 30/60/120 秒、15 分钟租约）、工作进程 `python -m revive_api.worker`（顺带每 10 分钟跑维护）、`GET /tasks/{id}`；转写骨架 `POST /recordings/{id}/transcribe`、文字稿、说话人命名、`asr_seconds` 用量；识别引擎是 `asr.Transcriber` 接口，暂用 `StandInTranscriber`（生产拒绝启动）。后端测试 61 个。ADR-012、ADR-013 都是 Proposed，等你确认
+- M2 后端第三片（PR #134）：任务队列（ADR-013：自己写，一张 `tasks` 表，自动重试 30/60/120 秒、15 分钟租约）、工作进程 `python -m revive_api.worker`（顺带每 10 分钟跑维护）、`GET /tasks/{id}`；转写骨架 `POST /recordings/{id}/transcribe`、文字稿、说话人命名、`asr_seconds` 用量；识别引擎是 `asr.Transcriber` 接口，暂用 `StandInTranscriber`（生产拒绝启动）。后端测试 61 个。ADR-012、ADR-013 已于 2026-11-25 改为 Accepted
 - M2 后端第四片（PR #134）：AI 纪要 `POST/GET /recordings/{id}/summaries`、`GET /templates`；提示词、长文分段、回复解析照 App 的 `Summarizer` 移植，`app/ReviveKit/Tests/AssistantTests/Fixtures/prompts` 的 7 个样本两边逐字比对（App 端 `PromptFixtureTests` 只能等 #134 的 app-ci 在 macOS 上验证）；大模型是 `llm.ChatModel` 接口，暂用 `StandInChatModel`。App 端 `Summarizer` 抽出 `userMessage`、`chunkNotes` 两个函数，行为不变。后端测试 79 个。#134 的 CI（backend-ci、macOS 上的 app-ci）都已通过
 - M2 后端第五片（PR #134，2026-11-23）：用量与额度骨架，`GET /me/usage`、按北京时间自然月、转写按时长预占、纪要 token 用完即止、`429 quota_exceeded`、每人最多 10 个排队任务；额度数值未定（配置项，生产环境必须设）。后端测试 87 个
 - M2 后端第六片（PR #134，2026-11-23）：换角度重起标题 `POST /recordings/{id}/retitle`，新标题在任务的 `result` 里（`tasks` 加 `result` 列），录音标题由 App 决定是否替换；App 端抽出 `Summarizer.retitleMessage`，提示词样本 8 个。后端测试 92 个。M2 后端里不需要外部条件的部分到这里做完了
-- App 端账号页（PR #134，2026-11-23）：设置 › 账号（P17），新联网模块 `Account`（客户端、钥匙串里的登录、自动换新令牌、页面状态 `AccountModel`），22 个测试 Linux 上也跑，并对本机真实后端走过完整流程；`project.yml` 的 `ReviveAPIBaseURL` 为空时整个入口不出现。SwiftUI 页面只能靠 app-ci 编译。开启前要改隐私政策（加「账号」一节）
+- App 端账号页（PR #134，2026-11-23）：设置 › 账号（P17），新联网模块 `Account`（客户端、钥匙串里的登录、自动换新令牌、页面状态 `AccountModel`），22 个测试 Linux 上也跑，并对本机真实后端走过完整流程；`project.yml` 的 `ReviveAPIBaseURL` 为空时整个入口不出现。SwiftUI 页面只能靠 app-ci 编译。开启前要改隐私政策（加「账号」一节；`ReviveAPIBaseURL` 填了而两份政策还写「不需要账号」时 client-ci 会失败）
 - PR #125（Mac 原生版，ADR-011）已于 2026-11-23 合并
 - PR #129（公开隐私页的生成脚本 `scripts/build_privacy_page.py`）、PR #81（#79 的复验记录）已于 2026-11-24 合并
+- 2026-11-25（分支 `claude/ecstatic-davinci-p4jl2g`，全仓检查后的修补，未合并）：
+  - 后端：处理中挂掉、没留下响应的幂等键 5 分钟后可由同一请求接手（不再 24 小时都回 409，刷新令牌也不会卡一天）；没产出结果的大模型调用记 `llm_unbilled`（迁移 0006），只看成本、不算用户额度。后端测试 93 个
+  - ADR-012、ADR-013 改为 Accepted；ADR-010 注明第一步已做、A/B 进入 M6 时定
+  - 新检查：`scripts/check_evidence.py`（证据脱敏，ADR-006 的 21 个旧文件单列）；`check-m1-rules.sh` 的禁发命令字检查扩到 `client/`、`ios-prototype/`，Python 客户端删掉了这四个常量；`ReviveAPIBaseURL` 填了而两份隐私政策还写「不需要账号」时 client-ci 失败
+  - 提示词 B（beanpod 原版）放进 `client/prompts/b-beanpod.txt`；`evidence/89-ui-step-two` 改名 `v89-ui-step-two`；删掉三处没人用的 Swift 代码；README、本文件、test-spec 跟上 main
 
 ## In Progress
 - 无
@@ -51,7 +56,7 @@
 4. 两项评估（`device-todo.md` §8a）：备好真卡录音和参考文本、服务商账号后，按 `asr-evaluation.md`、`summary-evaluation.md` 跑，结果填进去
 5. 需要用户决定或提供条件才能做的：
    - ADR-011 文末的 3 个问题：原生还是 Catalyst；是否在 App Store 之外分发，证书和下载页谁提供；要不要先让 Mac 用户直接装 iPhone 版
-   - M2 后端：确认 ADR-012；腾讯云账号（服务器、PostgreSQL、COS、KMS）；短信签名和模板（个人主体能否申请要核实，不能就先只开邮箱登录，ADR-003）；发信用的邮件服务；域名 ICP 备案。有了这些才能把替身换成真实的短信、邮件和密钥服务并部署
+   - M2 后端：腾讯云账号（服务器、PostgreSQL、COS、KMS）；短信签名和模板（个人主体能否申请要核实，不能就先只开邮箱登录，ADR-003）；发信用的邮件服务；域名 ICP 备案。有了这些才能把替身换成真实的短信、邮件和密钥服务并部署
    - 额度定多少：每月转写多少分钟、大模型多少 token（`REVIVE_ASR_MONTHLY_SECONDS`、`REVIVE_LLM_MONTHLY_TOKENS`）
    - 下一步（不需要外部条件）：App 端「用闻笺账号」转写和整理这条路（上传、任务轮询、处理 `quota_exceeded`、`too_many_tasks`，换标题读任务的 `result.title`）、首次登录合并本机录音（X3）。账号页已做，等后端部署后填 `ReviveAPIBaseURL` 打开，开启前更新隐私政策真 ASR 引擎等 ASR 对比结果和账号。COS 的真实 `ObjectStore` 实现等账号；到时 COS 上要配「7 天清掉未完成的分片上传」的生命周期规则
    - M6：两种设备的真机
