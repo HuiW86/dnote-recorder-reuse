@@ -1,0 +1,13 @@
+闻笺 0.1.0 (109), iOS 27.0, iPhone
+2026-11-26 00:03:10.400 +08:00 [link] state idle
+2026-11-26 00:03:10.400 +08:00 [link] connect when seen, link idle
+2026-11-26 00:03:10.418 +08:00 [link] state connecting
+2026-11-26 00:03:12.426 +08:00 [link] state connected
+2026-11-26 00:03:12.473 +08:00 [card] paired card on the link: sn 7036aa3b fw 1.50 rec idle battery 99 free 7661/7671
+2026-11-26 00:17:12.124 +08:00 [link] state connecting
+2026-11-26 00:17:12.146 +08:00 [link] state connected
+2026-11-26 00:17:12.176 +08:00 [card] paired card on the link: sn 7036aa3b fw 1.50 rec idle battery 98 free 7661/7671
+2026-11-26 00:24:07.385 +08:00 [link] state poweredOff
+2026-11-26 00:26:10.702 +08:00 [link] state connecting
+2026-11-26 00:26:16.687 +08:00 [link] state connected
+2026-11-26 00:26:17.306 +08:00 [card] paired card on the link: sn 7036aa3b fw 1.50 rec idle battery 97 free 7661/7671
