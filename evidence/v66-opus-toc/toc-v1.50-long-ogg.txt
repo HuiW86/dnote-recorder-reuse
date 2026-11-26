@@ -1,0 +1,4 @@
+样本 OGG sha256 ea65972d678befa034c38fda79c89b33a7f5eb46bd8a96f55d72b9826b5d52a5
+94050 frames, remainder 0 B, 2 distinct TOC, matches 20 ms mono: yes
+  0x4b x69686: SILK WB 20 ms mono code 3
+  0x48 x24364: SILK WB 20 ms mono code 0

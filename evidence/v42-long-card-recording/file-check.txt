@@ -1,0 +1,14 @@
+SQLite integrity_check: ok; one row for card file 20261126142748.opus
+Card size: 3762060 B; contiguous received chunks: 18811
+Stored duration: 1881000 ms
+Stored sha256 (matches actual file): ea65972d678befa034c38fda79c89b33a7f5eb46bd8a96f55d72b9826b5d52a5
+codec_name=opus
+channels=1
+duration=1881.000000
+size=3906940
+Full FFmpeg decode: exit 0
+Decoded PCM slices around the 57.0 s pause seam:
+56.5–57.0 s: 24000 samples, RMS -26.90 dBFS
+57.0–57.5 s: 24000 samples, RMS -31.13 dBFS
+57.5–58.0 s: 24000 samples, RMS -25.73 dBFS
+Boundary amplitude step: 8 PCM units out of 32768

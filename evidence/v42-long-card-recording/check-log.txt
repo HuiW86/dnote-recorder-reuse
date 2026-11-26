@@ -1,0 +1,5 @@
+## card-debug.log
+- commands sent: 50×1, 51×1, 52×1, 53×1, 56×3, 70×1, 90×1, A1×1
+- download 20261126142748.opus from 0: 3762060 B, eof, 233.8 s, 15.7 KB/s [fg] (-35% vs 24 KB/s)
+- NOTE 20261126142748.opus: 15.7 KB/s is more than 20% from the 24 KB/s baseline
+- result: pass
