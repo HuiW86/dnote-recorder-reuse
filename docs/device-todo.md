@@ -76,10 +76,10 @@
 - 录完自动整理（T-M2-09，X22）：打开开关后录一条，同步后不点任何按钮，详情页出现文字稿和纪要；开着详情页时也能看到结果自己出现；断网时失败、详情页按钮照旧可用
 - 手机录音意外中断（T-M4-21）：`product-spec.md` §9「先不连卡」一组；要打开开发者模式，用「重置媒体服务」触发
 - 手机录音的存储空间（T-M4-20）：`product-spec.md` §9「先不连卡」一组；要先把手机剩余空间填到接近 100 MB
-- 手机录音标重点（T-M4-19）：`product-spec.md` §9「先不连卡」一组；和 T-M4-18 一起做
-- 手机录音被关掉（T-M4-18）：`product-spec.md` §9「先不连卡」一组。要确认 `AVAudioRecorder` 被杀掉时留下的 CAF 真的可读（单元测试只模拟了文件被截断的样子）；30 分钟以上的手机录音停止后能存好
+- ✅ 手机录音标重点（T-M4-19）的真机部分已通过：独立 DEBUG 109，约 10 秒和 40 秒标记、连点去重、筛选和定位回放均通过。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md#手机录音的操作子项)
+- 手机录音被关掉（T-M4-18）部分通过：独立 DEBUG 109 强制退出后恢复一条 101.245 秒录音，重点保留且可完整解码；仍缺 30 分钟以上手机录音的常规保存。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md#手机录音的操作子项)
 - 手机录音被打断（T-M4-17）：`product-spec.md` §9「先不连卡」一组的最后一条；要第二部手机打电话进来
-- 先不连卡（T-M15-60）：`product-spec.md` §9「先不连卡」一组。要删掉 App 重装、不配对卡，录屏证明蓝牙权限框只在 P01 点「继续」后出现；最好在外部测试前做，审核员走的就是这条路
+- 先不连卡（T-M15-60）部分通过：独立 DEBUG 109 的空白容器证实蓝牙只在 P01 点「继续」后询问，手机录音和链接导入可用。本机转写失败；正式 TestFlight 干净安装、文件导入、配对解绑、连续录屏待验收。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md)
 - 关掉「无线数据」（T-M2-10，X11）：`product-spec.md` §9「AI 服务」一组的最后一条。要国行 iPhone；顺带确认 iOS 这时报的是不是 `-1009`（诊断日志里能看到）。和 #54 的「无线数据」弹窗一起做最省事
 
 已经通过的：密钥只留在本机（T-M2-08，v105），流式中途断开显示「关闭」（PR #107 的验证）。
@@ -89,7 +89,7 @@
 不需要录音卡，要一部能上网的真手机。解析、下载、提示和存入都有自动用例（`test-spec.md` §3.7，35 个在 Linux 上也跑过），并对真实的小宇宙单集页、Apple 播客的节目和单集链接、一个 RSS 地址解析过一次；没验证过的是 iOS 上的真实下载、转换和界面。
 
 - T-M5-60 部分通过：DEBUG 109 真机从公开网页导入小宇宙、Apple 播客单集和 NASA RSS，RSS 音频播放到尾；待复测原生分享与本机转写。见 [v72-link-import-device](../evidence/v72-link-import-device/README.md#t-m5-60-小宇宙apple-播客与-rss)
-- T-M5-61 关掉「无线数据」时的提示：和 T-M2-10 一起做
+- ✅ T-M5-61 关掉「无线数据」时的提示：国行 iPhone 16 的独立 DEBUG 109 立即给出正确设置路径，重新允许 Wi-Fi 后同一链接成功入库。[v72-link-import-device](../evidence/v72-link-import-device/README.md#t-m5-61-关闭无线数据)
 - T-M5-62 部分通过：取消和切后台均未留半截条目，下拉不能关页；后台返回后显示通用链接错误，待确认失败原因。见 [v72-link-import-device](../evidence/v72-link-import-device/README.md#t-m5-62-下载中取消和离开)
 - 顺带看一个只有 `http://` 地址的 RSS：App 改用 `https://` 访问；对方不支持 https 时提示「打不开这个链接」，不崩溃
 - 结果记进 #72；界面检查项在 `product-spec.md` §9「导入」一组
