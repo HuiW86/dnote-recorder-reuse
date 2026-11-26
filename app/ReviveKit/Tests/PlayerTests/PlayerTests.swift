@@ -289,6 +289,7 @@ struct PlayerTests {
             try file.write(from: buffer)
         }
         let fromWav = try await AudioImporter.prepare(wav)
+        defer { try? FileManager.default.removeItem(at: fromWav.file.deletingLastPathComponent()) }
         #expect(fromWav.file.pathExtension == "m4a")
         #expect(abs(fromWav.durationMs - 2000) <= 20)
         #expect(try AVAudioFile(forReading: fromWav.file).length > 0)
@@ -296,6 +297,7 @@ struct PlayerTests {
         let ogg = dir.appendingPathComponent("card.ogg")
         try OggOpus.wrap(try SyntheticOpus.sine(seconds: 1)).write(to: ogg)
         let fromOgg = try await AudioImporter.prepare(ogg)
+        defer { try? FileManager.default.removeItem(at: fromOgg.file.deletingLastPathComponent()) }
         #expect(fromOgg.file.pathExtension == "ogg")
         #expect(fromOgg.durationMs >= 980 && fromOgg.durationMs <= 1020)
 
@@ -304,7 +306,11 @@ struct PlayerTests {
         await #expect(throws: AudioImporter.ImportError.unsupported) { try await AudioImporter.prepare(junk) }
         let badOgg = dir.appendingPathComponent("bad.ogg")
         try Data("OggS".utf8).write(to: badOgg)
-        await #expect(throws: AudioImporter.ImportError.unsupported) { try await AudioImporter.prepare(badOgg) }
+        let conversions = dir.appendingPathComponent("conversions")
+        #expect(throws: AudioImporter.ImportError.unsupported) {
+            try AudioImporter.prepareNow(badOgg, temporaryRoot: conversions)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: conversions.path).isEmpty)
     }
 
     @Test func exportM4AReportsMissingAudio() async throws {

@@ -96,6 +96,24 @@ async def test_transcription_stops_when_the_month_would_run_out(h, engines):
     assert (await transcribe(h, tokens, third)).status_code == 202
 
 
+async def test_queued_recordings_reserve_each_started_second_separately(h):
+    limits(h, asr_monthly_seconds=4)
+    tokens = await h.sms_login()
+    first, second, last, extra = [
+        await uploaded(h, tokens, bytes([n]), duration_ms=ms) for n, ms in enumerate([1000, 1000, 1001, 1])
+    ]
+    for recording in [first, second]:
+        assert (await transcribe(h, tokens, recording)).status_code == 202
+    waiting = (await h.http.get("/v1/me/usage", headers=bearer(tokens))).json()
+    assert waiting["asr_seconds"] == {"used": 0, "reserved": 2, "limit": 4, "remaining": 2}
+
+    assert (await transcribe(h, tokens, last)).status_code == 202
+    full = (await h.http.get("/v1/me/usage", headers=bearer(tokens))).json()
+    assert full["asr_seconds"] == {"used": 0, "reserved": 4, "limit": 4, "remaining": 0}
+    refused = await transcribe(h, tokens, extra)
+    assert refused.status_code == 429 and refused.json()["error"]["code"] == "quota_exceeded"
+
+
 async def test_a_failed_transcription_gives_its_time_back(h, engines):
     asr, _ = engines
     asr.failures = [TranscriberError("audio_unreadable", "音频无法识别", retryable=False)]

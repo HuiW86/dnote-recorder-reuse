@@ -1,21 +1,27 @@
 # dnote-recorder-reuse
 
-脱离官方 App 与追觅云，复用追觅 D·NOTE（DNOTE001B）AI 录音名片硬件：做一个替代的 iOS App 和后端，让这一批卡的持有者重新用上配对、录音、同步、转写和 AI 总结。
+闻笺（Revive）是一款离线优先的录音工作台，适用于 D·NOTE 录音卡（DNOTE001B）。iPhone 可以通过蓝牙配对、录音、同步和播放，也可以用手机麦克风录音、导入文件。Mac 版可以导入和整理这台 Mac 上的录音。
 
-> **给接手的 agent / 开发者**：先读 [`CLAUDE.md`](CLAUDE.md)（硬规则与文档地图），再读 [`docs/backend-design.md`](docs/backend-design.md)（总体设计与进度）。本文件只给一分钟概览。
+**开发入口**　[架构、数据流与首跑指南](docs/architecture.md) · [开发约定](CLAUDE.md) · [2026-11-26 全仓审计](docs/audit-2026-11-26.md)
 
 ## 这是什么
 
-追觅 D·NOTE 是一张信用卡大小的 AI 录音卡，录音/转写/总结依赖官方 App（DreameNote）+ 云端。当官方账号体系失效（登录需短信验证码，验证码已停发）时，硬件本身仍完好。本项目通过逆向官方 App 的蓝牙协议，做一个**设备功能离线优先**的替代产品：配对、录音、同步、播放不依赖登录和网络；登录只用于转写、AI 和云同步。
+项目始于官方 App 的短信登录中断后，持卡人仍需要取回自己的录音。闻笺通过蓝牙直连，设备功能可以在无账号、无互联网连接时使用。转写可选 Apple 本机识别，或将音频交给用户配置的 AI 服务。纪要由用户配置的服务处理文字稿。仓库中的闻笺账号后端单独运行。
 
 ## 核心结论
 
-- 官方 App 是 Capacitor（JS）应用，BLE 协议以近乎明文的 JavaScript 实现，已完整逆向，见 [`docs/PROTOCOL.md`](docs/PROTOCOL.md)。
-- 设备侧只做录音/存储/传输；连接和取回录音**不以云端绑定为前提**。
-- 录音为 16kHz 单声道 Opus；即便设备开启加密，密钥也可**离线推导**（`HMAC-SHA256(硬编码常量, 序列号)`），无需联网。
-- 结论：可完全脱离官方 App 与追觅云复用硬件。
+- 协议来自对官方 Capacitor 应用及设备通信的分析。已验证的命令、帧格式与固件差异记录在[协议文档](docs/PROTOCOL.md)。
+- 真机样本使用 v1.50 固件。蓝牙下载、离线解密和 OGG Opus 封装都已在该样本上验证。[实验记录](evidence/)和[待验收清单](docs/device-todo.md)给出各项证据与条件。
 
 ## 快速开始
+
+从仓库根目录运行以下命令，可在装有 Xcode、Swift 6 工具链的 Mac 上测试核心模块。测试使用模拟卡，无需配对或启动后端。
+
+```bash
+(cd app/ReviveKit && swift test --disable-xctest)
+```
+
+如需用 Python 客户端连接自己的录音卡，按键唤醒后执行下列命令。
 
 ```bash
 cd client
@@ -29,13 +35,14 @@ python dnote.py list                 # 列出录音
 python dnote.py pull --out ./recordings   # 下载并解密为 .ogg
 ```
 
-iOS App 的构建与测试命令见 [`CLAUDE.md`](CLAUDE.md) 的「常用命令」。
+iOS、Mac、CLI/MCP 和后端的构建与验证方式见[首跑指南](docs/architecture.md#本地开发与验证)。
 
 ## 目录
 
 | 路径 | 内容 |
 |---|---|
-| `app/` | 正式 iOS App（代号 Revive，显示名「闻笺」）：`ReviveKit/` 是各模块所在的 Swift Package，`project.yml` 用 XcodeGen 生成工程 |
+| `app/` | `Revive/` 是 iOS App，`ReviveMac/` 是原生 Mac App，`ReviveKit/` 是共享 Swift Package，包含本地 CLI/MCP 可执行程序 `revive` |
+| `backend/` | FastAPI 服务、后台任务进程与 PostgreSQL 迁移，见[后端接口与运行说明](backend/README.md) |
 | `client/` | Python 命令行客户端：协议库 + OGG 封装，真机验证用；`probe_*.py` 是真机探测脚本 |
 | `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用 |
 | `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查（CI 也跑） |
@@ -57,11 +64,9 @@ iOS App 的构建与测试命令见 [`CLAUDE.md`](CLAUDE.md) 的「常用命令�
 
 ## 状态
 
-阶段 0（设备与平台可行性）已完成：离线配对、录音、蓝牙下载、解密、实时音频、WiFi 快传、iOS 原型均已真机跑通，证据见 `evidence/`。阶段 1（规格与选型，#10）已完成。
-
-M1 离线闭环（#11）：代码已合并（PR #46），首个 TestFlight 内部构建「闻笺」0.1.0 (1) 已上传（PR #56）；真机验收在 #42，暂缓的真机项在 #54。M2～M4（#12～#14）未开始，仓库里还没有后端代码。
-
-进度以 GitHub milestone 和 issue 为准。
+- **设备与 iOS**　正式 App 已实现蓝牙同步、本地播放和导出。实时音频与 Wi-Fi 快传另有阶段 0 实验。内部 TestFlight 与真机验收进展见[验收跟踪](https://github.com/HuiW86/dnote-recorder-reuse/issues/42)。
+- **Mac 与助手**　原生 Mac App 已实现本地录音库、播放、导入、转写和纪要。`revive` 提供本地命令行和 MCP 标准输入输出服务。[接入说明](docs/assistant-tools.md)
+- **闻笺后端**　主干包含账号、设备登记、分片上传、异步转写与纪要、用量接口。iOS 账号入口默认隐藏，账号录音上传和任务轮询尚待 App 接入。开发后端使用本地存储和替身服务，生产部署另需真实服务配置。[后端现状](backend/README.md)
 
 ## 法律与边界
 

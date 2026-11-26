@@ -328,6 +328,35 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    @Test func interruptedWriteThenDisconnectRestartsFromZero() async throws {
+        var options = testOptions
+        options.deleteAfterSync = true
+        var hooks = SyncEngine.Hooks()
+        var writes = 0
+        hooks.appendChunk = { writer, chunk in
+            writes += 1
+            if writes == 2 {
+                try writer.append(chunk.prefix(7))
+                throw CocoaError(.fileWriteOutOfSpace)
+            }
+            try writer.append(chunk)
+        }
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)], options: options,
+                                  hooks: hooks, faults: [.disconnectAfterChunks(4)])
+        #expect(writes == 2)
+        #expect(h.engine.status == .stopped("phoneStorageFull"))
+        #expect(try h.recordings.isEmpty && h.deletes.isEmpty)
+        #expect(h.files(in: "tmp").isEmpty && h.card.files.count == 1)
+        h.card.advertise()
+        try await waitUntil("stored and confirmed on reconnect") { try h.items.first?.state == .deletedOnCard }
+        await h.engine.idle()
+        #expect(h.downloads == [.download(name: "a.opus", offset: 0), .download(name: "a.opus", offset: 0)])
+        let recording = try #require(try h.recordings.first)
+        #expect(try Data(contentsOf: h.library.store.url(forAudioPath: recording.audioPath)) == expectedOgg)
+        #expect(h.deletes.count == 1)
+        h.checkNoForbiddenWrites()
+    }
+
     /// T-M1-22
     @Test func decryptFailureKeepsCardFileAndRawBytes() async throws {
         var corrupt = encrypted
@@ -341,6 +370,24 @@ struct SyncEngineTests {
         let before = h.downloads.count
         await h.engine.syncNow()
         #expect(h.downloads.count == before)  // not retried: same bytes, same result
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func shortAudioKeepsOriginalEvenWithDeleteAfterSync() async throws {
+        var options = testOptions
+        options.deleteAfterSync = true
+        let files: [FakeCard.StoredFile] = [
+            .init(name: "empty.opus", content: Data()),
+            .init(name: "partial.opus", content: Data(repeating: 0, count: 39)),
+            .init(name: "header.opus", content: encrypted.prefix(60)),
+            .init(name: "complete.opus", content: plainOpus(frames: 1, seed: 0))
+        ]
+        let h = try await Harness(files: files, options: options)
+        #expect(h.card.files.map(\.name).sorted() == ["empty.opus", "header.opus", "partial.opus"])
+        #expect(try h.recordings.map(\.durationMs) == [20])
+        #expect(h.deletes == [.delete(name: "complete.opus")])
+        let failed = try h.items.filter { $0.state == .failed && $0.lastError == "decryptFailed" }
+        #expect(failed.count == 3)
         h.checkNoForbiddenWrites()
     }
 
@@ -593,6 +640,30 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    @Test func oldHeaderOnlyRecordingCannotAuthorizeCardDelete() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)])
+        let recording = try #require(try h.recordings.first)
+        let audio = h.library.store.url(forAudioPath: recording.audioPath)
+        try OggOpus.wrap([]).write(to: audio)
+        try await h.library.database.writer.write { db in
+            try db.execute(sql: "UPDATE recording SET duration_ms = 0 WHERE id = ?", arguments: [recording.id])
+        }
+        h.engine.options.deleteAfterSync = true
+        await h.engine.syncNow()
+        #expect(try h.items.first?.state == .stored)
+        #expect(h.deletes.isEmpty && h.card.files.count == 1)
+    }
+
+    @Test func truncatedLocalAudioCannotAuthorizeCardDelete() async throws {
+        let h = try await Harness(files: [.init(name: "a.opus", content: encrypted)])
+        let recording = try #require(try h.recordings.first)
+        try Data().write(to: h.library.store.url(forAudioPath: recording.audioPath))
+        h.engine.options.deleteAfterSync = true
+        await h.engine.syncNow()
+        #expect(try h.items.first?.state == .stored)
+        #expect(h.deletes.isEmpty && h.card.files.count == 1)
+    }
+
     /// Same, when the delete was already queued: the recording is deleted in the app before the
     /// lost `0x91` is sent again.
     @Test func queuedDeleteIsDroppedOnceTheRecordingIsDeletedLocally() async throws {
@@ -683,6 +754,29 @@ struct SyncEngineTests {
         #expect(try h.items.first?.lastError == "fileNotFound")
         #expect(try h.recordings.isEmpty)
         #expect(h.card.sentRequests.filter { $0 == .listFiles }.count >= 2)
+        h.checkNoForbiddenWrites()
+    }
+
+    @Test func staleListingGetsOnlyOneAutomaticRelistPerTrigger() async throws {
+        let card = FakeCard(files: [.init(name: "a.opus", content: encrypted)])
+        var failuresLeft = 4
+        var hooks = SyncEngine.Hooks()
+        hooks.beforeDownload = { _ in
+            if failuresLeft > 0 {
+                failuresLeft -= 1
+                card.faults.append(.chunkStatus(index: 0, status: 0xF0))
+            }
+        }
+        let h = try await Harness(card: card, hooks: hooks)
+        #expect(h.card.sentRequests.filter { $0 == .listFiles }.count == 2)
+        #expect(h.downloads.count == 2 && h.deletes.isEmpty)
+        #expect(try h.recordings.isEmpty)
+        await h.engine.syncNow()
+        #expect(h.downloads.count == 4)
+        #expect(try h.recordings.isEmpty)
+        await h.engine.syncNow()
+        #expect(try h.recordings.count == 1)
+        #expect(h.downloads.count == 5)
         h.checkNoForbiddenWrites()
     }
 

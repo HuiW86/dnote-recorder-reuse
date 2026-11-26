@@ -52,12 +52,19 @@ jobs:
         run: |
           brew install xcodegen
           xcodegen generate
-          xcodebuild build -project Revive.xcodeproj -scheme Revive \
+          xcodebuild build -project Revive.xcodeproj -scheme Revive -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/Revive" \
             -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+
+      - name: Check the iOS app's bundled privacy manifest
+        run: |
+          manifest="$RUNNER_TEMP/Revive/Build/Products/Debug-iphonesimulator/Revive.app/PrivacyInfo.xcprivacy"
+          plutil -extract NSPrivacyAccessedAPITypes xml1 -o /dev/null "$manifest"
 
       # ADR-011: the native Mac app shares ReviveKit and AppModel; it must build on every PR too.
       - name: Build Mac app
         working-directory: app
         run: |
           xcodebuild build -project Revive.xcodeproj -scheme ReviveMac \
+            -derivedDataPath "$RUNNER_TEMP/Revive" \
             -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO

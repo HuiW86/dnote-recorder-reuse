@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 /// The Model Context Protocol over stdio (features.md X19): one JSON-RPC 2.0 message per line in,
@@ -151,11 +152,18 @@ public final class MCPServer {
         return value
     }
 
-    private func int(_ key: String, _ arguments: [String: Any]) -> Int? {
-        if let value = arguments[key] as? Int { return value }
-        if let value = arguments[key] as? Double { return Int(value) }
-        if let value = arguments[key] as? String { return Int(value) }
-        return nil
+    private func int(_ key: String, _ arguments: [String: Any]) throws -> Int? {
+        guard let raw = arguments[key] else { return nil }
+        let value: Int?
+        if let text = raw as? String {
+            value = Int(text)
+        } else if let number = raw as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() {
+            value = Int(exactly: number)
+        } else {
+            value = nil
+        }
+        guard let value, value >= 1 else { throw ArgumentError("参数 \(key) 须为正整数") }
+        return value
     }
 
     // MARK: JSON-RPC

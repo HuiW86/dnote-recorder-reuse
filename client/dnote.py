@@ -25,15 +25,17 @@ dnote.py — 追觅 D·NOTE (DNOTE001B) 录音卡 离线客户端 (命令行)
   python dnote.py live --seconds 30 --out live.ogg
   python dnote.py list
   python dnote.py pull --out ./recordings
-  python dnote.py pull --delete        # 下载并存好后删除设备上的文件(默认不删)
+  python dnote.py pull --delete        # 完整保存原始文件和 OGG 后删除卡端文件(默认不删)
 """
 
 from __future__ import annotations
 import argparse
 import asyncio
+import errno
 import json
 import os
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -168,42 +170,49 @@ class Session:
     async def file_list(self, timeout=15.0):
         self._list_items = []
         self._list_done = asyncio.Event()
-        await self.write(P.frame_query_file_list())
         try:
+            await self.write(P.frame_query_file_list())
             await asyncio.wait_for(self._list_done.wait(), timeout)
-        except asyncio.TimeoutError:
-            pass
-        return list(self._list_items)
+            return list(self._list_items)
+        finally:
+            self._list_done = None
 
-    async def download(self, name: str, size_hint=0, timeout=None):
+    async def download(self, name: str, size_hint=None, timeout=None):
         """下载单个文件, 返回拼接后的原始字节(可能是 'encryt' 密文或裸 opus)。"""
         if timeout is None:
             # Measured BLE throughput is ~23 KB/s; allow down to 5 KB/s.
-            timeout = max(120.0, size_hint / 5000)
-        chunks = []
+            timeout = max(120.0, (size_hint or 0) / 5000)
+        received = bytearray()
         done = asyncio.get_event_loop().create_future()
         def cb(payload):
-            if not isinstance(payload, dict):
+            if done.done():
                 return
-            start = payload.get("start", 0)
+            if not isinstance(payload, dict):
+                done.set_exception(ValueError("录音分片无效"))
+                return
+            start = payload["start"]
             status = start & 0xF0
             data = payload.get("data", b"")
-            if status in (P.FileStatus.CANCELLED, P.FileStatus.ERROR, P.FileStatus.NOT_FOUND):
-                if not done.done():
-                    done.set_exception(RuntimeError(f"传输中止 status=0x{status:02x}"))
+            if status not in (0x00, 0x10, P.FileStatus.EOF):
+                done.set_exception(RuntimeError(f"传输中止 status=0x{status:02x}"))
                 return
-            if data:
-                chunks.append(data)
+            if payload["offset"] != len(received):
+                done.set_exception(ValueError("录音分片偏移不连续"))
+                return
+            end = len(received) + len(data)
+            if size_hint is not None and (end > size_hint or (status == P.FileStatus.EOF and end != size_hint)):
+                done.set_exception(ValueError(f"下载大小不符: 收到 {end}B，清单为 {size_hint}B"))
+                return
+            received.extend(data)
             if status == P.FileStatus.EOF:
-                if not done.done():
-                    done.set_result(True)
+                done.set_result(True)
         self._file_cb = cb
         try:
             await self.write(P.frame_request_file(name, cmd=1, offset=0))
             await asyncio.wait_for(done, timeout)
         finally:
             self._file_cb = None
-        return b"".join(chunks)
+        return bytes(received)
 
 
 # ----------------------------------------------------------- 各命令实现
@@ -219,6 +228,8 @@ def _decode_to_ogg(raw: bytes):
         plain = raw
         note = "明文"
     frames, remainder = P.split_opus_frames(plain, 40)
+    if not frames:
+        raise ValueError("录音没有完整的 Opus 帧")
     ogg = wrap_opus_frames_as_ogg(frames)
     return ogg, f"{note}, {len(frames)}帧" + (f", 余{len(remainder)}B" if remainder else "")
 
@@ -316,6 +327,47 @@ async def cmd_list(args):
             print(f"  [{it['index']}] {it['name']}  {it['size']} bytes")
 
 
+def _save_copy(path, data):
+    """Publish the complete recording once. Concurrent retries reuse identical bytes."""
+    if not os.path.lexists(path):
+        pending = tempfile.NamedTemporaryFile(prefix=".dnote-pending-", dir=os.path.dirname(path), delete=False)
+        try:
+            with pending:
+                pending.write(data)
+                pending.flush()
+                os.fsync(pending.fileno())
+            try:
+                if os.name == "nt":
+                    os.rename(pending.name, path)  # Windows rename fails if the destination exists.
+                else:
+                    os.link(pending.name, path)
+                return
+            except FileExistsError:
+                pass  # Another pull published this name. Verify its bytes below.
+            except OSError as error:
+                if os.name != "nt" and error.errno in (errno.EPERM, errno.EOPNOTSUPP, errno.ENOSYS):
+                    raise OSError(f"无法在此目录以硬链接安全保存文件，请选择支持硬链接的输出目录: {path}") from error
+                raise
+        finally:
+            try:
+                os.unlink(pending.name)
+            except FileNotFoundError:
+                pass  # Windows rename already removed the temporary name.
+
+    if os.path.islink(path) or not os.path.isfile(path):
+        raise FileExistsError(f"目标不是普通文件: {path}")
+    with open(path, "rb") as existing:
+        expected = memoryview(data)
+        block_size = 1024 * 1024
+        if os.fstat(existing.fileno()).st_size != len(expected) or any(
+            existing.read(block_size) != expected[start:start + block_size]
+            for start in range(0, len(expected), block_size)
+        ):
+            raise FileExistsError(f"同名文件内容不同，请换一个输出目录: {path}")
+        if os.name != "nt":
+            os.fsync(existing.fileno())
+
+
 async def cmd_pull(args):
     addr = await _pick_device(args.address)
     os.makedirs(args.out, exist_ok=True)
@@ -326,30 +378,49 @@ async def cmd_pull(args):
             items = [it for it in items if it["name"] == args.name]
         if not items:
             print("无文件可下载。"); return
+        failures = 0
         for it in items:
             name = it["name"]
+            if (not isinstance(name, str) or not name or name in (".", "..")
+                    or "/" in name or "\\" in name or os.path.splitdrive(name)[0]
+                    or type(it["size"]) is not int or it["size"] < 0):
+                print("跳过清单中的无效文件名或大小。")
+                failures += 1
+                continue
             print(f"下载 {name} ({it['size']}B) ...", end="", flush=True)
             t0 = time.time()
             try:
                 raw = await s.download(name, it["size"])
             except Exception as e:
-                print(f" 失败: {e}"); continue
+                failures += 1
+                print(f" 失败: {e}")
+                continue
             dt = time.time() - t0
             try:
                 ogg, note = _decode_to_ogg(raw)
             except Exception as e:
                 # 解码失败也把原始字节存下来, 便于排查
                 rawpath = os.path.join(args.out, name + ".raw")
-                with open(rawpath, "wb") as f: f.write(raw)
+                _save_copy(rawpath, raw)
+                failures += 1
                 print(f" 解码失败({e}); 原始数据存至 {rawpath}")
                 continue
             base = os.path.splitext(name)[0]
             outpath = os.path.join(args.out, base + ".ogg")
-            with open(outpath, "wb") as f: f.write(ogg)
+            if args.delete:
+                # The container omits the card header and any trailing partial frame.
+                _save_copy(os.path.join(args.out, name + ".raw"), raw)
+            _save_copy(outpath, ogg)
             print(f" OK {len(raw)}B/{dt:.1f}s -> {outpath} ({note})")
             # 默认不删除设备上的文件; 仅当 --delete 时才删
-            # Hard rule 2: only reached after the .ogg above was written without error.
+            # Hard rule 2: both the exact card bytes and playable file are on disk.
             if args.delete:
+                if hasattr(os, "O_DIRECTORY"):
+                    directory = os.open(args.out, os.O_RDONLY | os.O_DIRECTORY)
+                    try:
+                        os.fsync(directory)
+                    finally:
+                        os.close(directory)
                 try:
                     ack = await s.request(P.frame_delete_file(name), P.Cmd.DELETE_FILE)
                 except asyncio.TimeoutError:
@@ -359,7 +430,10 @@ async def cmd_pull(args):
                     print(f"    已删除设备上的 {name}")
                 else:
                     got = "无" if ack is None else (ack.hex() if isinstance(ack, (bytes, bytearray)) else ack)
+                    failures += 1
                     print(f"    删除未确认: {name} (0x91 响应: {got})")
+        if failures:
+            raise SystemExit(f"{failures} 个文件未完成。")
 
 
 def cmd_toc(args):
@@ -510,7 +584,7 @@ def main():
     sp = sub.add_parser("pull")
     sp.add_argument("--out", default="./recordings")
     sp.add_argument("--name", help="只下载指定文件名")
-    sp.add_argument("--delete", action="store_true", help="下载后删除设备上的文件(默认不删)")
+    sp.add_argument("--delete", action="store_true", help="完整保存 .raw 和 .ogg 后删除设备上的文件(默认不删)")
     sp = sub.add_parser("usb"); sp.add_argument("on", choices=["on", "off"])
     sub.add_parser("synctime")
     sp = sub.add_parser("toc"); sp.add_argument("files", nargs="+")
