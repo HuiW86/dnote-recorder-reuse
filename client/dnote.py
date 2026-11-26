@@ -327,7 +327,7 @@ async def cmd_list(args):
             print(f"  [{it['index']}] {it['name']}  {it['size']} bytes")
 
 
-def _save_copy(path, data):
+def _save_copy(path, data, *, require_exclusive=True):
     """Publish the complete recording once. Concurrent retries reuse identical bytes."""
     if not os.path.lexists(path):
         pending = tempfile.NamedTemporaryFile(prefix=".dnote-pending-", dir=os.path.dirname(path), delete=False)
@@ -345,14 +345,19 @@ def _save_copy(path, data):
             except FileExistsError:
                 pass  # Another pull published this name. Verify its bytes below.
             except OSError as error:
-                if os.name != "nt" and error.errno in (errno.EPERM, errno.EOPNOTSUPP, errno.ENOSYS):
+                if os.name == "nt" or error.errno not in (errno.EPERM, errno.EOPNOTSUPP, errno.ENOSYS):
+                    raise
+                if require_exclusive:
                     raise OSError(f"无法在此目录以硬链接安全保存文件，请选择支持硬链接的输出目录: {path}") from error
-                raise
+                # Ordinary pulls keep the card copy. Preserve support for FAT/exFAT exports.
+                if not os.path.lexists(path):
+                    os.replace(pending.name, path)
+                    return
         finally:
             try:
                 os.unlink(pending.name)
             except FileNotFoundError:
-                pass  # Windows rename already removed the temporary name.
+                pass  # A rename already removed the temporary name.
 
     if os.path.islink(path) or not os.path.isfile(path):
         raise FileExistsError(f"目标不是普通文件: {path}")
@@ -401,7 +406,7 @@ async def cmd_pull(args):
             except Exception as e:
                 # 解码失败也把原始字节存下来, 便于排查
                 rawpath = os.path.join(args.out, name + ".raw")
-                _save_copy(rawpath, raw)
+                _save_copy(rawpath, raw, require_exclusive=args.delete)
                 failures += 1
                 print(f" 解码失败({e}); 原始数据存至 {rawpath}")
                 continue
@@ -410,7 +415,7 @@ async def cmd_pull(args):
             if args.delete:
                 # The container omits the card header and any trailing partial frame.
                 _save_copy(os.path.join(args.out, name + ".raw"), raw)
-            _save_copy(outpath, ogg)
+            _save_copy(outpath, ogg, require_exclusive=args.delete)
             print(f" OK {len(raw)}B/{dt:.1f}s -> {outpath} ({note})")
             # 默认不删除设备上的文件; 仅当 --delete 时才删
             # Hard rule 2: both the exact card bytes and playable file are on disk.

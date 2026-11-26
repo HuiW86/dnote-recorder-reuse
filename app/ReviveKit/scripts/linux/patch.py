@@ -37,10 +37,8 @@ for p in list((w / "Sources").rglob("*.swift")) + list((w / "Tests").rglob("*.sw
 
 # The "important usage" capacity key is Apple-only.
 edit("Sources/Library/AudioStore.swift",
-     """        let values = try? root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        return values?.volumeAvailableCapacityForImportantUsage ?? 0""",
-     """        let values = try? root.resourceValues(forKeys: [.volumeAvailableCapacityKey])
-        return Int64(values?.volumeAvailableCapacity ?? 0)""")
+     "let important = try? root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage",
+     "let important: Int64? = nil")
 
 # Keychain is Apple-only: keep the protocol and the in-memory store the tests use.
 edit("Sources/CardService/BondStore.swift", "import Security\n", "")

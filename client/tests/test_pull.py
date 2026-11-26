@@ -189,3 +189,29 @@ def test_unsupported_publication_keeps_card_and_releases_output_name(dnote, tmp_
         pull(dnote, card, tmp_path, monkeypatch)
     assert not card.deleted
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("collision", [False, True], ids=["new-export", "existing-backup"])
+def test_ordinary_pull_on_volume_without_hardlinks(dnote, tmp_path, monkeypatch, collision):
+    import errno
+    if dnote.os.name == "nt":
+        pytest.skip("Windows uses exclusive rename")
+
+    target = tmp_path / "sample.ogg"
+
+    def unsupported_link(src, dst):
+        if collision:
+            target.write_bytes(b"earlier backup")
+        raise OSError(errno.EOPNOTSUPP, "hard links unsupported")
+
+    monkeypatch.setattr(dnote.os, "link", unsupported_link)
+    card = Card(40, [(0x20, 0, AUDIO)])
+    if collision:
+        with pytest.raises(FileExistsError):
+            pull(dnote, card, tmp_path, monkeypatch, delete=False)
+        assert target.read_bytes() == b"earlier backup"
+    else:
+        pull(dnote, card, tmp_path, monkeypatch, delete=False)
+        assert target.read_bytes().startswith(b"OggS")
+    assert not card.deleted
+    assert list(tmp_path.iterdir()) == [target]

@@ -304,6 +304,12 @@ struct PlayerTests {
         let junk = dir.appendingPathComponent("junk.mp3")
         try Data("not audio".utf8).write(to: junk)
         await #expect(throws: AudioImporter.ImportError.unsupported) { try await AudioImporter.prepare(junk) }
+    }
+
+    @Test func failedOggImportRemovesItsTemporaryDirectory() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("bad-import-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
         let badOgg = dir.appendingPathComponent("bad.ogg")
         try Data("OggS".utf8).write(to: badOgg)
         let conversions = dir.appendingPathComponent("conversions")

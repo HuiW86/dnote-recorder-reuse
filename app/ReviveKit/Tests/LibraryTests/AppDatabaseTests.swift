@@ -5,6 +5,21 @@ import Testing
 @testable import Library
 
 struct AppDatabaseTests {
+    @Test func capacityPrefersPositiveImportantUsage() {
+        func unexpectedFallback() -> Int? {
+            Issue.record("ordinary capacity should only be queried as a fallback")
+            return 99
+        }
+        #expect(AudioStore.availableCapacity(important: 5, ordinary: unexpectedFallback()) == 5)
+    }
+
+    @Test func capacityUsesAvailableBytesWhenImportantUsageCannotBeRead() {
+        #expect(AudioStore.availableCapacity(important: nil, ordinary: 20) == 20)
+        #expect(AudioStore.availableCapacity(important: 0, ordinary: 20) == 20)
+        #expect(AudioStore.availableCapacity(important: nil, ordinary: nil) == 0)
+        #expect(AudioStore.availableCapacity(important: 0, ordinary: 0) == 0)
+    }
+
     @Test func inMemoryDatabaseOpensAndMigrates() throws {
         let db = try AppDatabase.inMemory()
         let foreignKeys = try db.writer.read { try Bool.fetchOne($0, sql: "PRAGMA foreign_keys") }
