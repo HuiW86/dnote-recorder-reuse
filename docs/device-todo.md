@@ -21,7 +21,7 @@
 | 项 | 定义 | 记到哪里 | 备注 |
 |---|---|---|---|
 | T-M1-50 飞行模式下的完整闭环（全程协议日志） | `test-spec.md` §3.4 | `evidence/v42-a11y-offline/` 或新开 `evidence/v42-*/` | 同时是 §3.5 第 3 道检查：写帧里没有 `0x93`/`0x94`/`0xB0`/`0xB1` |
-| T-M1-51 后台、锁屏按键录音后自动同步 | 同上 | 同上 | 2026-11-17 只有一次部分观察，见 #42 评论 |
+| T-M1-51 后台、锁屏按键录音后自动同步，部分通过 | 同上 | [v42-card-button-sync](../evidence/v42-card-button-sync/README.md) | 锁屏 3/3，前台和后台各 1/3，五次均在 2.9 秒内开始同步 |
 | T-M1-52 同步中断线再恢复 | 同上 | 同上 | 带离卡时要看到断开，并且确实中断了同步 |
 | T-M1-53 ≥ 30 分钟长录音，不通过 | 同上 | [v42-long-card-recording](../evidence/v42-long-card-recording/README.md) | DEBUG 109 / v1.50：31 分 21 秒录音完整同步；15.7 KB/s，低于 19.2 KB/s 通过线 |
 | T-M1-54 暂停与继续，部分通过 | 同上 | [v42-long-card-recording](../evidence/v42-long-card-recording/README.md) | 卡端状态和音频接合处样本连续；待补已知语音听辨 |

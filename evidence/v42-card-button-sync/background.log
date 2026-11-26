@@ -1,0 +1,442 @@
+2026-11-26 22:35:16.632 [bg] rx 54 len=30 {"name":"20261126223516.opus"}
+2026-11-26 22:35:55.666 [bg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-26 22:35:55.829 [bg] rx 55 len=0
+2026-11-26 22:35:56.960 [bg] tx A1 len=0
+2026-11-26 22:35:57.082 [bg] rx A1 len=17 01 <bondId 16 B>
+2026-11-26 22:35:57.093 [bg] tx 56 len=0
+2026-11-26 22:35:57.117 [bg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-26 22:35:57.119 [bg] tx 90 len=0
+2026-11-26 22:35:57.178 [bg] rx 90 len=61 {"name":"20261109140559.opus","size":34060,"index":0,"end":0}
+2026-11-26 22:35:57.180 [bg] rx 90 len=61 {"name":"20261109163736.opus","size":14060,"index":1,"end":0}
+2026-11-26 22:35:57.181 [bg] rx 90 len=61 {"name":"20261109172717.opus","size":60060,"index":2,"end":0}
+2026-11-26 22:35:57.182 [bg] rx 90 len=61 {"name":"20261109172814.opus","size":20060,"index":3,"end":0}
+2026-11-26 22:35:57.221 [bg] rx 90 len=61 {"name":"20261109172916.opus","size":18060,"index":4,"end":0}
+2026-11-26 22:35:57.223 [bg] rx 90 len=61 {"name":"20261109173142.opus","size":38060,"index":5,"end":0}
+2026-11-26 22:35:57.239 [bg] rx 90 len=61 {"name":"20261109174034.opus","size":36060,"index":6,"end":0}
+2026-11-26 22:35:57.282 [bg] rx 90 len=62 {"name":"20261111105742.opus","size":122060,"index":7,"end":0}
+2026-11-26 22:35:57.283 [bg] rx 90 len=61 {"name":"20261111173008.opus","size":12060,"index":8,"end":0}
+2026-11-26 22:35:57.286 [bg] rx 90 len=61 {"name":"20261111173210.opus","size":10060,"index":9,"end":0}
+2026-11-26 22:35:57.299 [bg] rx 90 len=62 {"name":"20261111173221.opus","size":12060,"index":10,"end":0}
+2026-11-26 22:35:57.314 [bg] rx 90 len=62 {"name":"20261117095438.opus","size":48060,"index":11,"end":0}
+2026-11-26 22:35:57.356 [bg] rx 90 len=62 {"name":"20261117100937.opus","size":16060,"index":12,"end":0}
+2026-11-26 22:35:57.387 [bg] rx 90 len=62 {"name":"20261117101042.opus","size":28060,"index":13,"end":0}
+2026-11-26 22:35:57.388 [bg] rx 90 len=61 {"name":"20261117101256.opus","size":4060,"index":14,"end":0}
+2026-11-26 22:35:57.447 [bg] rx 90 len=62 {"name":"20261117105919.opus","size":16060,"index":15,"end":0}
+2026-11-26 22:35:57.448 [bg] rx 90 len=63 {"name":"20261117110346.opus","size":166060,"index":16,"end":0}
+2026-11-26 22:35:57.449 [bg] rx 90 len=62 {"name":"20261117132151.opus","size":12060,"index":17,"end":0}
+2026-11-26 22:35:57.463 [bg] rx 90 len=62 {"name":"20261117133241.opus","size":42060,"index":18,"end":0}
+2026-11-26 22:35:57.465 [bg] rx 90 len=62 {"name":"20261117145219.opus","size":24060,"index":19,"end":0}
+2026-11-26 22:35:57.465 [bg] rx 90 len=62 {"name":"20261117145437.opus","size":12060,"index":20,"end":0}
+2026-11-26 22:35:57.466 [bg] rx 90 len=62 {"name":"20261117150254.opus","size":38060,"index":21,"end":0}
+2026-11-26 22:35:57.478 [bg] rx 90 len=61 {"name":"20261117173409.opus","size":4060,"index":22,"end":0}
+2026-11-26 22:35:57.479 [bg] rx 90 len=62 {"name":"20261117174230.opus","size":12060,"index":23,"end":0}
+2026-11-26 22:35:57.509 [bg] rx 90 len=62 {"name":"20261117195446.opus","size":52060,"index":24,"end":0}
+2026-11-26 22:35:57.523 [bg] rx 90 len=62 {"name":"20261118102209.opus","size":50060,"index":25,"end":0}
+2026-11-26 22:35:57.538 [bg] rx 90 len=63 {"name":"20261108232640.opus","size":226060,"index":26,"end":0}
+2026-11-26 22:35:57.553 [bg] rx 90 len=62 {"name":"20261108234831.opus","size":46060,"index":27,"end":0}
+2026-11-26 22:35:57.581 [bg] rx 90 len=61 {"name":"20261118102958.opus","size":4060,"index":28,"end":0}
+2026-11-26 22:35:57.598 [bg] rx 90 len=62 {"name":"20261109123631.opus","size":34060,"index":29,"end":0}
+2026-11-26 22:35:57.599 [bg] rx 90 len=62 {"name":"20261119094825.opus","size":18060,"index":30,"end":0}
+2026-11-26 22:35:57.614 [bg] rx 90 len=61 {"name":"20261119101033.opus","size":4060,"index":31,"end":0}
+2026-11-26 22:35:57.702 [bg] rx 90 len=61 {"name":"20261119101109.opus","size":2060,"index":32,"end":0}
+2026-11-26 22:35:57.731 [bg] rx 90 len=61 {"name":"20261119101745.opus","size":4060,"index":33,"end":0}
+2026-11-26 22:35:57.734 [bg] rx 90 len=62 {"name":"20261119101751.opus","size":18060,"index":34,"end":0}
+2026-11-26 22:35:57.749 [bg] rx 90 len=62 {"name":"20261119101806.opus","size":18060,"index":35,"end":0}
+2026-11-26 22:35:57.750 [bg] rx 90 len=62 {"name":"20261119102034.opus","size":34060,"index":36,"end":0}
+2026-11-26 22:35:57.751 [bg] rx 90 len=64 {"name":"20261119103206.opus","size":2200060,"index":37,"end":0}
+2026-11-26 22:35:57.752 [bg] rx 90 len=62 {"name":"20261119110029.opus","size":18060,"index":38,"end":0}
+2026-11-26 22:35:57.778 [bg] rx 90 len=64 {"name":"20261119111445.opus","size":1598060,"index":39,"end":0}
+2026-11-26 22:35:57.779 [bg] rx 90 len=63 {"name":"20261119113159.opus","size":272060,"index":40,"end":0}
+2026-11-26 22:35:57.779 [bg] rx 90 len=64 {"name":"20261119113430.opus","size":1738060,"index":41,"end":0}
+2026-11-26 22:35:57.781 [bg] rx 90 len=63 {"name":"20261119161933.opus","size":126060,"index":42,"end":0}
+2026-11-26 22:35:57.809 [bg] rx 90 len=63 {"name":"20261119162512.opus","size":136060,"index":43,"end":0}
+2026-11-26 22:35:57.810 [bg] rx 90 len=61 {"name":"20261120141730.opus","size":6060,"index":44,"end":0}
+2026-11-26 22:35:57.851 [bg] rx 90 len=64 {"name":"20261120150928.opus","size":1010060,"index":45,"end":0}
+2026-11-26 22:35:57.853 [bg] rx 90 len=61 {"name":"20261120170532.opus","size":4060,"index":46,"end":0}
+2026-11-26 22:35:57.854 [bg] rx 90 len=61 {"name":"20261120170616.opus","size":4060,"index":47,"end":0}
+2026-11-26 22:35:57.896 [bg] rx 90 len=64 {"name":"20261126142748.opus","size":3762060,"index":48,"end":0}
+2026-11-26 22:35:57.926 [bg] rx 90 len=63 {"name":"20261126223106.opus","size":240060,"index":49,"end":0}
+2026-11-26 22:35:57.928 [bg] rx 90 len=62 {"name":"20261126223516.opus","size":76060,"index":50,"end":0}
+2026-11-26 22:35:57.929 [bg] rx 90 len=39 {"name":"","size":0,"index":51,"end":1}
+2026-11-26 22:35:58.056 [bg] tx 70 len=49 {"cmd":1,"name":"20261126223516.opus","offset":0}
+2026-11-26 22:35:58.213 [bg] rx 70 len=205 status=0x00 offset=0 data=<200 B>
+2026-11-26 22:35:58.258 [bg] rx 70 len=205 status=0x11 offset=200 data=<200 B>
+2026-11-26 22:35:58.280 [bg] rx 70 len=205 status=0x12 offset=400 data=<200 B>
+2026-11-26 22:35:58.282 [bg] rx 70 len=205 status=0x13 offset=600 data=<200 B>
+2026-11-26 22:35:58.348 [bg] rx 70 len=205 status=0x14 offset=800 data=<200 B>
+2026-11-26 22:35:58.408 [bg] rx 70 len=205 status=0x15 offset=1000 data=<200 B>
+2026-11-26 22:35:58.459 [bg] rx 70 len=205 status=0x16 offset=1200 data=<200 B>
+2026-11-26 22:35:58.460 [bg] rx 70 len=205 status=0x17 offset=1400 data=<200 B>
+2026-11-26 22:35:58.479 [bg] rx 70 len=205 status=0x18 offset=1600 data=<200 B>
+2026-11-26 22:35:58.523 [bg] rx 70 len=205 status=0x19 offset=1800 data=<200 B>
+2026-11-26 22:35:58.586 [bg] rx 70 len=205 status=0x1A offset=2000 data=<200 B>
+2026-11-26 22:35:58.616 [bg] rx 70 len=205 status=0x1B offset=2200 data=<200 B>
+2026-11-26 22:35:58.648 [bg] rx 70 len=205 status=0x1C offset=2400 data=<200 B>
+2026-11-26 22:35:58.672 [bg] rx 70 len=205 status=0x1D offset=2600 data=<200 B>
+2026-11-26 22:35:58.703 [bg] rx 70 len=205 status=0x1E offset=2800 data=<200 B>
+2026-11-26 22:35:58.735 [bg] rx 70 len=205 status=0x1F offset=3000 data=<200 B>
+2026-11-26 22:35:58.761 [bg] rx 70 len=205 status=0x10 offset=3200 data=<200 B>
+2026-11-26 22:35:58.790 [bg] rx 70 len=205 status=0x11 offset=3400 data=<200 B>
+2026-11-26 22:35:58.819 [bg] rx 70 len=205 status=0x12 offset=3600 data=<200 B>
+2026-11-26 22:35:58.842 [bg] rx 70 len=205 status=0x13 offset=3800 data=<200 B>
+2026-11-26 22:35:58.872 [bg] rx 70 len=205 status=0x14 offset=4000 data=<200 B>
+2026-11-26 22:35:58.901 [bg] rx 70 len=205 status=0x15 offset=4200 data=<200 B>
+2026-11-26 22:35:58.924 [bg] rx 70 len=205 status=0x16 offset=4400 data=<200 B>
+2026-11-26 22:35:58.954 [bg] rx 70 len=205 status=0x17 offset=4600 data=<200 B>
+2026-11-26 22:35:58.983 [bg] rx 70 len=205 status=0x18 offset=4800 data=<200 B>
+2026-11-26 22:35:59.005 [bg] rx 70 len=205 status=0x19 offset=5000 data=<200 B>
+2026-11-26 22:35:59.034 [bg] rx 70 len=205 status=0x1A offset=5200 data=<200 B>
+2026-11-26 22:35:59.063 [bg] rx 70 len=205 status=0x1B offset=5400 data=<200 B>
+2026-11-26 22:35:59.088 [bg] rx 70 len=205 status=0x1C offset=5600 data=<200 B>
+2026-11-26 22:35:59.118 [bg] rx 70 len=205 status=0x1D offset=5800 data=<200 B>
+2026-11-26 22:35:59.147 [bg] rx 70 len=205 status=0x1E offset=6000 data=<200 B>
+2026-11-26 22:35:59.170 [bg] rx 70 len=205 status=0x1F offset=6200 data=<200 B>
+2026-11-26 22:35:59.201 [bg] rx 70 len=205 status=0x10 offset=6400 data=<200 B>
+2026-11-26 22:35:59.230 [bg] rx 70 len=205 status=0x11 offset=6600 data=<200 B>
+2026-11-26 22:35:59.253 [bg] rx 70 len=205 status=0x12 offset=6800 data=<200 B>
+2026-11-26 22:35:59.282 [bg] rx 70 len=205 status=0x13 offset=7000 data=<200 B>
+2026-11-26 22:35:59.310 [bg] rx 70 len=205 status=0x14 offset=7200 data=<200 B>
+2026-11-26 22:35:59.335 [bg] rx 70 len=205 status=0x15 offset=7400 data=<200 B>
+2026-11-26 22:35:59.364 [bg] rx 70 len=205 status=0x16 offset=7600 data=<200 B>
+2026-11-26 22:35:59.393 [bg] rx 70 len=205 status=0x17 offset=7800 data=<200 B>
+2026-11-26 22:35:59.415 [bg] rx 70 len=205 status=0x18 offset=8000 data=<200 B>
+2026-11-26 22:35:59.445 [bg] rx 70 len=205 status=0x19 offset=8200 data=<200 B>
+2026-11-26 22:35:59.475 [bg] rx 70 len=205 status=0x1A offset=8400 data=<200 B>
+2026-11-26 22:35:59.498 [bg] rx 70 len=205 status=0x1B offset=8600 data=<200 B>
+2026-11-26 22:35:59.527 [bg] rx 70 len=205 status=0x1C offset=8800 data=<200 B>
+2026-11-26 22:35:59.556 [bg] rx 70 len=205 status=0x1D offset=9000 data=<200 B>
+2026-11-26 22:35:59.577 [bg] rx 70 len=205 status=0x1E offset=9200 data=<200 B>
+2026-11-26 22:35:59.606 [bg] rx 70 len=205 status=0x1F offset=9400 data=<200 B>
+2026-11-26 22:35:59.636 [bg] rx 70 len=205 status=0x10 offset=9600 data=<200 B>
+2026-11-26 22:35:59.659 [bg] rx 70 len=205 status=0x11 offset=9800 data=<200 B>
+2026-11-26 22:35:59.688 [bg] rx 70 len=205 status=0x12 offset=10000 data=<200 B>
+2026-11-26 22:35:59.717 [bg] rx 70 len=205 status=0x13 offset=10200 data=<200 B>
+2026-11-26 22:35:59.742 [bg] rx 70 len=205 status=0x14 offset=10400 data=<200 B>
+2026-11-26 22:35:59.773 [bg] rx 70 len=205 status=0x15 offset=10600 data=<200 B>
+2026-11-26 22:35:59.803 [bg] rx 70 len=205 status=0x16 offset=10800 data=<200 B>
+2026-11-26 22:35:59.834 [bg] rx 70 len=205 status=0x17 offset=11000 data=<200 B>
+2026-11-26 22:35:59.865 [bg] rx 70 len=205 status=0x18 offset=11200 data=<200 B>
+2026-11-26 22:35:59.895 [bg] rx 70 len=205 status=0x19 offset=11400 data=<200 B>
+2026-11-26 22:35:59.917 [bg] rx 70 len=205 status=0x1A offset=11600 data=<200 B>
+2026-11-26 22:35:59.947 [bg] rx 70 len=205 status=0x1B offset=11800 data=<200 B>
+2026-11-26 22:35:59.975 [bg] rx 70 len=205 status=0x1C offset=12000 data=<200 B>
+2026-11-26 22:35:59.998 [bg] rx 70 len=205 status=0x1D offset=12200 data=<200 B>
+2026-11-26 22:36:00.031 [bg] rx 70 len=205 status=0x1E offset=12400 data=<200 B>
+2026-11-26 22:36:00.060 [bg] rx 70 len=205 status=0x1F offset=12600 data=<200 B>
+2026-11-26 22:36:00.083 [bg] rx 70 len=205 status=0x10 offset=12800 data=<200 B>
+2026-11-26 22:36:00.112 [bg] rx 70 len=205 status=0x11 offset=13000 data=<200 B>
+2026-11-26 22:36:00.140 [bg] rx 70 len=205 status=0x12 offset=13200 data=<200 B>
+2026-11-26 22:36:00.164 [bg] rx 70 len=205 status=0x13 offset=13400 data=<200 B>
+2026-11-26 22:36:00.193 [bg] rx 70 len=205 status=0x14 offset=13600 data=<200 B>
+2026-11-26 22:36:00.222 [bg] rx 70 len=205 status=0x15 offset=13800 data=<200 B>
+2026-11-26 22:36:00.245 [bg] rx 70 len=205 status=0x16 offset=14000 data=<200 B>
+2026-11-26 22:36:00.274 [bg] rx 70 len=205 status=0x17 offset=14200 data=<200 B>
+2026-11-26 22:36:00.302 [bg] rx 70 len=205 status=0x18 offset=14400 data=<200 B>
+2026-11-26 22:36:00.325 [bg] rx 70 len=205 status=0x19 offset=14600 data=<200 B>
+2026-11-26 22:36:00.354 [bg] rx 70 len=205 status=0x1A offset=14800 data=<200 B>
+2026-11-26 22:36:00.383 [bg] rx 70 len=205 status=0x1B offset=15000 data=<200 B>
+2026-11-26 22:36:00.407 [bg] rx 70 len=205 status=0x1C offset=15200 data=<200 B>
+2026-11-26 22:36:00.435 [bg] rx 70 len=205 status=0x1D offset=15400 data=<200 B>
+2026-11-26 22:36:00.464 [bg] rx 70 len=205 status=0x1E offset=15600 data=<200 B>
+2026-11-26 22:36:00.487 [bg] rx 70 len=205 status=0x1F offset=15800 data=<200 B>
+2026-11-26 22:36:00.516 [bg] rx 70 len=205 status=0x10 offset=16000 data=<200 B>
+2026-11-26 22:36:00.544 [bg] rx 70 len=205 status=0x11 offset=16200 data=<200 B>
+2026-11-26 22:36:00.567 [bg] rx 70 len=205 status=0x12 offset=16400 data=<200 B>
+2026-11-26 22:36:00.595 [bg] rx 70 len=205 status=0x13 offset=16600 data=<200 B>
+2026-11-26 22:36:00.623 [bg] rx 70 len=205 status=0x14 offset=16800 data=<200 B>
+2026-11-26 22:36:00.647 [bg] rx 70 len=205 status=0x15 offset=17000 data=<200 B>
+2026-11-26 22:36:00.676 [bg] rx 70 len=205 status=0x16 offset=17200 data=<200 B>
+2026-11-26 22:36:00.704 [bg] rx 70 len=205 status=0x17 offset=17400 data=<200 B>
+2026-11-26 22:36:00.727 [bg] rx 70 len=205 status=0x18 offset=17600 data=<200 B>
+2026-11-26 22:36:00.768 [bg] rx 70 len=205 status=0x19 offset=17800 data=<200 B>
+2026-11-26 22:36:00.791 [bg] rx 70 len=205 status=0x1A offset=18000 data=<200 B>
+2026-11-26 22:36:00.851 [bg] rx 70 len=205 status=0x1B offset=18200 data=<200 B>
+2026-11-26 22:36:00.871 [bg] rx 70 len=205 status=0x1C offset=18400 data=<200 B>
+2026-11-26 22:36:00.932 [bg] rx 70 len=205 status=0x1D offset=18600 data=<200 B>
+2026-11-26 22:36:00.952 [bg] rx 70 len=205 status=0x1E offset=18800 data=<200 B>
+2026-11-26 22:36:00.971 [bg] rx 70 len=205 status=0x1F offset=19000 data=<200 B>
+2026-11-26 22:36:01.001 [bg] rx 70 len=205 status=0x10 offset=19200 data=<200 B>
+2026-11-26 22:36:01.022 [bg] rx 70 len=205 status=0x11 offset=19400 data=<200 B>
+2026-11-26 22:36:01.040 [bg] rx 70 len=205 status=0x12 offset=19600 data=<200 B>
+2026-11-26 22:36:01.062 [bg] rx 70 len=205 status=0x13 offset=19800 data=<200 B>
+2026-11-26 22:36:01.085 [bg] rx 70 len=205 status=0x14 offset=20000 data=<200 B>
+2026-11-26 22:36:01.113 [bg] rx 70 len=205 status=0x15 offset=20200 data=<200 B>
+2026-11-26 22:36:01.162 [bg] rx 70 len=205 status=0x16 offset=20400 data=<200 B>
+2026-11-26 22:36:01.183 [bg] rx 70 len=205 status=0x17 offset=20600 data=<200 B>
+2026-11-26 22:36:01.202 [bg] rx 70 len=205 status=0x18 offset=20800 data=<200 B>
+2026-11-26 22:36:01.218 [bg] rx 70 len=205 status=0x19 offset=21000 data=<200 B>
+2026-11-26 22:36:01.235 [bg] rx 70 len=205 status=0x1A offset=21200 data=<200 B>
+2026-11-26 22:36:01.263 [bg] rx 70 len=205 status=0x1B offset=21400 data=<200 B>
+2026-11-26 22:36:01.292 [bg] rx 70 len=205 status=0x1C offset=21600 data=<200 B>
+2026-11-26 22:36:01.316 [bg] rx 70 len=205 status=0x1D offset=21800 data=<200 B>
+2026-11-26 22:36:01.334 [bg] rx 70 len=205 status=0x1E offset=22000 data=<200 B>
+2026-11-26 22:36:01.357 [bg] rx 70 len=205 status=0x1F offset=22200 data=<200 B>
+2026-11-26 22:36:01.376 [bg] rx 70 len=205 status=0x10 offset=22400 data=<200 B>
+2026-11-26 22:36:01.406 [bg] rx 70 len=205 status=0x11 offset=22600 data=<200 B>
+2026-11-26 22:36:01.437 [bg] rx 70 len=205 status=0x12 offset=22800 data=<200 B>
+2026-11-26 22:36:01.461 [bg] rx 70 len=205 status=0x13 offset=23000 data=<200 B>
+2026-11-26 22:36:01.490 [bg] rx 70 len=205 status=0x14 offset=23200 data=<200 B>
+2026-11-26 22:36:01.519 [bg] rx 70 len=205 status=0x15 offset=23400 data=<200 B>
+2026-11-26 22:36:01.543 [bg] rx 70 len=205 status=0x16 offset=23600 data=<200 B>
+2026-11-26 22:36:01.572 [bg] rx 70 len=205 status=0x17 offset=23800 data=<200 B>
+2026-11-26 22:36:01.600 [bg] rx 70 len=205 status=0x18 offset=24000 data=<200 B>
+2026-11-26 22:36:01.623 [bg] rx 70 len=205 status=0x19 offset=24200 data=<200 B>
+2026-11-26 22:36:01.653 [bg] rx 70 len=205 status=0x1A offset=24400 data=<200 B>
+2026-11-26 22:36:01.682 [bg] rx 70 len=205 status=0x1B offset=24600 data=<200 B>
+2026-11-26 22:36:01.703 [bg] rx 70 len=205 status=0x1C offset=24800 data=<200 B>
+2026-11-26 22:36:01.733 [bg] rx 70 len=205 status=0x1D offset=25000 data=<200 B>
+2026-11-26 22:36:01.763 [bg] rx 70 len=205 status=0x1E offset=25200 data=<200 B>
+2026-11-26 22:36:01.787 [bg] rx 70 len=205 status=0x1F offset=25400 data=<200 B>
+2026-11-26 22:36:01.816 [bg] rx 70 len=205 status=0x10 offset=25600 data=<200 B>
+2026-11-26 22:36:01.845 [bg] rx 70 len=205 status=0x11 offset=25800 data=<200 B>
+2026-11-26 22:36:01.868 [bg] rx 70 len=205 status=0x12 offset=26000 data=<200 B>
+2026-11-26 22:36:01.899 [bg] rx 70 len=205 status=0x13 offset=26200 data=<200 B>
+2026-11-26 22:36:01.929 [bg] rx 70 len=205 status=0x14 offset=26400 data=<200 B>
+2026-11-26 22:36:01.953 [bg] rx 70 len=205 status=0x15 offset=26600 data=<200 B>
+2026-11-26 22:36:01.983 [bg] rx 70 len=205 status=0x16 offset=26800 data=<200 B>
+2026-11-26 22:36:02.011 [bg] rx 70 len=205 status=0x17 offset=27000 data=<200 B>
+2026-11-26 22:36:02.034 [bg] rx 70 len=205 status=0x18 offset=27200 data=<200 B>
+2026-11-26 22:36:02.063 [bg] rx 70 len=205 status=0x19 offset=27400 data=<200 B>
+2026-11-26 22:36:02.092 [bg] rx 70 len=205 status=0x1A offset=27600 data=<200 B>
+2026-11-26 22:36:02.114 [bg] rx 70 len=205 status=0x1B offset=27800 data=<200 B>
+2026-11-26 22:36:02.142 [bg] rx 70 len=205 status=0x1C offset=28000 data=<200 B>
+2026-11-26 22:36:02.172 [bg] rx 70 len=205 status=0x1D offset=28200 data=<200 B>
+2026-11-26 22:36:02.195 [bg] rx 70 len=205 status=0x1E offset=28400 data=<200 B>
+2026-11-26 22:36:02.225 [bg] rx 70 len=205 status=0x1F offset=28600 data=<200 B>
+2026-11-26 22:36:02.254 [bg] rx 70 len=205 status=0x10 offset=28800 data=<200 B>
+2026-11-26 22:36:02.277 [bg] rx 70 len=205 status=0x11 offset=29000 data=<200 B>
+2026-11-26 22:36:02.308 [bg] rx 70 len=205 status=0x12 offset=29200 data=<200 B>
+2026-11-26 22:36:02.338 [bg] rx 70 len=205 status=0x13 offset=29400 data=<200 B>
+2026-11-26 22:36:02.362 [bg] rx 70 len=205 status=0x14 offset=29600 data=<200 B>
+2026-11-26 22:36:02.391 [bg] rx 70 len=205 status=0x15 offset=29800 data=<200 B>
+2026-11-26 22:36:02.420 [bg] rx 70 len=205 status=0x16 offset=30000 data=<200 B>
+2026-11-26 22:36:02.444 [bg] rx 70 len=205 status=0x17 offset=30200 data=<200 B>
+2026-11-26 22:36:02.472 [bg] rx 70 len=205 status=0x18 offset=30400 data=<200 B>
+2026-11-26 22:36:02.500 [bg] rx 70 len=205 status=0x19 offset=30600 data=<200 B>
+2026-11-26 22:36:02.532 [bg] rx 70 len=205 status=0x1A offset=30800 data=<200 B>
+2026-11-26 22:36:02.563 [bg] rx 70 len=205 status=0x1B offset=31000 data=<200 B>
+2026-11-26 22:36:02.591 [bg] rx 70 len=205 status=0x1C offset=31200 data=<200 B>
+2026-11-26 22:36:02.614 [bg] rx 70 len=205 status=0x1D offset=31400 data=<200 B>
+2026-11-26 22:36:02.643 [bg] rx 70 len=205 status=0x1E offset=31600 data=<200 B>
+2026-11-26 22:36:02.671 [bg] rx 70 len=205 status=0x1F offset=31800 data=<200 B>
+2026-11-26 22:36:02.694 [bg] rx 70 len=205 status=0x10 offset=32000 data=<200 B>
+2026-11-26 22:36:02.719 [bg] rx 70 len=205 status=0x11 offset=32200 data=<200 B>
+2026-11-26 22:36:02.747 [bg] rx 70 len=205 status=0x12 offset=32400 data=<200 B>
+2026-11-26 22:36:02.772 [bg] rx 70 len=205 status=0x13 offset=32600 data=<200 B>
+2026-11-26 22:36:02.803 [bg] rx 70 len=205 status=0x14 offset=32800 data=<200 B>
+2026-11-26 22:36:02.831 [bg] rx 70 len=205 status=0x15 offset=33000 data=<200 B>
+2026-11-26 22:36:02.854 [bg] rx 70 len=205 status=0x16 offset=33200 data=<200 B>
+2026-11-26 22:36:02.883 [bg] rx 70 len=205 status=0x17 offset=33400 data=<200 B>
+2026-11-26 22:36:02.912 [bg] rx 70 len=205 status=0x18 offset=33600 data=<200 B>
+2026-11-26 22:36:02.935 [bg] rx 70 len=205 status=0x19 offset=33800 data=<200 B>
+2026-11-26 22:36:02.962 [bg] rx 70 len=205 status=0x1A offset=34000 data=<200 B>
+2026-11-26 22:36:02.979 [bg] rx 70 len=205 status=0x1B offset=34200 data=<200 B>
+2026-11-26 22:36:02.996 [bg] rx 70 len=205 status=0x1C offset=34400 data=<200 B>
+2026-11-26 22:36:03.012 [bg] rx 70 len=205 status=0x1D offset=34600 data=<200 B>
+2026-11-26 22:36:03.027 [bg] rx 70 len=205 status=0x1E offset=34800 data=<200 B>
+2026-11-26 22:36:03.045 [bg] rx 70 len=205 status=0x1F offset=35000 data=<200 B>
+2026-11-26 22:36:03.075 [bg] rx 70 len=205 status=0x10 offset=35200 data=<200 B>
+2026-11-26 22:36:03.103 [bg] rx 70 len=205 status=0x11 offset=35400 data=<200 B>
+2026-11-26 22:36:03.126 [bg] rx 70 len=205 status=0x12 offset=35600 data=<200 B>
+2026-11-26 22:36:03.155 [bg] rx 70 len=205 status=0x13 offset=35800 data=<200 B>
+2026-11-26 22:36:03.185 [bg] rx 70 len=205 status=0x14 offset=36000 data=<200 B>
+2026-11-26 22:36:03.209 [bg] rx 70 len=205 status=0x15 offset=36200 data=<200 B>
+2026-11-26 22:36:03.238 [bg] rx 70 len=205 status=0x16 offset=36400 data=<200 B>
+2026-11-26 22:36:03.266 [bg] rx 70 len=205 status=0x17 offset=36600 data=<200 B>
+2026-11-26 22:36:03.289 [bg] rx 70 len=205 status=0x18 offset=36800 data=<200 B>
+2026-11-26 22:36:03.318 [bg] rx 70 len=205 status=0x19 offset=37000 data=<200 B>
+2026-11-26 22:36:03.347 [bg] rx 70 len=205 status=0x1A offset=37200 data=<200 B>
+2026-11-26 22:36:03.372 [bg] rx 70 len=205 status=0x1B offset=37400 data=<200 B>
+2026-11-26 22:36:03.401 [bg] rx 70 len=205 status=0x1C offset=37600 data=<200 B>
+2026-11-26 22:36:03.429 [bg] rx 70 len=205 status=0x1D offset=37800 data=<200 B>
+2026-11-26 22:36:03.452 [bg] rx 70 len=205 status=0x1E offset=38000 data=<200 B>
+2026-11-26 22:36:03.482 [bg] rx 70 len=205 status=0x1F offset=38200 data=<200 B>
+2026-11-26 22:36:03.510 [bg] rx 70 len=205 status=0x10 offset=38400 data=<200 B>
+2026-11-26 22:36:03.533 [bg] rx 70 len=205 status=0x11 offset=38600 data=<200 B>
+2026-11-26 22:36:03.562 [bg] rx 70 len=205 status=0x12 offset=38800 data=<200 B>
+2026-11-26 22:36:03.591 [bg] rx 70 len=205 status=0x13 offset=39000 data=<200 B>
+2026-11-26 22:36:03.614 [bg] rx 70 len=205 status=0x14 offset=39200 data=<200 B>
+2026-11-26 22:36:03.643 [bg] rx 70 len=205 status=0x15 offset=39400 data=<200 B>
+2026-11-26 22:36:03.672 [bg] rx 70 len=205 status=0x16 offset=39600 data=<200 B>
+2026-11-26 22:36:03.695 [bg] rx 70 len=205 status=0x17 offset=39800 data=<200 B>
+2026-11-26 22:36:03.723 [bg] rx 70 len=205 status=0x18 offset=40000 data=<200 B>
+2026-11-26 22:36:03.752 [bg] rx 70 len=205 status=0x19 offset=40200 data=<200 B>
+2026-11-26 22:36:03.787 [bg] rx 70 len=205 status=0x1A offset=40400 data=<200 B>
+2026-11-26 22:36:03.818 [bg] rx 70 len=205 status=0x1B offset=40600 data=<200 B>
+2026-11-26 22:36:03.848 [bg] rx 70 len=205 status=0x1C offset=40800 data=<200 B>
+2026-11-26 22:36:03.871 [bg] rx 70 len=205 status=0x1D offset=41000 data=<200 B>
+2026-11-26 22:36:03.900 [bg] rx 70 len=205 status=0x1E offset=41200 data=<200 B>
+2026-11-26 22:36:03.929 [bg] rx 70 len=205 status=0x1F offset=41400 data=<200 B>
+2026-11-26 22:36:03.952 [bg] rx 70 len=205 status=0x10 offset=41600 data=<200 B>
+2026-11-26 22:36:03.981 [bg] rx 70 len=205 status=0x11 offset=41800 data=<200 B>
+2026-11-26 22:36:04.012 [bg] rx 70 len=205 status=0x12 offset=42000 data=<200 B>
+2026-11-26 22:36:04.043 [bg] rx 70 len=205 status=0x13 offset=42200 data=<200 B>
+2026-11-26 22:36:04.072 [bg] rx 70 len=205 status=0x14 offset=42400 data=<200 B>
+2026-11-26 22:36:04.105 [bg] rx 70 len=205 status=0x15 offset=42600 data=<200 B>
+2026-11-26 22:36:04.128 [bg] rx 70 len=205 status=0x16 offset=42800 data=<200 B>
+2026-11-26 22:36:04.157 [bg] rx 70 len=205 status=0x17 offset=43000 data=<200 B>
+2026-11-26 22:36:04.186 [bg] rx 70 len=205 status=0x18 offset=43200 data=<200 B>
+2026-11-26 22:36:04.210 [bg] rx 70 len=205 status=0x19 offset=43400 data=<200 B>
+2026-11-26 22:36:04.239 [bg] rx 70 len=205 status=0x1A offset=43600 data=<200 B>
+2026-11-26 22:36:04.268 [bg] rx 70 len=205 status=0x1B offset=43800 data=<200 B>
+2026-11-26 22:36:04.292 [bg] rx 70 len=205 status=0x1C offset=44000 data=<200 B>
+2026-11-26 22:36:04.321 [bg] rx 70 len=205 status=0x1D offset=44200 data=<200 B>
+2026-11-26 22:36:04.350 [bg] rx 70 len=205 status=0x1E offset=44400 data=<200 B>
+2026-11-26 22:36:04.374 [bg] rx 70 len=205 status=0x1F offset=44600 data=<200 B>
+2026-11-26 22:36:04.402 [bg] rx 70 len=205 status=0x10 offset=44800 data=<200 B>
+2026-11-26 22:36:04.431 [bg] rx 70 len=205 status=0x11 offset=45000 data=<200 B>
+2026-11-26 22:36:04.454 [bg] rx 70 len=205 status=0x12 offset=45200 data=<200 B>
+2026-11-26 22:36:04.483 [bg] rx 70 len=205 status=0x13 offset=45400 data=<200 B>
+2026-11-26 22:36:04.511 [bg] rx 70 len=205 status=0x14 offset=45600 data=<200 B>
+2026-11-26 22:36:04.534 [bg] rx 70 len=205 status=0x15 offset=45800 data=<200 B>
+2026-11-26 22:36:04.562 [bg] rx 70 len=205 status=0x16 offset=46000 data=<200 B>
+2026-11-26 22:36:04.591 [bg] rx 70 len=205 status=0x17 offset=46200 data=<200 B>
+2026-11-26 22:36:04.614 [bg] rx 70 len=205 status=0x18 offset=46400 data=<200 B>
+2026-11-26 22:36:04.642 [bg] rx 70 len=205 status=0x19 offset=46600 data=<200 B>
+2026-11-26 22:36:04.670 [bg] rx 70 len=205 status=0x1A offset=46800 data=<200 B>
+2026-11-26 22:36:04.694 [bg] rx 70 len=205 status=0x1B offset=47000 data=<200 B>
+2026-11-26 22:36:04.722 [bg] rx 70 len=205 status=0x1C offset=47200 data=<200 B>
+2026-11-26 22:36:04.751 [bg] rx 70 len=205 status=0x1D offset=47400 data=<200 B>
+2026-11-26 22:36:04.775 [bg] rx 70 len=205 status=0x1E offset=47600 data=<200 B>
+2026-11-26 22:36:04.804 [bg] rx 70 len=205 status=0x1F offset=47800 data=<200 B>
+2026-11-26 22:36:04.833 [bg] rx 70 len=205 status=0x10 offset=48000 data=<200 B>
+2026-11-26 22:36:04.857 [bg] rx 70 len=205 status=0x11 offset=48200 data=<200 B>
+2026-11-26 22:36:04.887 [bg] rx 70 len=205 status=0x12 offset=48400 data=<200 B>
+2026-11-26 22:36:04.917 [bg] rx 70 len=205 status=0x13 offset=48600 data=<200 B>
+2026-11-26 22:36:04.940 [bg] rx 70 len=205 status=0x14 offset=48800 data=<200 B>
+2026-11-26 22:36:04.968 [bg] rx 70 len=205 status=0x15 offset=49000 data=<200 B>
+2026-11-26 22:36:04.996 [bg] rx 70 len=205 status=0x16 offset=49200 data=<200 B>
+2026-11-26 22:36:05.019 [bg] rx 70 len=205 status=0x17 offset=49400 data=<200 B>
+2026-11-26 22:36:05.048 [bg] rx 70 len=205 status=0x18 offset=49600 data=<200 B>
+2026-11-26 22:36:05.076 [bg] rx 70 len=205 status=0x19 offset=49800 data=<200 B>
+2026-11-26 22:36:05.110 [bg] rx 70 len=205 status=0x1A offset=50000 data=<200 B>
+2026-11-26 22:36:05.141 [bg] rx 70 len=205 status=0x1B offset=50200 data=<200 B>
+2026-11-26 22:36:05.170 [bg] rx 70 len=205 status=0x1C offset=50400 data=<200 B>
+2026-11-26 22:36:05.194 [bg] rx 70 len=205 status=0x1D offset=50600 data=<200 B>
+2026-11-26 22:36:05.223 [bg] rx 70 len=205 status=0x1E offset=50800 data=<200 B>
+2026-11-26 22:36:05.251 [bg] rx 70 len=205 status=0x1F offset=51000 data=<200 B>
+2026-11-26 22:36:05.275 [bg] rx 70 len=205 status=0x10 offset=51200 data=<200 B>
+2026-11-26 22:36:05.303 [bg] rx 70 len=205 status=0x11 offset=51400 data=<200 B>
+2026-11-26 22:36:05.331 [bg] rx 70 len=205 status=0x12 offset=51600 data=<200 B>
+2026-11-26 22:36:05.354 [bg] rx 70 len=205 status=0x13 offset=51800 data=<200 B>
+2026-11-26 22:36:05.384 [bg] rx 70 len=205 status=0x14 offset=52000 data=<200 B>
+2026-11-26 22:36:05.413 [bg] rx 70 len=205 status=0x15 offset=52200 data=<200 B>
+2026-11-26 22:36:05.436 [bg] rx 70 len=205 status=0x16 offset=52400 data=<200 B>
+2026-11-26 22:36:05.465 [bg] rx 70 len=205 status=0x17 offset=52600 data=<200 B>
+2026-11-26 22:36:05.493 [bg] rx 70 len=205 status=0x18 offset=52800 data=<200 B>
+2026-11-26 22:36:05.516 [bg] rx 70 len=205 status=0x19 offset=53000 data=<200 B>
+2026-11-26 22:36:05.544 [bg] rx 70 len=205 status=0x1A offset=53200 data=<200 B>
+2026-11-26 22:36:05.572 [bg] rx 70 len=205 status=0x1B offset=53400 data=<200 B>
+2026-11-26 22:36:05.595 [bg] rx 70 len=205 status=0x1C offset=53600 data=<200 B>
+2026-11-26 22:36:05.623 [bg] rx 70 len=205 status=0x1D offset=53800 data=<200 B>
+2026-11-26 22:36:05.651 [bg] rx 70 len=205 status=0x1E offset=54000 data=<200 B>
+2026-11-26 22:36:05.674 [bg] rx 70 len=205 status=0x1F offset=54200 data=<200 B>
+2026-11-26 22:36:05.703 [bg] rx 70 len=205 status=0x10 offset=54400 data=<200 B>
+2026-11-26 22:36:05.731 [bg] rx 70 len=205 status=0x11 offset=54600 data=<200 B>
+2026-11-26 22:36:05.764 [bg] rx 70 len=205 status=0x12 offset=54800 data=<200 B>
+2026-11-26 22:36:05.794 [bg] rx 70 len=205 status=0x13 offset=55000 data=<200 B>
+2026-11-26 22:36:05.822 [bg] rx 70 len=205 status=0x14 offset=55200 data=<200 B>
+2026-11-26 22:36:05.845 [bg] rx 70 len=205 status=0x15 offset=55400 data=<200 B>
+2026-11-26 22:36:05.873 [bg] rx 70 len=205 status=0x16 offset=55600 data=<200 B>
+2026-11-26 22:36:05.926 [bg] rx 70 len=205 status=0x17 offset=55800 data=<200 B>
+2026-11-26 22:36:05.948 [bg] rx 70 len=205 status=0x18 offset=56000 data=<200 B>
+2026-11-26 22:36:05.977 [bg] rx 70 len=205 status=0x19 offset=56200 data=<200 B>
+2026-11-26 22:36:06.005 [bg] rx 70 len=205 status=0x1A offset=56400 data=<200 B>
+2026-11-26 22:36:06.027 [bg] rx 70 len=205 status=0x1B offset=56600 data=<200 B>
+2026-11-26 22:36:06.057 [bg] rx 70 len=205 status=0x1C offset=56800 data=<200 B>
+2026-11-26 22:36:06.086 [bg] rx 70 len=205 status=0x1D offset=57000 data=<200 B>
+2026-11-26 22:36:06.109 [bg] rx 70 len=205 status=0x1E offset=57200 data=<200 B>
+2026-11-26 22:36:06.138 [bg] rx 70 len=205 status=0x1F offset=57400 data=<200 B>
+2026-11-26 22:36:06.167 [bg] rx 70 len=205 status=0x10 offset=57600 data=<200 B>
+2026-11-26 22:36:06.191 [bg] rx 70 len=205 status=0x11 offset=57800 data=<200 B>
+2026-11-26 22:36:06.220 [bg] rx 70 len=205 status=0x12 offset=58000 data=<200 B>
+2026-11-26 22:36:06.249 [bg] rx 70 len=205 status=0x13 offset=58200 data=<200 B>
+2026-11-26 22:36:06.272 [bg] rx 70 len=205 status=0x14 offset=58400 data=<200 B>
+2026-11-26 22:36:06.313 [bg] rx 70 len=205 status=0x15 offset=58600 data=<200 B>
+2026-11-26 22:36:06.343 [bg] rx 70 len=205 status=0x16 offset=58800 data=<200 B>
+2026-11-26 22:36:06.372 [bg] rx 70 len=205 status=0x17 offset=59000 data=<200 B>
+2026-11-26 22:36:06.396 [bg] rx 70 len=205 status=0x18 offset=59200 data=<200 B>
+2026-11-26 22:36:06.425 [bg] rx 70 len=205 status=0x19 offset=59400 data=<200 B>
+2026-11-26 22:36:06.467 [bg] rx 70 len=205 status=0x1A offset=59600 data=<200 B>
+2026-11-26 22:36:06.493 [bg] rx 70 len=205 status=0x1B offset=59800 data=<200 B>
+2026-11-26 22:36:06.522 [bg] rx 70 len=205 status=0x1C offset=60000 data=<200 B>
+2026-11-26 22:36:06.550 [bg] rx 70 len=205 status=0x1D offset=60200 data=<200 B>
+2026-11-26 22:36:06.573 [bg] rx 70 len=205 status=0x1E offset=60400 data=<200 B>
+2026-11-26 22:36:06.601 [bg] rx 70 len=205 status=0x1F offset=60600 data=<200 B>
+2026-11-26 22:36:06.630 [bg] rx 70 len=205 status=0x10 offset=60800 data=<200 B>
+2026-11-26 22:36:06.653 [bg] rx 70 len=205 status=0x11 offset=61000 data=<200 B>
+2026-11-26 22:36:06.681 [bg] rx 70 len=205 status=0x12 offset=61200 data=<200 B>
+2026-11-26 22:36:06.710 [bg] rx 70 len=205 status=0x13 offset=61400 data=<200 B>
+2026-11-26 22:36:06.734 [bg] rx 70 len=205 status=0x14 offset=61600 data=<200 B>
+2026-11-26 22:36:06.762 [bg] rx 70 len=205 status=0x15 offset=61800 data=<200 B>
+2026-11-26 22:36:06.792 [bg] rx 70 len=205 status=0x16 offset=62000 data=<200 B>
+2026-11-26 22:36:06.815 [bg] rx 70 len=205 status=0x17 offset=62200 data=<200 B>
+2026-11-26 22:36:06.843 [bg] rx 70 len=205 status=0x18 offset=62400 data=<200 B>
+2026-11-26 22:36:06.872 [bg] rx 70 len=205 status=0x19 offset=62600 data=<200 B>
+2026-11-26 22:36:06.895 [bg] rx 70 len=205 status=0x1A offset=62800 data=<200 B>
+2026-11-26 22:36:06.924 [bg] rx 70 len=205 status=0x1B offset=63000 data=<200 B>
+2026-11-26 22:36:06.954 [bg] rx 70 len=205 status=0x1C offset=63200 data=<200 B>
+2026-11-26 22:36:06.976 [bg] rx 70 len=205 status=0x1D offset=63400 data=<200 B>
+2026-11-26 22:36:07.001 [bg] rx 70 len=205 status=0x1E offset=63600 data=<200 B>
+2026-11-26 22:36:07.031 [bg] rx 70 len=205 status=0x1F offset=63800 data=<200 B>
+2026-11-26 22:36:07.057 [bg] rx 70 len=205 status=0x10 offset=64000 data=<200 B>
+2026-11-26 22:36:07.087 [bg] rx 70 len=205 status=0x11 offset=64200 data=<200 B>
+2026-11-26 22:36:07.116 [bg] rx 70 len=205 status=0x12 offset=64400 data=<200 B>
+2026-11-26 22:36:07.139 [bg] rx 70 len=205 status=0x13 offset=64600 data=<200 B>
+2026-11-26 22:36:07.169 [bg] rx 70 len=205 status=0x14 offset=64800 data=<200 B>
+2026-11-26 22:36:07.198 [bg] rx 70 len=205 status=0x15 offset=65000 data=<200 B>
+2026-11-26 22:36:07.222 [bg] rx 70 len=205 status=0x16 offset=65200 data=<200 B>
+2026-11-26 22:36:07.252 [bg] rx 70 len=205 status=0x17 offset=65400 data=<200 B>
+2026-11-26 22:36:07.281 [bg] rx 70 len=205 status=0x18 offset=65600 data=<200 B>
+2026-11-26 22:36:07.304 [bg] rx 70 len=205 status=0x19 offset=65800 data=<200 B>
+2026-11-26 22:36:07.333 [bg] rx 70 len=205 status=0x1A offset=66000 data=<200 B>
+2026-11-26 22:36:07.361 [bg] rx 70 len=205 status=0x1B offset=66200 data=<200 B>
+2026-11-26 22:36:07.384 [bg] rx 70 len=205 status=0x1C offset=66400 data=<200 B>
+2026-11-26 22:36:07.412 [bg] rx 70 len=205 status=0x1D offset=66600 data=<200 B>
+2026-11-26 22:36:07.443 [bg] rx 70 len=205 status=0x1E offset=66800 data=<200 B>
+2026-11-26 22:36:07.466 [bg] rx 70 len=205 status=0x1F offset=67000 data=<200 B>
+2026-11-26 22:36:07.494 [bg] rx 70 len=205 status=0x10 offset=67200 data=<200 B>
+2026-11-26 22:36:07.523 [bg] rx 70 len=205 status=0x11 offset=67400 data=<200 B>
+2026-11-26 22:36:07.545 [bg] rx 70 len=205 status=0x12 offset=67600 data=<200 B>
+2026-11-26 22:36:07.574 [bg] rx 70 len=205 status=0x13 offset=67800 data=<200 B>
+2026-11-26 22:36:07.603 [bg] rx 70 len=205 status=0x14 offset=68000 data=<200 B>
+2026-11-26 22:36:07.626 [bg] rx 70 len=205 status=0x15 offset=68200 data=<200 B>
+2026-11-26 22:36:07.654 [bg] rx 70 len=205 status=0x16 offset=68400 data=<200 B>
+2026-11-26 22:36:07.683 [bg] rx 70 len=205 status=0x17 offset=68600 data=<200 B>
+2026-11-26 22:36:07.706 [bg] rx 70 len=205 status=0x18 offset=68800 data=<200 B>
+2026-11-26 22:36:07.734 [bg] rx 70 len=205 status=0x19 offset=69000 data=<200 B>
+2026-11-26 22:36:07.773 [bg] rx 70 len=205 status=0x1A offset=69200 data=<200 B>
+2026-11-26 22:36:07.799 [bg] rx 70 len=205 status=0x1B offset=69400 data=<200 B>
+2026-11-26 22:36:07.826 [bg] rx 70 len=205 status=0x1C offset=69600 data=<200 B>
+2026-11-26 22:36:07.855 [bg] rx 70 len=205 status=0x1D offset=69800 data=<200 B>
+2026-11-26 22:36:07.878 [bg] rx 70 len=205 status=0x1E offset=70000 data=<200 B>
+2026-11-26 22:36:07.906 [bg] rx 70 len=205 status=0x1F offset=70200 data=<200 B>
+2026-11-26 22:36:07.936 [bg] rx 70 len=205 status=0x10 offset=70400 data=<200 B>
+2026-11-26 22:36:07.959 [bg] rx 70 len=205 status=0x11 offset=70600 data=<200 B>
+2026-11-26 22:36:07.977 [bg] rx 70 len=205 status=0x12 offset=70800 data=<200 B>
+2026-11-26 22:36:07.995 [bg] rx 70 len=205 status=0x13 offset=71000 data=<200 B>
+2026-11-26 22:36:08.016 [bg] rx 70 len=205 status=0x14 offset=71200 data=<200 B>
+2026-11-26 22:36:08.045 [bg] rx 70 len=205 status=0x15 offset=71400 data=<200 B>
+2026-11-26 22:36:08.074 [bg] rx 70 len=205 status=0x16 offset=71600 data=<200 B>
+2026-11-26 22:36:08.097 [bg] rx 70 len=205 status=0x17 offset=71800 data=<200 B>
+2026-11-26 22:36:08.126 [bg] rx 70 len=205 status=0x18 offset=72000 data=<200 B>
+2026-11-26 22:36:08.155 [bg] rx 70 len=205 status=0x19 offset=72200 data=<200 B>
+2026-11-26 22:36:08.178 [bg] rx 70 len=205 status=0x1A offset=72400 data=<200 B>
+2026-11-26 22:36:08.208 [bg] rx 70 len=205 status=0x1B offset=72600 data=<200 B>
+2026-11-26 22:36:08.238 [bg] rx 70 len=205 status=0x1C offset=72800 data=<200 B>
+2026-11-26 22:36:08.264 [bg] rx 70 len=205 status=0x1D offset=73000 data=<200 B>
+2026-11-26 22:36:08.295 [bg] rx 70 len=205 status=0x1E offset=73200 data=<200 B>
+2026-11-26 22:36:08.324 [bg] rx 70 len=205 status=0x1F offset=73400 data=<200 B>
+2026-11-26 22:36:08.348 [bg] rx 70 len=205 status=0x10 offset=73600 data=<200 B>
+2026-11-26 22:36:08.377 [bg] rx 70 len=205 status=0x11 offset=73800 data=<200 B>
+2026-11-26 22:36:08.405 [bg] rx 70 len=205 status=0x12 offset=74000 data=<200 B>
+2026-11-26 22:36:08.428 [bg] rx 70 len=205 status=0x13 offset=74200 data=<200 B>
+2026-11-26 22:36:08.456 [bg] rx 70 len=205 status=0x14 offset=74400 data=<200 B>
+2026-11-26 22:36:08.485 [bg] rx 70 len=205 status=0x15 offset=74600 data=<200 B>
+2026-11-26 22:36:08.508 [bg] rx 70 len=205 status=0x16 offset=74800 data=<200 B>
+2026-11-26 22:36:08.537 [bg] rx 70 len=205 status=0x17 offset=75000 data=<200 B>
+2026-11-26 22:36:08.565 [bg] rx 70 len=205 status=0x18 offset=75200 data=<200 B>
+2026-11-26 22:36:08.588 [bg] rx 70 len=205 status=0x19 offset=75400 data=<200 B>
+2026-11-26 22:36:08.616 [bg] rx 70 len=205 status=0x1A offset=75600 data=<200 B>
+2026-11-26 22:36:08.643 [bg] rx 70 len=205 status=0x1B offset=75800 data=<200 B>
+2026-11-26 22:36:08.666 [bg] rx 70 len=65 status=0x2C offset=76000 data=<60 B>
