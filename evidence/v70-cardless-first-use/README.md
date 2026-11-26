@@ -11,11 +11,11 @@
 1. 从 [初次启动的 P01](01-read-before-using.jpg) 点「先不连卡，直接用」，进入 [总览](02-cardless-overview.jpg)，未弹 Bluetooth 权限。
 2. 点底栏红键，出现 [用这部手机录](03-phone-choice.jpg)，勾选录音同意项后出现 [麦克风授权](04-microphone-permission.jpg)。允许后已在手机录音界面，随后出现国行系统的 [无线数据授权](05-wireless-permission.jpg)，选择不允许。录音完整存入列表，数据库时长为 71.921 秒。见 [保存界面](06-phone-recording-saved.jpg) 和 [文件校验](phone-library-check.txt)。
 3. 从「录音卡」标签点「添加录音卡」，回到 [P01](07-return-before-continue.jpg)。回到此页时未弹权限，点击「继续」后才出现系统 [蓝牙授权](08-bluetooth-permission.jpg)。拒绝后见 [权限拒绝页](09-bluetooth-denied.jpg)，可点「先不连卡，直接用」。此时 [录音卡标签](10-card-tab-after-denial.jpg) 显示「还没有录音卡」，规格所述的蓝牙不可用提示实际出现在 [录音标签](11-recordings-bluetooth-banner.jpg)。先前的手机录音仍在。
-4. 按 [T-M5-61](../v72-link-import-device/README.md#t-m5-61-关闭无线数据) 恢复该 App 的 Wi-Fi 权限。在蓝牙仍被拒绝时，从链接导入小宇宙公开音频，详情显示 58 分 56 秒，文件完整解码。未从「文件」导入音频和 `.txt`。
+4. 按 [T-M5-61](../v72-link-import-device/README.md#t-m5-61-关闭无线数据) 恢复该 App 的 Wi-Fi 权限。在蓝牙仍被拒绝时，从链接导入小宇宙公开音频，详情显示 58 分 56 秒，文件完整解码。随后从系统「文件」也成功导入同一音频。[文件回环](../v70-m4a-export/README.md)
 5. 设置打开「本机转写（试验）」，在 71.921 秒的手机录音点「转成文字」。首次出现 [语音识别授权](12-speech-permission.jpg)，允许后界面 23:25:20 显示「转写失败，请重试」，仍可再点「转成文字」。未生成文字稿。未抓系统网络和底层错误，本样本音频不入库。[界面文字记录](asr-ui.txt)
 6. 使用 `xcrun devicectl device process launch --terminate-existing com.huiw86.revive.acceptance` 终止并重启验收版。重启进入总览，未再次回 P01。仍未配对卡。
 
-**部分通过，限独立 DEBUG 身份。** 验证了蓝牙权限时序、拒绝后继续、无卡手机录音、链接导入、重启回总览。本机转写未产出文字稿，蓝牙拒绝提示位置与规格有差异。正式 TestFlight 干净安装、连续录屏、从「文件」的音频和文字导入、配对和解绑仍未取证。
+**部分通过，限独立 DEBUG 身份。** 验证了蓝牙权限时序、拒绝后继续、无卡手机录音、链接和「文件」音频导入、重启回总览。本机转写未产出文字稿，蓝牙拒绝提示位置与规格有差异。正式 TestFlight 干净安装、连续录屏、`.txt` 导入、配对和解绑仍未取证。
 
 ## 手机录音的操作子项
 

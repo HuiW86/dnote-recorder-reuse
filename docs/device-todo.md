@@ -51,13 +51,13 @@
 `test-spec.md` §3.6.2 的 T-M15-50～57：
 
 - T-M15-50 卡上那份已删后从最近删除恢复
-- T-M15-51 M4A 在微信和「文件」里能打开
+- T-M15-51 部分通过：M4A 在「文件」中播放、拖动和重新导入均有证据，微信端待测。[v70-m4a-export](../evidence/v70-m4a-export/README.md)
 - T-M15-52 重点落在说话的那一刻（含暂停）
 - T-M15-53 部分通过：App 发起时，`0x51`、卡端清单和 App 存入的文件名一致。见 [v42-long-card-recording](../evidence/v42-long-card-recording/README.md)。
 - T-M15-54 「不要」只在手机有这份之后删卡（硬规则 2）
 - T-M15-55 后台同步后的通知
 - T-M15-56 本机转写，5 分钟和 30 分钟真实录音，飞行模式
-- T-M15-57 浅色、深色模式的界面走查
+- T-M15-57 部分通过：无卡 P05、P06 两种外观及浅色模式下的深底 P13 已核对，整套 §9 界面走查待做。[v70-device-appearance](../evidence/v70-device-appearance/README.md)
 
 ## 5. 界面改版第二步的剩余项（#89）
 
@@ -79,7 +79,7 @@
 - ✅ 手机录音标重点（T-M4-19）的真机部分已通过：独立 DEBUG 109，约 10 秒和 40 秒标记、连点去重、筛选和定位回放均通过。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md#手机录音的操作子项)
 - 手机录音被关掉（T-M4-18）部分通过：独立 DEBUG 109 强制退出后恢复一条 101.245 秒录音，重点保留且可完整解码；仍缺 30 分钟以上手机录音的常规保存。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md#手机录音的操作子项)
 - 手机录音被打断（T-M4-17）：`product-spec.md` §9「先不连卡」一组的最后一条；要第二部手机打电话进来
-- 先不连卡（T-M15-60）部分通过：独立 DEBUG 109 的空白容器证实蓝牙只在 P01 点「继续」后询问，手机录音和链接导入可用。本机转写失败；正式 TestFlight 干净安装、文件导入、配对解绑、连续录屏待验收。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md)
+- 先不连卡（T-M15-60）部分通过：独立 DEBUG 109 的空白容器证实蓝牙只在 P01 点「继续」后询问，手机录音和音频导入可用。本机转写失败；正式 TestFlight 干净安装、`.txt` 导入、配对解绑、连续录屏待验收。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md)
 - 关掉「无线数据」（T-M2-10，X11）：`product-spec.md` §9「AI 服务」一组的最后一条。要国行 iPhone；顺带确认 iOS 这时报的是不是 `-1009`（诊断日志里能看到）。和 #54 的「无线数据」弹窗一起做最省事
 
 已经通过的：密钥只留在本机（T-M2-08，v105），流式中途断开显示「关闭」（PR #107 的验证）。
