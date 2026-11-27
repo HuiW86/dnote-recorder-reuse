@@ -191,4 +191,50 @@ struct AccountModelTests {
         let stored = try store.load()
         #expect(model.notice == "密码已修改，其他设备需要重新登录" && stored?.refreshToken == "r3")
     }
+
+    /// 意见反馈 (P19): checks before sending, and one key per text until the server answers, so a
+    /// send retried after a lost answer is stored once (T-M2-31).
+    @Test func sendingFeedback() async throws {
+        let stub = StubTransport([
+            .json(202, #"{"resend_after_seconds":60}"#), .json(200, tokens(1)),
+            .fail(.timedOut), .json(201, #"{"id":"6f1c2d3e-0000-4000-8000-000000000009"}"#),
+            .json(422, error("invalid_request", "请求不完整或格式不对：content")),
+            .json(201, #"{"id":"6f1c2d3e-0000-4000-8000-00000000000a"}"#),
+        ])
+        let model = model(stub)
+        model.phone = "13812345678"
+        await model.sendPhoneCode()
+        model.code = "123456"
+        await model.signInWithPhone()
+
+        model.feedbackText = "  \n "
+        #expect(!model.canSendFeedback)
+        #expect(await model.sendFeedback(appVersion: "0.1.0 (110)") == false)
+        #expect(model.errorText == "请先写下想说的话")
+        model.feedbackText = String(repeating: "长", count: AccountModel.feedbackLimit + 1)
+        #expect(!model.canSendFeedback)
+        #expect(await model.sendFeedback(appVersion: "0.1.0 (110)") == false)
+        #expect(model.errorText == "最多 5000 个字" && stub.requests.count == 2)
+
+        // The answer is lost: the text stays, and sending it again reuses the key.
+        model.feedbackText = " 同步很快 "
+        #expect(await model.sendFeedback(appVersion: "0.1.0 (110)") == false)
+        #expect(model.feedbackText == " 同步很快 " && model.errorText == "连不上闻笺的服务器，请稍后再试")
+        #expect(await model.sendFeedback(appVersion: "0.1.0 (110)"))
+        #expect(model.feedbackText.isEmpty && model.notice == "已收到，谢谢你的反馈")
+        let first = stub.requests[2], retry = stub.requests[3]
+        #expect(first.url!.path == "/v1/feedback" && first.value(forHTTPHeaderField: "Authorization") == "Bearer a1")
+        #expect(stub.body(2) == ["content": "同步很快", "app_version": "0.1.0 (110)"])
+        let key = try #require(first.value(forHTTPHeaderField: "Idempotency-Key"))
+        #expect(retry.value(forHTTPHeaderField: "Idempotency-Key") == key)
+
+        // An answer, even a refusal, ends the key: the next send has a new one.
+        model.feedbackText = "再来一条"
+        #expect(await model.sendFeedback(appVersion: "0.1.0 (110)") == false)
+        #expect(model.errorText == "请求不完整或格式不对：content")
+        #expect(await model.sendFeedback(appVersion: "0.1.0 (110)"))
+        let refused = stub.requests[4].value(forHTTPHeaderField: "Idempotency-Key")
+        let resent = stub.requests[5].value(forHTTPHeaderField: "Idempotency-Key")
+        #expect(refused != nil && resent != nil && refused != resent && refused != key)
+    }
 }

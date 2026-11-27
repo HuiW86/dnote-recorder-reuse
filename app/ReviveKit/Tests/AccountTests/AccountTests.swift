@@ -201,6 +201,22 @@ struct AccountSessionTests {
         #expect(stub.requests[2].value(forHTTPHeaderField: "Authorization") == "Bearer a2")
     }
 
+    /// The feedback retried after refreshing an expired token carries the same key; the server
+    /// keeps no answer for `token_expired`, so the retry runs (prd.md §7.1).
+    @Test func feedbackKeepsItsKeyAcrossARefresh() async throws {
+        let stub = StubTransport([
+            .json(401, error("token_expired", "登录已过期", retryable: true)), .json(200, tokens(2)),
+            .json(201, #"{"id":"6f1c2d3e-0000-4000-8000-000000000009"}"#),
+        ])
+        let session = try await signedIn(stub)
+        try await session.sendFeedback("好用", appVersion: "0.1.0 (110)", idempotencyKey: "fb-1")
+        #expect(stub.requests.map(\.url!.path) == ["/v1/feedback", "/v1/auth/refresh", "/v1/feedback"])
+        #expect(stub.body(0) == ["content": "好用", "app_version": "0.1.0 (110)"])
+        #expect(stub.requests[0].value(forHTTPHeaderField: "Idempotency-Key") == "fb-1")
+        #expect(stub.requests[2].value(forHTTPHeaderField: "Idempotency-Key") == "fb-1")
+        #expect(stub.requests[2].value(forHTTPHeaderField: "Authorization") == "Bearer a2")
+    }
+
     @Test func anExpiredTokenIsRefreshedOnceAndTheCallRetried() async throws {
         let stub = StubTransport([
             .json(401, error("token_expired", "登录已过期", retryable: true)), .json(200, tokens(2)),

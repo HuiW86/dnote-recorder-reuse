@@ -80,6 +80,16 @@ public actor AccountSession {
         try forget()
     }
 
+    /// 意见反馈. The same key goes with the retry after a refreshed token: the server keeps no
+    /// answer for a retryable error such as `token_expired` (prd.md §7.1), so the retry runs.
+    public func sendFeedback(_ content: String, appVersion: String, idempotencyKey: String) async throws {
+        let client = client
+        try await authorized {
+            try await client.sendFeedback(accessToken: $0, content: content, appVersion: appVersion,
+                                          idempotencyKey: idempotencyKey)
+        }
+    }
+
     /// Signs out on the server when it can be reached, and always here.
     public func signOut() async {
         if let refreshToken {
