@@ -183,6 +183,43 @@ public actor AccountSession {
         return try await authorized { try await client.transcript(accessToken: $0, recordingId: recordingId) }
     }
 
+    /// The scenes a summary can be written for.
+    public func templates() async throws -> [SummaryTemplate] {
+        let client = client
+        return try await authorized { try await client.templates(accessToken: $0) }
+    }
+
+    /// Starts a summary of a recording that has a transcript on the server; wait on the task,
+    /// then read `summaries`.
+    public func summarize(recordingId: UUID, templateId: String?, profession: String,
+                          idempotencyKey: String) async throws -> RemoteTask {
+        let client = client
+        return try await authorized {
+            try await client.summarize(accessToken: $0, recordingId: recordingId, templateId: templateId,
+                                       profession: profession, idempotencyKey: idempotencyKey)
+        }
+    }
+
+    /// Newest first.
+    public func summaries(recordingId: UUID) async throws -> [RemoteSummary] {
+        let client = client
+        return try await authorized { try await client.summaries(accessToken: $0, recordingId: recordingId) }
+    }
+
+    /// Starts a retitle; the finished task's `result?.title` is the new title.
+    public func retitle(recordingId: UUID, currentTitle: String?, idempotencyKey: String) async throws -> RemoteTask {
+        let client = client
+        return try await authorized {
+            try await client.retitle(accessToken: $0, recordingId: recordingId, currentTitle: currentTitle,
+                                     idempotencyKey: idempotencyKey)
+        }
+    }
+
+    public func usage() async throws -> RemoteUsage {
+        let client = client
+        return try await authorized { try await client.usage(accessToken: $0) }
+    }
+
     /// Signs out on the server when it can be reached, and always here.
     public func signOut() async {
         if let refreshToken {
