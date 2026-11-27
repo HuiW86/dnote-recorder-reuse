@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import pytest
 from conftest import BACKEND, bearer
 from sqlalchemy import text
-from test_recordings import uploaded
+from test_recordings import meta, uploaded
 from test_transcripts import ScriptedTranscriber, task_of
 
 from revive_api import summaries, tasks
@@ -306,3 +306,20 @@ async def test_deleting_the_account_deletes_summaries_and_keeps_usage(h, model):
     assert await h.count("summaries") == 1
     await h.http.delete("/v1/me", headers=bearer(tokens))
     assert await h.count("summaries") == 0 and await h.count("usage_records") == 2
+
+
+async def test_a_summary_from_the_apps_own_transcript(h, model):
+    """No audio on the server: the app's transcript is enough to summarize (product-spec.md §7.3b)."""
+    tokens = await h.sms_login()
+    bare = (await h.http.post("/v1/recordings", headers=bearer(tokens), json=meta(None))).json()
+    lines = [
+        {"start_ms": 0, "end_ms": 1500, "text": "大家好，开始开会。"},
+        {"start_ms": 1500, "end_ms": 4000, "text": "先说回款。"},
+    ]
+    path = f"/v1/recordings/{bare['id']}/transcript"
+    put = await h.http.put(path, headers=bearer(tokens), json={"engine": "on-device", "segments": lines})
+    assert put.status_code == 200
+    queued = await h.http.post(f"/v1/recordings/{bare['id']}/summaries", headers=bearer(tokens), json={})
+    assert queued.status_code == 202, queued.text
+    assert await tasks.run_one(h.run, HANDLERS)
+    assert "大家好，开始开会。\n先说回款。" in model.calls[0]["user"]
