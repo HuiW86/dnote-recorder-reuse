@@ -39,7 +39,7 @@ done
 # links (features.md X12), and Account talks to our backend (features.md K1). Device and offline
 # modules must not import any of them (CLAUDE.md rule 3): only the app shell and AppModel's AI,
 # link-import and account screens may.
-offline_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription LibraryTools revive)
+offline_modules=(CardProtocol CardLink CardService DeviceSource Library SyncEngine Player Transcription LibraryTools AIRoute revive)
 for m in "${offline_modules[@]}"; do
   dir="$app/ReviveKit/Sources/$m"
   [[ -d "$dir" ]] || continue

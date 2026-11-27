@@ -636,6 +636,30 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Transcript.fetchOne($0, key: recordingId) }
     }
 
+    // MARK: Recordings on our backend (product-spec.md §7.3b)
+
+    public func serverRecordingLink(recordingId: UUID, accountId: UUID) throws -> ServerRecordingLink? {
+        try database.writer.read { db in
+            try ServerRecordingLink.filter(Column("account_id") == accountId && Column("recording_id") == recordingId)
+                .fetchOne(db)
+        }
+    }
+
+    /// Keeps the server's id, replacing the one this account had for the recording.
+    public func saveServerRecordingLink(_ remote: ServerRecordingLink) throws {
+        try database.writer.write { db in try remote.save(db) }
+    }
+
+    /// Forgets one recording's server id (the server no longer has it), or every one of an
+    /// account (the account was deleted) when `recordingId` is nil.
+    public func forgetServerRecordingLinks(accountId: UUID, recordingId: UUID? = nil) throws {
+        try database.writer.write { db in
+            var rows = ServerRecordingLink.filter(Column("account_id") == accountId)
+            if let recordingId { rows = rows.filter(Column("recording_id") == recordingId) }
+            _ = try rows.deleteAll(db)
+        }
+    }
+
     // MARK: Word lists (features.md X20 单词分级)
 
     /// Stores the words of a recording, replacing an earlier list.

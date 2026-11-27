@@ -9,8 +9,11 @@ struct AccountView: View {
     @State private var model: AccountModel
     @State private var toast: Toast?
 
-    init(session: AccountSession) {
-        _model = State(initialValue: AccountModel(session: session))
+    /// `onLeave` gets the account that signed out (false) or was deleted (true).
+    init(session: AccountSession, onLeave: @escaping (UUID, Bool) -> Void = { _, _ in }) {
+        let model = AccountModel(session: session)
+        model.onLeave = onLeave
+        _model = State(initialValue: model)
     }
 
     var body: some View {
