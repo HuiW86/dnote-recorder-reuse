@@ -1,0 +1,7 @@
+2026-11-27 08:38:31.738 [fg] rx 80 len=180 {"bat":12,"bt":"D·NOTE","btaddr":"…162f","df":7661,"rec":1,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-27 08:38:31","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-27 08:38:36.715 [fg] rx 80 len=180 {"bat":11,"bt":"D·NOTE","btaddr":"…162f","df":7661,"rec":1,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-27 08:38:36","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-27 08:38:41.740 [fg] rx 80 len=180 {"bat":10,"bt":"D·NOTE","btaddr":"…162f","df":7661,"rec":1,"recmode":0,"sn":"sha256:7036aa3b","time":"2026-11-27 08:38:41","total_df":7671,"usb":0,"v":"1.50","wifiap":0}
+2026-11-27 08:38:41.743 [fg] rx 56 len=48 {"name":"","size":0,"recd":0,"rec":0,"upload":0}
+2026-11-27 08:38:42.925 [fg] tx A1 len=0
+2026-11-27 08:38:46.951 [fg] link disconnected(CardLink.DisconnectReason.lost)
+2026-11-27 08:38:46.999 [fg] link connecting
