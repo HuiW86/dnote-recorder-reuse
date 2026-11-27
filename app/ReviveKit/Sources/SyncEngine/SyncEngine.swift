@@ -345,18 +345,48 @@ public final class SyncEngine {
         hooks.beforeDownload?(file)
 
         let writer = try store.openPart(id)
+        let writeBatchSize = 32 * 1024
+        var pending = Data()
+        pending.reserveCapacity(writeBatchSize)
         var writeFailed = false
+        func flush() {
+            guard !pending.isEmpty, !writeFailed else { return }
+            do { try writer.append(pending) } catch { writeFailed = true }
+            pending.removeAll(keepingCapacity: true)
+        }
+
         var received = offset
+        var lastProgress = offset
+        let progressStep = max(1, file.size / 100)
         status = .syncing(file: file.name, received: received, total: file.size)
+        let downloadError: (any Error)?
         do {
             try await source.download(file, from: offset) { [weak self] chunk in
-                do { try writer.append(chunk) } catch { writeFailed = true }
+                if !writeFailed {
+                    pending.append(chunk)
+                    if pending.count >= writeBatchSize { flush() }
+                }
                 received += chunk.count
-                self?.status = .syncing(file: file.name, received: received, total: file.size)
+                if received - lastProgress >= progressStep || received == file.size {
+                    lastProgress = received
+                    self?.status = .syncing(file: file.name, received: received, total: file.size)
+                }
             }
-            writer.close()
-        } catch let error as SourceError {
-            writer.close()
+            downloadError = nil
+        } catch {
+            downloadError = error
+        }
+        // Keep every validated byte on a link drop, including the last partial batch.
+        flush()
+        writer.close()
+        if downloadError == nil { hooks.afterDownload?(file) }
+        if writeFailed {
+            store.removePart(id)
+            fail(&item, .phoneStorageFull, countsAsAttempt: false)
+            throw SyncFailure.phoneStorageFull
+        }
+        if let downloadError {
+            guard let error = downloadError as? SourceError else { throw downloadError }
             switch error {
             case .fileNotFound:
                 store.removePart(id)
@@ -381,12 +411,6 @@ public final class SyncEngine {
                 fail(&item, SyncFailure(error), countsAsAttempt: false)
                 throw error
             }
-        }
-        hooks.afterDownload?(file)
-        if writeFailed {
-            store.removePart(id)
-            fail(&item, .phoneStorageFull, countsAsAttempt: false)
-            throw SyncFailure.phoneStorageFull
         }
 
         let raw = try store.readPart(id)

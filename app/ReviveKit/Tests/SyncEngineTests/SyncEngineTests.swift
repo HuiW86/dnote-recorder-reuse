@@ -328,6 +328,31 @@ struct SyncEngineTests {
         h.checkNoForbiddenWrites()
     }
 
+    @Test func resumesAfterAFullBatchAndAnUnflushedTail() async throws {
+        let content = plainOpus(frames: 1_800, seed: 2)
+        let file = FakeCard.StoredFile(name: "long.opus", content: content)
+        let h = try await Harness(files: [file], faults: [.disconnectAfterChunks(170)])
+        let partial = 170 * h.card.chunkSize
+        let item = try #require(try h.items.first)
+        let id = try #require(item.id)
+        #expect(h.engine.status == .stopped("disconnected"))
+        #expect(try h.library.store.readPart(id) == content.prefix(partial))
+
+        h.card.advertise()
+        try await waitUntil("stored after a batched download reconnects") {
+            try h.items.first?.state == .stored
+        }
+        await h.engine.idle()
+        #expect(h.downloads == [.download(name: "long.opus", offset: 0), .download(name: "long.opus", offset: partial)])
+        let recordings = try h.recordings
+        #expect(recordings.count == 1)
+        let recording = try #require(recordings.first)
+        let expected = try CardAudioConverter().convert(content).ogg
+        #expect(try Data(contentsOf: h.library.store.url(forAudioPath: recording.audioPath)) == expected)
+        #expect(h.files(in: "tmp").isEmpty)
+        h.checkNoForbiddenWrites()
+    }
+
     /// T-M1-22
     @Test func decryptFailureKeepsCardFileAndRawBytes() async throws {
         var corrupt = encrypted
