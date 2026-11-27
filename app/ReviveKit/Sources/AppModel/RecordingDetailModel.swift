@@ -53,6 +53,7 @@ public final class RecordingDetailModel {
     /// The user's AI service; nil when the app has none (features.md X11).
     @ObservationIgnored private let assistant: AssistantConfigSource?
     @ObservationIgnored private let jobs: TranscriptionJobs
+    @ObservationIgnored private let diagnostics: DiagnosticLog?
     @ObservationIgnored private let summarizer: Summarizer
     @ObservationIgnored private let polisher: Polisher
     @ObservationIgnored private let grader: WordGrader
@@ -63,7 +64,7 @@ public final class RecordingDetailModel {
                 transcriberSource: (@MainActor () -> (any SpeechTranscribing)?)? = nil,
                 assistant: AssistantConfigSource? = nil,
                 summarizer: Summarizer = Summarizer(), polisher: Polisher? = nil,
-                jobs: TranscriptionJobs = .shared) {
+                jobs: TranscriptionJobs = .shared, diagnostics: DiagnosticLog? = nil) {
         self.recordingId = recordingId
         self.library = library
         self.player = player
@@ -73,6 +74,7 @@ public final class RecordingDetailModel {
         self.polisher = polisher ?? Polisher(client: summarizer.client)
         grader = WordGrader(client: summarizer.client)
         self.jobs = jobs
+        self.diagnostics = diagnostics
         transcript = try? library.transcript(recordingId: recordingId)
         summary = try? library.summary(recordingId: recordingId)
         wordList = try? library.wordList(recordingId: recordingId)
@@ -196,6 +198,9 @@ public final class RecordingDetailModel {
                 transcript = result
                 succeeded = true
             } catch let error as TranscriptionError {
+                if !transcriber.usesNetwork, case .failed(let failure) = error {
+                    diagnostics?.add("asr", failure)
+                }
                 toast = Toast(Self.text(for: error))
             } catch AssistantError.offline {
                 // Transcribing with the user's service, and the phone has no connection.

@@ -45,7 +45,8 @@ struct RecordingDetailView: View {
                 // Read on every use, so changing the switch applies to this page too (#85).
                 let source: @MainActor () -> (any SpeechTranscribing)? = { [env] in env.transcriber(library: library) }
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
-                                             transcriberSource: source, assistant: env.assistantConfig)
+                                             transcriberSource: source, assistant: env.assistantConfig,
+                                             diagnostics: env.diagnostics)
             }
         }
         .onDisappear { model?.leave() }
