@@ -10,6 +10,8 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
     enum Answer {
         case json(Int, String)
         case empty(Int)
+        /// An empty answer with these headers (an object store's ETag).
+        case headers(Int, [String: String])
         case fail(URLError.Code)
     }
 
@@ -42,6 +44,8 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
             return (Data(text.utf8), HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
         case .empty(let status):
             return (Data(), HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
+        case .headers(let status, let fields):
+            return (Data(), HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: fields)!)
         case .fail(let code):
             throw URLError(code)
         }

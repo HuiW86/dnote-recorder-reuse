@@ -60,6 +60,8 @@ public enum AccountError: Error, Equatable, Sendable {
     case badResponse(Int)
     /// The sign-in ended (refresh token spent or revoked); sign in again.
     case signedOut
+    /// A server task (transcription, summary) ended in failure; `message` is written for users.
+    case taskFailed(code: String, message: String)
 
     /// The same sentence the AI features use (features.md X11, product-spec.md §7.3a).
     public static let offlineAdvice = "这部手机连不上网，请检查网络或「设置 › 闻笺 › 无线数据」"
@@ -72,6 +74,7 @@ public enum AccountError: Error, Equatable, Sendable {
         case .unreachable: "连不上闻笺的服务器，请稍后再试"
         case .badResponse(let status): "服务器的回答不对（\(status)），请稍后再试"
         case .signedOut: "登录已失效，请重新登录"
+        case .taskFailed(_, let message): message.isEmpty ? "服务器没能处理这条录音，请稍后再试" : message
         }
     }
 
@@ -215,7 +218,8 @@ public struct AccountClient: Sendable {
         _ = try await send(request("POST", path, body: body, bearer: nil))
     }
 
-    func request(_ method: String, _ path: String, body: [String: String]?, bearer: String?,
+    /// `body` is JSON: strings, numbers, booleans and nested objects (`recordings` sends nested audio).
+    func request(_ method: String, _ path: String, body: [String: Any]?, bearer: String?,
                  idempotencyKey: String? = nil) -> URLRequest {
         var request = URLRequest(url: baseURL.appendingPathComponent(String(path.dropFirst())))
         request.httpMethod = method
@@ -229,7 +233,12 @@ public struct AccountClient: Sendable {
         return request
     }
 
-    private func send(_ request: URLRequest) async throws -> Data {
+    func send(_ request: URLRequest) async throws -> Data {
+        try await exchange(request).0
+    }
+
+    /// Like `send`, with the response for its headers (an uploaded part's ETag).
+    func exchange(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let data: Data
         let response: HTTPURLResponse
         do {
@@ -248,10 +257,10 @@ public struct AccountClient: Sendable {
             }
             throw AccountError.badResponse(response.statusCode)
         }
-        return data
+        return (data, response)
     }
 
-    private func decode<Out: Decodable>(_ data: Data) throws -> Out {
+    func decode<Out: Decodable>(_ data: Data) throws -> Out {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
