@@ -77,11 +77,18 @@ public struct RemoteTask: Decodable, Equatable, Sendable {
         public let message: String
     }
 
+    /// What a task answers on itself: a new title for `retitle`; nil for kinds that store
+    /// their result elsewhere (a transcript, a summary).
+    public struct Outcome: Decodable, Equatable, Sendable {
+        public let title: String?
+    }
+
     public let id: UUID
     public let kind: String
     /// A retry waiting shows `queued` with the last error.
     public let status: Status
     public let error: Failure?
+    public let result: Outcome?
 }
 
 /// The server's transcript (`TranscriptOut`).
@@ -173,3 +180,93 @@ extension AccountClient {
         return formatter.string(from: date)
     }
 }
+
+// MARK: - 纪要、换角度重起标题、用量 (features.md G1, G2a, X2; backend/revive_api/routers/summaries.py, me.py)
+
+/// A scene the server summarizes by (`TemplateOut`): the same ten scenes the app has (Scene.swift).
+public struct SummaryTemplate: Decodable, Equatable, Sendable {
+    public let id: String
+    public let name: String
+    public let definition: String
+    public let headings: [String]
+}
+
+/// A summary the server wrote (`SummaryOut`); every one is kept, newest first.
+public struct RemoteSummary: Decodable, Equatable, Sendable {
+    public struct Section: Decodable, Equatable, Sendable {
+        public let heading: String
+        public let items: [String]
+    }
+
+    public struct Outline: Decodable, Equatable, Sendable {
+        public let title: String
+        public let points: [String]
+    }
+
+    public let id: UUID
+    public let scene: String
+    public let title: String
+    public let summary: String
+    public let sections: [Section]
+    public let todos: [String]
+    public let tags: [String]
+    public let people: [String]
+    public let outline: [Outline]
+    public let quotes: [String]
+    public let model: String
+}
+
+/// This month's use and allowances (`UsageOut`). Months start at midnight Beijing time.
+public struct RemoteUsage: Decodable, Equatable, Sendable {
+    public struct Allowance: Decodable, Equatable, Sendable {
+        public let used: Int
+        /// Transcriptions queued or running, held against the allowance.
+        public let reserved: Int?
+        /// nil: no limit set.
+        public let limit: Int?
+        public let remaining: Int?
+    }
+
+    /// ISO 8601, as the server sends it.
+    public let periodStart: String
+    public let periodEnd: String
+    public let asrSeconds: Allowance
+    public let llmTokens: Allowance
+}
+
+extension AccountClient {
+    public func templates(accessToken: String) async throws -> [SummaryTemplate] {
+        try decode(await send(request("GET", "/v1/templates", body: nil, bearer: accessToken)))
+    }
+
+    /// 202 with a new task, 200 with the one already queued or running. `templateId` nil lets
+    /// the model choose the scene. 409 `no_transcript` before a transcript exists; 429
+    /// `quota_exceeded` once this month's model allowance is used up.
+    public func summarize(accessToken: String, recordingId: UUID, templateId: String?, profession: String,
+                          idempotencyKey: String) async throws -> RemoteTask {
+        var body: [String: Any] = ["profession": profession]
+        if let templateId { body["template_id"] = templateId }
+        return try decode(await send(request("POST", "/v1/recordings/\(Self.id(recordingId))/summaries", body: body,
+                                             bearer: accessToken, idempotencyKey: idempotencyKey)))
+    }
+
+    public func summaries(accessToken: String, recordingId: UUID) async throws -> [RemoteSummary] {
+        try decode(await send(request("GET", "/v1/recordings/\(Self.id(recordingId))/summaries", body: nil,
+                                      bearer: accessToken)))
+    }
+
+    /// A title from another angle; the finished task's `result.title` holds it. The server does
+    /// not change the recording's title: the app decides (it keeps a title the user wrote).
+    public func retitle(accessToken: String, recordingId: UUID, currentTitle: String?,
+                        idempotencyKey: String) async throws -> RemoteTask {
+        var body: [String: Any] = [:]
+        if let currentTitle { body["current_title"] = currentTitle }
+        return try decode(await send(request("POST", "/v1/recordings/\(Self.id(recordingId))/retitle", body: body,
+                                             bearer: accessToken, idempotencyKey: idempotencyKey)))
+    }
+
+    public func usage(accessToken: String) async throws -> RemoteUsage {
+        try decode(await send(request("GET", "/v1/me/usage", body: nil, bearer: accessToken)))
+    }
+}
+
