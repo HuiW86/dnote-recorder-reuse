@@ -197,6 +197,13 @@ public struct AccountClient: Sendable {
         _ = try await send(request("DELETE", "/v1/me", body: nil, bearer: accessToken))
     }
 
+    /// 意见反馈 (features.md O1b). The key makes a send retried after a lost answer land once.
+    public func sendFeedback(accessToken: String, content: String, appVersion: String,
+                             idempotencyKey: String) async throws {
+        _ = try await send(request("POST", "/v1/feedback", body: ["content": content, "app_version": appVersion],
+                                   bearer: accessToken, idempotencyKey: idempotencyKey))
+    }
+
     // MARK: Plumbing
 
     private func post<Out: Decodable>(_ path: String, _ body: [String: String], bearer: String? = nil,

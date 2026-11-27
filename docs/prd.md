@@ -472,7 +472,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 - 前缀 `/v1`；JSON；时间用 ISO 8601 带时区；id 用 UUID。
 - 鉴权：`Authorization: Bearer <access token>`。access token 15 分钟有效；refresh token 30 天有效，每次刷新换新，旧的立即作废。
 - **未登录时 App 不调用任何接口**（`backend-design.md` §4.6）。
-- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`。保存的响应加密存放（刷新令牌的响应里有令牌）。
+- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`。服务器错误（5xx）和标了 `retryable` 的错误（比如 `401 token_expired`、`429 code_too_frequent`）不保存：App 刷新令牌后用同一个键重发，要能真正执行，而不是拿回之前那个 401。保存的响应加密存放（刷新令牌的响应里有令牌）。
 - **刷新令牌时一定要带 `Idempotency-Key`**：已作废的刷新令牌再次出现会被当成被盗用，整条登录链吊销；带了键，网络断开后的重试拿到的是同一对新令牌。
 
 ### 7.2 接口分组
