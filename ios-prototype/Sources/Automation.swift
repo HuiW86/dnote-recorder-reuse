@@ -3,30 +3,23 @@ import UIKit
 
 // Launch arguments that let a run be driven from the Mac without touching the screen:
 //   --autorun [rounds]     the #21 hotspot batch (default 14 rounds)
-//   --delete <name>        delete one recording, by exact name (repeatable)
 //   --ft-probe             #6 phase A: try fast-transfer command variants, save replies
 //   --ft-get <name> [runs] #6: download one recording over WiFi fast transfer (default 3 runs)
 // Example:
 //   xcrun devicectl device process launch --device <udid> \
-//     com.huiw86.dnoteprobe --delete 20261106100604.opus
+//     com.huiw86.dnoteprobe --autorun 3
 
 extension Probe {
     @MainActor
     func autoRunIfRequested() async {
         let args = ProcessInfo.processInfo.arguments
         let batchFlag = args.firstIndex(of: "--autorun")
-        let deleteNames = args.indices.filter { args[$0] == "--delete" }
-            .compactMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
         let ftProbe = args.contains("--ft-probe")
         let ftGet = args.firstIndex(of: "--ft-get").flatMap { $0 + 1 < args.count ? $0 : nil }
-        guard batchFlag != nil || !deleteNames.isEmpty || ftProbe || ftGet != nil else { return }
+        guard batchFlag != nil || ftProbe || ftGet != nil else { return }
 
         guard await connectForAutomation() else { return }
 
-        if !deleteNames.isEmpty {
-            run("delete") { try await self.deleteRecordings(named: deleteNames) }
-            return
-        }
         if let i = ftGet {
             let name = args[i + 1]
             let runs = Int(args.count > i + 2 ? args[i + 2] : "") ?? 3
@@ -69,32 +62,5 @@ extension Probe {
             log.add("autorun: connect failed \(error.localizedDescription)")
             return false
         }
-    }
-
-    /// Stop any recording first (a file being written cannot be removed), then delete only the
-    /// names given — an exact match in the card's own listing, never a guess — and re-list to
-    /// confirm. Anything not found is reported and left alone.
-    private func deleteRecordings(named names: [String]) async throws {
-        try await stopRecording()
-        try await listFiles()
-        log.add("delete: card holds \(files.count) files before: "
-                + files.map { "\($0.name)(\($0.size))" }.joined(separator: " "))
-
-        let present = names.filter { name in files.contains { $0.name == name } }
-        let missing = names.filter { !present.contains($0) }
-        for name in missing { log.add("delete: \(name) NOT on card, skipped") }
-        guard !present.isEmpty else { log.add("delete: nothing to do [FAIL]"); return }
-
-        for name in present {
-            try sendRaw(buildFrame(Cmd.deleteFile, json: ["name": name]))
-            log.add("delete: 0x91 sent \(name)")
-            try await Task.sleep(for: .seconds(2))
-        }
-        try await listFiles()
-        for name in present {
-            let gone = !files.contains { $0.name == name }
-            log.add("delete: \(name) \(gone ? "gone [PASS]" : "STILL PRESENT [FAIL]")")
-        }
-        log.add("delete: card holds \(files.count) files after")
     }
 }

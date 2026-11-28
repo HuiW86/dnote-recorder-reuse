@@ -75,6 +75,7 @@ CI 是 `.github/workflows/backend-ci.yml`（Linux，PostgreSQL 16 服务容器�
 - **事务**：每个请求一个事务，路由返回后、响应发出前提交（`Depends(session, scope="function")`）。出错回滚；`AppError(keep_changes=True)` 例外（输错验证码也要记一次）。
 - **刷新令牌**：每次刷新换新，旧的作废；作废的再出现就整条链吊销。App 刷新时要带 `Idempotency-Key`，网络断了重试才拿得回同一对令牌，而不是被当成盗用。
 - **幂等**：按「令牌里的用户」区分调用方（access token 换新了也算同一个人），没登录时是匿名；第一次的响应加密保存 24 小时。
+- **用量**：任务成功时记 `asr_seconds`、`llm_tokens`，计入额度；没产出结果的尝试（回答读不出来要重试、录音中途被删）花掉的 token 记 `llm_unbilled`，只用于看成本，不算进用户额度。
 - **秘密不落明文**：密码 Argon2id；验证码、刷新令牌只存摘要；序列号只存「客户端 SHA-256 再做服务端 HMAC」，绑定码加密（理由见 ADR-012）。
 - **上传音频**：App 先 `POST /v1/recordings` 拿每个分片的预签名地址，直接 PUT 到存储，再 `upload-complete`；断了就 `POST /recordings/{id}/upload` 看哪些分片已经在了。同一段音频（按 SHA-256）在一个账号里只存一份。每次开始上传都换一个新的对象键，所以排队待删的旧对象不会误删新传的音频。
 - **删除存储里的东西**：不在请求里直接删，而是在同一事务里写一行 `object_deletions`，响应发出后再删（`maintenance.drain_deletions`）；存储挂了也不丢。COS 上另外要配生命周期规则，清掉 7 天以上未完成的分片上传（App 服务器建了上传、数据库却回滚时会留下）。

@@ -7,7 +7,7 @@ import uuid
 
 from sqlalchemy import select
 
-from . import summaries
+from . import summaries, usage
 from .llm import ChatModelError, ChatReply
 from .models import Recording, Summary, Transcript, UsageRecord
 from .runtime import Runtime
@@ -38,38 +38,43 @@ async def summarize(run: Runtime, claimed: Claimed) -> None:
         tokens += reply.prompt_tokens + reply.completion_tokens
         return reply
 
-    material = text
-    if len(text) > summaries.LONG_TRANSCRIPT_THRESHOLD:
-        # Long transcripts are compressed chunk by chunk first, as in the app.
-        notes = []
-        for index, chunk in enumerate(summaries.split(text, summaries.CHUNK_SIZE), 1):
-            notes.append((await ask(summaries.chunk_prompt(index), chunk, False)).text)
-        material = summaries.chunk_notes(notes)
-    reply = await ask(
-        summaries.system_prompt(scene, claimed.params.get("profession", "")),
-        summaries.user_message(material, duration_ms),
-        True,
-    )
     try:
-        draft = summaries.parse(reply.text, scene)
-    except summaries.BadReply as error:
-        # Models vary between tries; another one may well be readable.
-        raise TaskError("bad_reply", f"AI 的回答格式不对（{error}）", retryable=True) from error
-
-    async with finishing(run, claimed) as done:
-        db = done.db
-        recording = await db.scalar(select(Recording).where(Recording.id == claimed.recording_id).with_for_update())
-        if recording is None or recording.deleted_at is not None:
-            raise TaskError("recording_deleted", "录音已删除")
-        now = run.clock.now()
-        db.add(
-            Summary(
-                id=uuid.uuid4(),
-                recording_id=recording.id,
-                scene=draft.scene,
-                content=draft.content(),
-                model=reply.model,
-                created_at=now,
-            )
+        material = text
+        if len(text) > summaries.LONG_TRANSCRIPT_THRESHOLD:
+            # Long transcripts are compressed chunk by chunk first, as in the app.
+            notes = []
+            for index, chunk in enumerate(summaries.split(text, summaries.CHUNK_SIZE), 1):
+                notes.append((await ask(summaries.chunk_prompt(index), chunk, False)).text)
+            material = summaries.chunk_notes(notes)
+        reply = await ask(
+            summaries.system_prompt(scene, claimed.params.get("profession", "")),
+            summaries.user_message(material, duration_ms),
+            True,
         )
-        db.add(UsageRecord(user_id=claimed.user_id, kind="llm_tokens", amount=tokens, occurred_at=now))
+        try:
+            draft = summaries.parse(reply.text, scene)
+        except summaries.BadReply as error:
+            # Models vary between tries; another one may well be readable.
+            raise TaskError("bad_reply", f"AI 的回答格式不对（{error}）", retryable=True) from error
+
+        async with finishing(run, claimed) as done:
+            db = done.db
+            recording = await db.scalar(select(Recording).where(Recording.id == claimed.recording_id).with_for_update())
+            if recording is None or recording.deleted_at is not None:
+                raise TaskError("recording_deleted", "录音已删除")
+            now = run.clock.now()
+            db.add(
+                Summary(
+                    id=uuid.uuid4(),
+                    recording_id=recording.id,
+                    scene=draft.scene,
+                    content=draft.content(),
+                    model=reply.model,
+                    created_at=now,
+                )
+            )
+            db.add(UsageRecord(user_id=claimed.user_id, kind="llm_tokens", amount=tokens, occurred_at=now))
+    except Exception:
+        # Whatever was spent on an attempt that produced nothing is still a cost (usage.py).
+        await usage.record_unbilled(run, claimed.user_id, tokens)
+        raise

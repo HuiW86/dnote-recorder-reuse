@@ -24,10 +24,18 @@ public enum AudioImporter {
         try await Task.detached(priority: .userInitiated) { try prepareNow(source) }.value
     }
 
-    static func prepareNow(_ source: URL) throws -> Prepared {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("import-\(UUID().uuidString)",
-                                                                                 isDirectory: true)
+    static func prepareNow(_ source: URL, temporaryRoot: URL = FileManager.default.temporaryDirectory) throws -> Prepared {
+        let dir = temporaryRoot.appendingPathComponent("import-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        do {
+            return try convert(source, into: dir)
+        } catch {
+            try? FileManager.default.removeItem(at: dir)
+            throw error
+        }
+    }
+
+    private static func convert(_ source: URL, into dir: URL) throws -> Prepared {
         let ext = source.pathExtension.lowercased()
 
         if ext == "ogg" || ext == "opus" {

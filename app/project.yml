@@ -41,8 +41,8 @@ targets:
         NSBluetoothAlwaysUsageDescription: 连接录音卡，控制录音并把录音同步到手机
         # Asked only after the user turns on on-device transcription (features.md X9).
         # Asked the first time the user records with the phone instead of a card (features.md X18).
-        NSMicrophoneUsageDescription: 没有录音卡或录音卡不在身边时，用手机的麦克风录音；录音只保存在这部手机上
-        NSSpeechRecognitionUsageDescription: 在这部手机上把录音转成文字，录音不会离开手机
+        NSMicrophoneUsageDescription: 没有录音卡或录音卡不在身边时，用手机的麦克风录音，保存到本机录音库
+        NSSpeechRecognitionUsageDescription: 在这部手机上离线识别语音，无需上传录音
         UIBackgroundModes: [bluetooth-central, audio]
         LSSupportsOpeningDocumentsInPlace: false
         # Audio shared from other apps ("拷贝到闻笺", features.md E2): a copy arrives in the app's

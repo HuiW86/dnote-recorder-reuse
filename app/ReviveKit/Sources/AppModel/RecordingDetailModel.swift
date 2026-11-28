@@ -1,3 +1,5 @@
+import Account
+import AIRoute
 import Assistant
 import Foundation
 import Library
@@ -52,6 +54,15 @@ public final class RecordingDetailModel {
     private var transcriber: (any SpeechTranscribing)? { transcriberSource() }
     /// The user's AI service; nil when the app has none (features.md X11).
     @ObservationIgnored private let assistant: AssistantConfigSource?
+    /// The three AI paths (product-spec.md §7.3b); nil keeps the single transcriber and the
+    /// user's service, as before (tests, the Mac app).
+    @ObservationIgnored private let paths: AIPaths?
+    /// The way picked for this recording in 「选择转写方式」; for this page only (§7.3b).
+    private var transcriptionOverride: AIPath?
+    /// The path the running transcription takes, for its progress line.
+    public private(set) var transcriptionPath: AIPath?
+    /// The list, confirmation or pointer to settings the page shows before AI work goes ahead.
+    public var aiPrompt: AIPrompt?
     @ObservationIgnored private let jobs: TranscriptionJobs
     @ObservationIgnored private let summarizer: Summarizer
     @ObservationIgnored private let polisher: Polisher
@@ -61,9 +72,10 @@ public final class RecordingDetailModel {
     public init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer,
                 transcriber: (any SpeechTranscribing)? = nil,
                 transcriberSource: (@MainActor () -> (any SpeechTranscribing)?)? = nil,
-                assistant: AssistantConfigSource? = nil,
+                assistant: AssistantConfigSource? = nil, paths: AIPaths? = nil,
                 summarizer: Summarizer = Summarizer(), polisher: Polisher? = nil,
                 jobs: TranscriptionJobs = .shared) {
+        self.paths = paths
         self.recordingId = recordingId
         self.library = library
         self.player = player
@@ -171,22 +183,155 @@ public final class RecordingDetailModel {
     // MARK: - Transcript (features.md X9)
 
     /// The audio is uploaded to the user's service to transcribe it (ADR-009); the page says so.
-    public var transcriptionUsesNetwork: Bool { transcriber?.usesNetwork ?? false }
+    public var transcriptionUsesNetwork: Bool {
+        if let transcriptionPath { return transcriptionPath != .onDevice }
+        return transcriber?.usesNetwork ?? false
+    }
 
-    /// "转成文字" is offered when transcription is switched on and nothing is running.
-    public var canTranscribe: Bool { transcriber != nil && hasAudio && !audioMissing }
+    /// "转成文字" is offered when there is audio and a way to transcribe it. With the three paths
+    /// there always is one to try: this phone first, else the list says what else works (§7.3b).
+    public var canTranscribe: Bool { (paths != nil || transcriber != nil) && hasAudio && !audioMissing }
+
+    /// The three paths are in use: the page offers 「选择转写方式」.
+    public var choosesPaths: Bool { paths != nil }
+
+    /// The way 转成文字 takes now: the one running, else the pick for this page, the default, or
+    /// this phone (§7.3b); without the three paths, what the single transcriber does.
+    private var shownTranscriptionPath: AIPath {
+        if let transcriptionPath { return transcriptionPath }
+        if let paths { return transcriptionOverride ?? paths.preferences.defaultTranscriptionPath ?? .onDevice }
+        return transcriptionUsesNetwork ? .ownService : .onDevice
+    }
+
+    /// The line beside the spinner while transcribing.
+    public var transcriptionProgressText: String {
+        switch shownTranscriptionPath {
+        case .onDevice: "正在这部手机上转成文字"
+        case .ownService: "正在用你的 AI 服务转成文字"
+        case .account: "正在用闻笺账号转成文字"
+        }
+    }
+
+    /// Under the transcript: where the audio goes with the way 转成文字 takes.
+    public var transcriptionFootnote: String {
+        let base: String = switch shownTranscriptionPath {
+        case .onDevice: "在这部手机上离线转写，不联网，不区分说话人。"
+        case .ownService: "转文字时，录音会上传到你设置的 AI 服务。"
+        case .account: "转文字时，录音会上传到闻笺服务器。"
+        }
+        return choosesPaths && !isTranscribing ? base + "点右上角「⋯」可换方式。" : base
+    }
+
+    /// Under the summary: where the transcript goes with the way 生成纪要 takes (§7.3b).
+    public var summaryFootnote: String {
+        guard let paths else { return "生成纪要时，只发送文字稿给你设置的 AI 服务，不传录音。" }
+        switch paths.preferences.defaultSummaryPath {
+        case .account?: return "生成纪要时，只发送文字稿到闻笺服务器，不传录音。"
+        case .ownService?: return "生成纪要时，只发送文字稿给你设置的 AI 服务，不传录音。"
+        default: return "点「生成纪要」时会先让你选方式，选好后才发送文字稿。"
+        }
+    }
+
+    /// 「⋯ → 选择转写方式」, or 「用其他方式重新转写」 once there is a transcript (§7.3b).
+    public var choosePathTitle: String { transcript == nil ? "选择转写方式" : "用其他方式重新转写" }
 
     /// False for an imported text file (features.md E2): no player, no audio exports, no times.
     public var hasAudio: Bool { recording?.hasAudio ?? false }
 
     /// Recognizes the recording on this phone and stores the text. Replaces an earlier transcript.
     public func transcribe(language: String = "zh-CN") {
-        guard let transcriber, let recording,
+        guard let paths else {
+            if let transcriber { transcribe(with: transcriber, path: nil, language: language) }
+            return
+        }
+        _ = paths
+        route(.transcribe) { situation in
+            AIRoute.decide(.transcribe, in: situation, override: self.transcriptionOverride)
+        }
+    }
+
+    /// P06 ⋯ → 「选择转写方式」 (「用其他方式重新转写」 once there is a transcript): the list of
+    /// ways; the pick is for this recording only.
+    public func chooseTranscriptionPath() {
+        route(.transcribe) { situation in
+            .choose(situation.options, because: nil)
+        }
+    }
+
+    /// A way picked from the list in `aiPrompt`.
+    public func pick(_ path: AIPath) {
+        guard case let .choose(work, _, _, remember) = aiPrompt else { return }
+        aiPrompt = nil
+        if work == .transcribe {
+            transcriptionOverride = path
+        } else if remember {
+            paths?.preferences.defaultSummaryPath = path
+        }
+        route(work) { situation in AIRoute.pick(path, for: work, in: situation) }
+    }
+
+    /// 「同意并上传」 / 「同意并发送」 on the confirmation in `aiPrompt`: kept, then the work runs.
+    public func agree() {
+        guard case let .confirm(work, path, consent) = aiPrompt, let paths else { return }
+        aiPrompt = nil
+        paths.preferences.grant(consent)
+        run(work, path)
+    }
+
+    /// Works out what to do for `work` now and either does it or shows the prompt.
+    private func route(_ work: AIWork, _ decide: @escaping @MainActor (AISituation) -> AIRouteDecision) {
+        guard let paths else { return }
+        let hasTranscript = transcript != nil
+        Task {
+            let situation = await paths.situation(work, hasTranscript)
+            show(decide(situation), for: work, remember: work == .summarize && situation.defaultPath == nil)
+        }
+    }
+
+    private func show(_ decision: AIRouteDecision, for work: AIWork, remember: Bool) {
+        switch decision {
+        case let .run(path): run(work, path)
+        case let .confirm(path, consent): aiPrompt = .confirm(work, path, consent)
+        case .signIn: aiPrompt = .signIn
+        case .setUp: aiPrompt = .setUp
+        case let .choose(options, because):
+            if options.isEmpty {
+                // Nothing on this phone can do it: point at the settings that would.
+                aiPrompt = .setUp
+            } else {
+                aiPrompt = .choose(work, options, because: because, remember: remember)
+            }
+        }
+    }
+
+    private func run(_ work: AIWork, _ path: AIPath) {
+        switch work {
+        case .transcribe:
+            guard let transcriber = paths?.transcriber(path) else {
+                aiPrompt = .setUp
+                return
+            }
+            transcribe(with: transcriber, path: path, language: "zh-CN")
+        case .summarize:
+            summarize(scene: pendingScene, path: path)
+        }
+    }
+
+    /// The scene asked for when the summary had to wait for a prompt (「按场景重新生成」).
+    @ObservationIgnored private var pendingScene: RecordingScene?
+
+    private func transcribe(with transcriber: any SpeechTranscribing, path: AIPath?, language: String) {
+        guard let recording,
               jobs.begin(recording.id, audioMs: recording.durationMs, usesNetwork: transcriber.usesNetwork)
         else { return }
+        transcriptionPath = path
         Task { [jobs] in
             var succeeded = false
-            defer { jobs.end(recording.id, succeeded: succeeded) }
+            defer {
+                jobs.end(recording.id, succeeded: succeeded)
+                // The footnote reads the current pick or default again.
+                transcriptionPath = nil
+            }
             do {
                 // 纠错词库 (#75): words the user corrected before are fixed in the new text.
                 let segments = library.corrected(try await transcriber.transcribe(recording, language: language))
@@ -195,8 +340,21 @@ public final class RecordingDetailModel {
                 try library.saveTranscript(result)
                 transcript = result
                 succeeded = true
+            } catch let error as TranscriptionError where path == .onDevice && error.offersOtherPaths {
+                // 本机转写失败 (§7.3b): say why and offer the other ways; the user picks one.
+                toast = Toast(Self.text(for: error))
+                if let paths {
+                    let situation = await paths.situation(.transcribe, transcript != nil)
+                    let other = AIRoute.alternatives(to: .onDevice, for: .transcribe, in: situation)
+                    if case let .choose(options, _) = other, !options.isEmpty {
+                        aiPrompt = .choose(.transcribe, options, because: error.problem, remember: false)
+                    }
+                }
             } catch let error as TranscriptionError {
                 toast = Toast(Self.text(for: error))
+            } catch let error as AccountError {
+                // Transcribing with the 闻笺 account: its message says what to do (额度用完, 没网…).
+                toast = Toast(error.userText)
             } catch AssistantError.offline {
                 // Transcribing with the user's service, and the phone has no connection.
                 toast = Toast(AssistantError.offlineAdvice)
@@ -218,12 +376,13 @@ public final class RecordingDetailModel {
 
     // MARK: - Summary (features.md G1, X11)
 
-    /// "生成纪要" needs a transcript and a configured service.
-    public var canSummarize: Bool { transcript != nil && assistant?.current() != nil }
+    /// "生成纪要" needs a transcript and a configured service; with the three paths, only a
+    /// transcript (the list says what is missing, §7.3b).
+    public var canSummarize: Bool { transcript != nil && (paths != nil || assistant?.current() != nil) }
 
     /// Why "生成纪要" is not offered, when there is a transcript; nil otherwise.
     public var summaryHint: String? {
-        guard transcript != nil, summary == nil, assistant?.current() == nil else { return nil }
+        guard paths == nil, transcript != nil, summary == nil, assistant?.current() == nil else { return nil }
         return "在「设置 → AI 服务」里填上你的服务后，可以把文字稿整理成纪要"
     }
 
@@ -232,6 +391,20 @@ public final class RecordingDetailModel {
     /// `scene` is the template the user picked ("按场景重新生成", features.md G2a); nil lets the
     /// model choose. The summary's title becomes the recording's unless the user renamed it (G1).
     public func summarize(scene: RecordingScene? = nil) {
+        guard paths != nil else {
+            summarize(scene: scene, path: .ownService)
+            return
+        }
+        pendingScene = scene
+        route(.summarize) { situation in AIRoute.decide(.summarize, in: situation) }
+    }
+
+    private func summarize(scene: RecordingScene?, path: AIPath) {
+        pendingScene = nil
+        if path == .account {
+            summarizeWithAccount(scene: scene)
+            return
+        }
         guard let transcript, let recording, let config = assistant?.current(),
               jobs.beginSummary(recording.id) else { return }
         let material = Summarizer.material(from: transcript)
@@ -250,6 +423,24 @@ public final class RecordingDetailModel {
                 // Left the page.
             } catch {
                 toast = Toast("生成纪要失败，请重试")
+            }
+        }
+    }
+
+    /// 生成纪要 with the 闻笺 account: only the transcript's text goes (§7.3b).
+    private func summarizeWithAccount(scene: RecordingScene?) {
+        guard let transcript, let recording, let make = paths?.accountSummary,
+              jobs.beginSummary(recording.id) else { return }
+        Task { [jobs] in
+            defer { jobs.endSummary(recording.id) }
+            do {
+                let stored = try library.saveSummary(try await make(recording, transcript, scene))
+                summary = stored
+                if let titled = try library.applyAITitle(id: recording.id, stored.title) { self.recording = titled }
+            } catch is CancellationError {
+                // Left the page.
+            } catch {
+                toast = Toast((error as? AccountError)?.userText ?? "生成纪要失败，请重试")
             }
         }
     }

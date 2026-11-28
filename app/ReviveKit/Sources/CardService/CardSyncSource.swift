@@ -103,6 +103,7 @@ public struct CardAudioConverter: SourceAudioConverter {
     public func convert(_ raw: Data) throws -> SourceAudio {
         let opus = AudioCrypto.isEncrypted(raw) ? try AudioCrypto.decrypt(raw) : raw
         let frames = OggOpus.splitFrames(opus)
+        guard !frames.isEmpty else { throw AudioError.tooShort }
         return SourceAudio(ogg: OggOpus.wrap(frames), durationMs: frames.count * 20)
     }
 }

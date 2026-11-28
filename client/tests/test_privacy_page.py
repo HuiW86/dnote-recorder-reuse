@@ -57,3 +57,21 @@ def test_cli_writes_only_a_ready_page_unless_draft(tmp_path, capsys):
     assert P.main(args) == 0
     assert "【" not in out.read_text(encoding="utf-8")
     assert P.main(["--out", str(out), "--fill", "联系邮箱"]) == 2
+
+
+def test_the_account_cannot_be_switched_on_before_both_policies_describe_it():
+    # The 闻笺 account appears only when app/project.yml names a server (ReviveAPIBaseURL). Both
+    # policies say 「不需要账号」 until then; filling in the server without rewriting them fails here.
+    import re
+
+    project = open(os.path.join(REPO_ROOT, "app", "project.yml"), encoding="utf-8").read()
+    server = re.search(r'^\s*ReviveAPIBaseURL:\s*"?([^"\n]*)"?\s*$', project, re.M)
+    assert server is not None, "ReviveAPIBaseURL is no longer in app/project.yml; update this test"
+    public = P.SOURCE.read_text(encoding="utf-8")
+    in_app = open(os.path.join(REPO_ROOT, "app", "Revive", "Onboarding", "InfoPages.swift"), encoding="utf-8").read()
+    says_no_account = ("## 不需要账号" in public, '("不需要账号"' in in_app)
+    if server.group(1).strip():
+        assert says_no_account == (False, False), "describe the 闻笺 account in both privacy policies first"
+        assert re.search(r"^## .*账号", public, re.M), "the public policy needs a section on the account"
+    else:
+        assert says_no_account == (True, True), "the two privacy policies disagree about accounts"

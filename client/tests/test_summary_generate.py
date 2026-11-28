@@ -141,3 +141,19 @@ def test_plain_prompt_asks_for_the_apps_fields():
     text = (G.Path(G.__file__).parent / "prompts" / "c-plain-minutes.txt").read_text(encoding="utf-8")
     for field in ('"title"', '"summary"', '"sections"', '"todos"'):
         assert field in text
+
+
+def test_beanpod_prompt_drops_its_source_note_and_asks_for_the_scenes():
+    path = G.Path(G.__file__).parent / "prompts" / "b-beanpod.txt"
+    assert "0d00fab" in path.read_text(encoding="utf-8")
+    text = G.read_prompt(path)
+    assert text.startswith("你是录音整理助手。") and "0d00fab" not in text and "\n# " not in text
+    for scene in ("meeting", "interview", "sales", "talk", "call", "media", "conference", "lesson", "memo", "other"):
+        assert f"- {scene}（" in text
+    for field in ('"scene"', '"title"', '"summary"', '"sections"', '"todos"', '"tags"', '"people"'):
+        assert field in text
+
+
+def test_a_prompt_without_a_source_note_is_sent_unchanged():
+    path = G.Path(G.__file__).parent / "prompts" / "c-plain-minutes.txt"
+    assert G.read_prompt(path) == path.read_text(encoding="utf-8")

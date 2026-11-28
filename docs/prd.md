@@ -31,7 +31,8 @@
 规则：
 
 - **M1 各层不引用任何网络库**。M2 的同步与 AI 模块单独成层，只读写 Library，不被设备层调用（`CLAUDE.md` 硬规则 3）。
-- 联网的模块目前有三个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）、`LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）和 `Account`（闻笺账号，K1；只用 Foundation，钥匙串在有 Security 的平台上用，不依赖其他模块；它的页面状态 `AccountModel` 也放在这个模块里，好在 Linux 上测，App 目标直接引用，AppModel 不依赖它）。
+- 联网的模块目前有三个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）、`LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）和 `Account`（闻笺账号，K1；只用 Foundation，钥匙串在有 Security 的平台上用，不依赖其他模块；它的页面状态 `AccountModel` 也放在这个模块里，好在 Linux 上测，App 目标直接引用；2026-11-27 起 AppModel 的 `AccountAI` 也引用它，把闻笺账号这条路接到录音库上，§5.14）。
+- 转写和纪要走哪条路（本机、你的 AI 服务、闻笺账号）的规则在 `AIRoute`（`product-spec.md` §7.3b）：只用 Foundation，不联网，不依赖其他模块，只给出决定（直接用、先确认、先登录、去设置、让用户选），由 AppModel 按当时的情况（`AISituation`）调用。
 - 读写录音库给 AI 助手用的 `LibraryTools`（X19）和命令行 `revive` 只依赖 Library（`revive` 在 Mac 上另依赖 Player 转换音频），和 M1 模块一样不联网（`scripts/check-m1-rules.sh`）。`revive` 在另一个进程里打开 Mac 版的录音库（`AppDatabase.existing`，写锁最多等 5 秒），只新增录音，不改不删；库被更新的版本迁移过时只读（`isNewerThanThisBuild`）。
 - 协议细节（命令字、帧格式、JSON 字段）只出现在 CardProtocol，上层只看到 Swift 类型。固件版本差异也在这一层处理。
 - 协议层从 `ios-prototype/Sources/DNoteProtocol.swift` 起步，原型的单元测试和样本一并迁移。
@@ -432,6 +433,22 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 - 录音中 `recording` 行还不存在：标记先记在内存里，同时写进 CAF 旁边的 `phone-<开始时间毫秒>.caf.marks`（毫秒数的 JSON 数组），存入录音时和 `recording` 行在同一个事务里写进本表；App 被关掉后找回的录音也带着标记（§4 的手机录音文件布局）。
 - 与 `recording_mark` 相同：2 秒内的重复标记丢弃，超过录音时长的不显示，只存在手机上。显示时两张表合成同一种「播放标记」（`RecordingLibrary.playbackMarks`），列表的重点数、「有重点」筛选、详情页的重点列表和播放条刻度都用它。
 
+### 5.14 `remote_recording`（录音在闻笺服务器上的 id，迁移 `v17`，`product-spec.md` §7.3b，2026-11-27）
+
+用闻笺账号转写或生成纪要时，记下本机录音对应服务器上的哪条录音，免得同一条录音在服务器上建两次。按账号分开：这部手机换一个账号登录，各有各的对应。主键 `(account_id, recording_id)`，随本机录音删除（外键级联）。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `account_id` | UUID | 闻笺账号的 id |
+| `recording_id` | UUID FK | 本机录音 |
+| `server_id` | UUID | 服务器上的录音 id |
+| `has_audio` | BOOL | 服务器上那条录音有没有音频；只为发文字稿生成纪要而建的为 `false` |
+| `created_at` | DATETIME | — |
+
+- 用账号转写：上传音频（服务器按 SHA-256 认出已有的同一段音频），记下 `has_audio = true`，替换原来只有文字的那条对应（服务器上那条只有文字的录音留着，用户可以在账号里删）。
+- 只用文字生成纪要：有对应就用（有没有音频都行），没有就建一条不带音频的录音，`Idempotency-Key` 用 `text-<本机录音 id>`，回答丢了重发也不会建第二条；然后 `PUT /recordings/{id}/transcript` 放上本机的文字稿（每次都放，本机改过的字也带上），再生成纪要。服务器回答 `404 recording_not_found`（在别处删了）时忘掉这条对应、换一个新键重建一次。
+- 注销账号后删掉这个账号的全部对应；退出登录不删，同一个账号再登录还能用。
+
 ## 6. App 错误码（M1）
 
 | 错误码 | 含义 | 可重试 | 用户看到的处理 |
@@ -465,14 +482,14 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 ## 7. 后端接口契约（M2～M4，模块级）
 
-技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-22，Proposed）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）、第四片（AI 生成）已做，见 `backend/README.md`。
+技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-25 Accepted）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-25 Accepted）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）、第四片（AI 生成）、第五片（用量与额度）、第六片（换角度重起标题）已做，见 `backend/README.md`。
 
 ### 7.1 通用约定
 
 - 前缀 `/v1`；JSON；时间用 ISO 8601 带时区；id 用 UUID。
 - 鉴权：`Authorization: Bearer <access token>`。access token 15 分钟有效；refresh token 30 天有效，每次刷新换新，旧的立即作废。
 - **未登录时 App 不调用任何接口**（`backend-design.md` §4.6）。
-- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`。保存的响应加密存放（刷新令牌的响应里有令牌）。
+- 写操作带 `Idempotency-Key` 头，服务端保存 24 小时，重复请求返回第一次的结果（响应头 `Idempotent-Replayed: true`）。键按调用方区分：已登录时是令牌里的用户（access token 换新后仍是同一个调用方），没登录时是匿名；同一个键配不同的请求返回 `422 idempotency_key_reused`，第一次还没处理完时返回 `409 idempotency_in_progress`。服务器错误（5xx）和标了 `retryable` 的错误（比如 `401 token_expired`、`429 code_too_frequent`）不保存：App 刷新令牌后用同一个键重发，要能真正执行，而不是拿回之前那个 401。保存的响应加密存放（刷新令牌的响应里有令牌）。
 - **刷新令牌时一定要带 `Idempotency-Key`**：已作废的刷新令牌再次出现会被当成被盗用，整条登录链吊销；带了键，网络断开后的重试拿到的是同一对新令牌。
 
 ### 7.2 接口分组
@@ -482,7 +499,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 | 账号 | M2 | `POST /auth/sms/send`、`POST /auth/sms/login`、`POST /auth/email/register`、`POST /auth/email/verify`、`POST /auth/password/login`、`POST /auth/password/reset/send`、`POST /auth/password/reset`、`POST /auth/refresh`、`POST /auth/logout`、`GET /me`、`POST /me/password`、`DELETE /me` | K1；`DELETE /me` 是 App 内注销，删除账号及全部数据。**已做**（2026-11-22）。手机号第一次登录即建号；邮箱先注册再验证；验证码 6 位、10 分钟有效、最多试 5 次、同一目标 60 秒一条、每天 10 条；找回密码不论邮箱有没有注册都回同样的结果；改密码、重置密码后其他设备都要重新登录 |
 | 设备登记 | M2 | `GET /devices`、`PUT /devices/{sn_hash}`、`DELETE /devices/{sn_hash}` | A4b；上传 bondId（服务端加密存储），换手机时取回。`sn_hash` 是 App 算的 SHA-256(sn)（64 位十六进制）。**已做**（2026-11-22） |
 | 录音与上传 | M2 | `POST /recordings`（建元数据，返回预签名分片上传地址）、`POST /recordings/{id}/upload`（断点续传：新地址和已传的分片）、`POST /recordings/{id}/upload-complete`、`GET /recordings/{id}/audio-url`、`GET /recordings`、`GET /recordings/{id}`、`DELETE /recordings/{id}` | 音频直传对象存储，不经过应用服务器。**已做**（2026-11-22），COS 暂用本机替身。同一账号里同一 `audio_sha256` 只建一条，再提交返回已有的那条（未传完时带续传地址）；分片 8 MiB，地址 1 小时有效；完成时服务端按声明的大小核对每个分片再合并；7 天没传完的上传作废；删除留墓碑（`deleted_at`）供 M4 同步，音频从存储删除；没有音频的录音（文字导入）不上传 |
-| 转写 | M2 | `POST /recordings/{id}/transcribe {language, speakers}` → 任务；`GET /recordings/{id}/transcript`；`PATCH /recordings/{id}/speakers {speakers: {标签: 名称}}` | F1；说话人重命名。**骨架已做**（2026-11-22）：音频传完才能转写；同一条录音已有排队或进行中的转写时返回那个任务（200），否则新建（202）；结果是 `segments`（`start_ms`、`end_ms`、`speaker`、`text`）和 `speakers`（用户起的名字，只能给文字稿里出现的标签起名，空名删除，重新转写后清空）；转写成功记一条 `asr_seconds` 用量。识别引擎是可替换接口，现在是开发用替身（生产拒绝启动），真引擎等 ASR 对比和账号 |
+| 转写 | M2 | `POST /recordings/{id}/transcribe {language, speakers}` → 任务；`GET /recordings/{id}/transcript`；`PATCH /recordings/{id}/speakers {speakers: {标签: 名称}}`；`PUT /recordings/{id}/transcript {engine, language, segments}`：App 自己的文字稿（本机或用户的服务转出的），存为 `asr_provider = app:<engine>`，用来不上传录音就生成纪要（`product-spec.md` §7.3b），录音可以没有音频，服务器转写在排队或进行中时 `409 transcription_running` | F1；说话人重命名。**骨架已做**（2026-11-22）：音频传完才能转写；同一条录音已有排队或进行中的转写时返回那个任务（200），否则新建（202）；结果是 `segments`（`start_ms`、`end_ms`、`speaker`、`text`）和 `speakers`（用户起的名字，只能给文字稿里出现的标签起名，空名删除，重新转写后清空）；转写成功记一条 `asr_seconds` 用量。识别引擎是可替换接口，现在是开发用替身（生产拒绝启动），真引擎等 ASR 对比和账号 |
 | AI 生成 | M2 | `POST /recordings/{id}/summaries {template_id, profession}` → 任务；`GET /recordings/{id}/summaries`；`GET /templates` | G1、G2a。**已做**（2026-11-22），大模型暂用开发替身（生产拒绝启动）。提示词、场景、长文分段（超过 9000 字先每 6000 字压缩一次）和回复解析与 App 的 `Summarizer` 完全相同（ADR-009「提示词只有一份来源」）：App 的 Swift 代码是来源，后端 `revive_api/summaries.py` 照它移植，`app/ReviveKit/Tests/AssistantTests/Fixtures/prompts` 里的样本两边的测试都逐字比对，改了一边不改另一边 CI 就失败。`template_id` 是场景代号，不给则由模型判断；职业截到 40 字。要先有文字稿（`409 no_transcript`）；同一条录音已有排队或进行中的生成时返回那个任务。每次生成都保留，列表新的在前；回复读不出来（`bad_reply`）按可重试处理。记一条 `llm_tokens` 用量。模板就是 10 种内置场景，从代码读，不建表（G2b 自定义模板不做）。换一个角度重起标题：`POST /recordings/{id}/retitle {current_title}` → 任务，成功后任务的 `result` 是 `{title, model}`；内容取最新纪要的标题和摘要，没有纪要用文字稿（都没有 `409 no_content`），提示词、用户消息和标题解析与 App 的 `Summarizer.retitle` 相同；后端不改录音标题，换不换由 App 按 `applyAITitle` 的规则决定；计入 `llm_tokens` 额度 |
 | 任务 | M2 | `GET /tasks/{id}` | 状态见 §7.4。**已做**（2026-11-22）：返回 `status`、`attempts`、`error {code, message}`（重试等待中也带上一次的错误）、`finished_at`；只能读自己的任务 |
 | 意见反馈 | M2 | `POST /feedback` | O1b。**已做**（2026-11-22） |
@@ -533,7 +550,7 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | `summaries` | id、recording_id、scene（用的模板，即场景代号）、content（JSONB：title、summary、sections、todos、tags、people、outline、quotes，和 App 的纪要同样的栏目，一次生成全部）、model、created_at；每次生成一行 | M2 |
 | `templates` | 暂不建表：内置模板就是 10 种场景，在代码里（`summaries.SCENES`，和 App 的 `RecordingScene` 一致）；有用户自定义模板时再建 | M2 |
 | `tasks` | 队列和业务状态是同一张表（ADR-013）：id、user_id、recording_id、kind（`transcribe`、`summarize`、`retitle`）、params（JSONB）、status、attempts、max_attempts、run_after、lease_until、error_code、error_message、result（JSONB，没有自己的表的任务把小结果放这里，如 retitle 的新标题）、created_at、updated_at、started_at、finished_at | M2 |
-| `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens）、amount、occurred_at | M2 |
+| `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens；llm_unbilled 是没产出结果的尝试花掉的 token，比如读不出来要重试的回答，只用于看成本，不计入用户额度）、amount、occurred_at | M2 |
 | `feedback` | id、user_id、content、app_version、created_at | M2 |
 | `idempotency_records` | id、scope（调用方）、key、request_hash、status_code（处理中为空）、content_type、body（加密）、created_at；24 小时后清掉 | M2 |
 | `notes` | id、recording_id、offset_ms、text、image_keys、version、updated_at、deleted | M4 |
@@ -549,6 +566,6 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | 项 | 类型 | 何时解决 |
 |---|---|---|
 | App 本地数据库库选型（候选 GRDB） | 待决定 | M1 开工时，写 ADR |
-| 后端具体库与版本 | ADR-012 已提出（Proposed），等确认 | 2026-11-22 |
-| 任务队列用库还是自己写 | ADR-013 已提出（Proposed）：自己写，一张 `tasks` 表；等确认 | 2026-11-22 |
+| 后端具体库与版本 | ADR-012 Accepted | 2026-11-25 |
+| 任务队列用库还是自己写 | ADR-013 Accepted：自己写，一张 `tasks` 表 | 2026-11-25 |
 | 任务完成是否用推送通知 | 待决定 | M2 |

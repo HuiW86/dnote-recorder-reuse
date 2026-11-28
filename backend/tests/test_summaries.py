@@ -3,15 +3,16 @@ summarize task."""
 
 import importlib.util
 import json
+import uuid
 from dataclasses import dataclass, field
 
 import pytest
 from conftest import BACKEND, bearer
 from sqlalchemy import text
-from test_recordings import uploaded
+from test_recordings import meta, uploaded
 from test_transcripts import ScriptedTranscriber, task_of
 
-from revive_api import summaries, tasks
+from revive_api import summaries, tasks, usage
 from revive_api.asr import Segment, TranscriptResult
 from revive_api.llm import ChatModelError, ChatReply
 from revive_api.worker import HANDLERS
@@ -265,6 +266,15 @@ async def test_an_unreadable_reply_is_retried_and_a_dead_model_fails(h, model):
     await tasks.run_one(h.run, HANDLERS)
     tokens = await h.sms_login()
     assert (await task_of(h, tokens, task_id))["status"] == "succeeded"
+    # The unreadable attempt cost tokens too: kept, but not counted against the allowance.
+    async with h.run.engine.connect() as connection:
+        rows = (
+            await connection.execute(
+                text("SELECT kind, sum(amount) FROM usage_records WHERE kind LIKE 'llm%' GROUP BY kind ORDER BY kind")
+            )
+        ).all()
+    assert [tuple(r) for r in rows] == [("llm_tokens", 120), ("llm_unbilled", 120)]
+    assert (await h.http.get("/v1/me/usage", headers=bearer(tokens))).json()["llm_tokens"]["used"] == 120
 
     model.replies = [ChatModelError("llm_refused", "内容不合规，模型拒绝回答", retryable=False)]
     task_id = (await h.http.post(f"/v1/recordings/{recording['id']}/summaries", headers=bearer(tokens))).json()["id"]
@@ -306,3 +316,35 @@ async def test_deleting_the_account_deletes_summaries_and_keeps_usage(h, model):
     assert await h.count("summaries") == 1
     await h.http.delete("/v1/me", headers=bearer(tokens))
     assert await h.count("summaries") == 0 and await h.count("usage_records") == 2
+
+
+async def test_a_summary_from_the_apps_own_transcript(h, model):
+    """No audio on the server: the app's transcript is enough to summarize (product-spec.md §7.3b)."""
+    tokens = await h.sms_login()
+    bare = (await h.http.post("/v1/recordings", headers=bearer(tokens), json=meta(None))).json()
+    lines = [
+        {"start_ms": 0, "end_ms": 1500, "text": "大家好，开始开会。"},
+        {"start_ms": 1500, "end_ms": 4000, "text": "先说回款。"},
+    ]
+    path = f"/v1/recordings/{bare['id']}/transcript"
+    put = await h.http.put(path, headers=bearer(tokens), json={"engine": "on-device", "segments": lines})
+    assert put.status_code == 200
+    queued = await h.http.post(f"/v1/recordings/{bare['id']}/summaries", headers=bearer(tokens), json={})
+    assert queued.status_code == 202, queued.text
+    assert await tasks.run_one(h.run, HANDLERS)
+    assert "大家好，开始开会。\n先说回款。" in model.calls[0]["user"]
+
+
+async def test_unbilled_tokens_are_kept_after_the_account_is_gone(h):
+    # The account was deleted while the model ran: the cost stays, without a user.
+    tokens = await h.sms_login()
+    me = (await h.http.get("/v1/me", headers=bearer(tokens))).json()
+    await usage.record_unbilled(h.run, uuid.UUID(me["id"]), 30)
+    await usage.record_unbilled(h.run, uuid.uuid4(), 50)
+    async with h.run.engine.connect() as connection:
+        rows = (
+            await connection.execute(
+                text("SELECT user_id::text, amount FROM usage_records WHERE kind = 'llm_unbilled' ORDER BY amount")
+            )
+        ).all()
+    assert [tuple(r) for r in rows] == [(me["id"], 30), (None, 50)]

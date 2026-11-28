@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import pytest
 from conftest import bearer
 from sqlalchemy import text
-from test_recordings import AUDIO, uploaded
+from test_recordings import AUDIO, meta, uploaded
 
 from revive_api import tasks
 from revive_api.asr import Segment, TranscriberError, TranscriptResult
@@ -267,3 +267,53 @@ async def test_the_stand_in_engine_says_it_heard_nothing(h):
     transcript = (await h.http.get(f"/v1/recordings/{recording['id']}/transcript", headers=bearer(tokens))).json()
     assert transcript["asr_provider"] == "stand-in" and "替身" in transcript["segments"][0]["text"]
     assert transcript["segments"][0]["end_ms"] == 61_000
+
+
+async def test_the_app_can_put_its_own_transcript(h, asr):
+    """product-spec.md §7.3b: a transcript made on the phone goes up as text, no audio needed."""
+    tokens = await h.sms_login()
+    bare = await h.http.post("/v1/recordings", headers=bearer(tokens), json=meta(None))
+    assert bare.status_code == 201 and bare.json()["audio"] is None
+    path = f"/v1/recordings/{bare.json()['id']}/transcript"
+    lines = [
+        {"start_ms": 1500, "end_ms": 3000, "text": "先说回款。"},
+        {"start_ms": 0, "end_ms": 1500, "speaker": None, "text": "大家好。"},
+    ]
+    put = await h.http.put(path, headers=bearer(tokens), json={"engine": "on-device", "segments": lines})
+    assert put.status_code == 200, put.text
+    got = (await h.http.get(path, headers=bearer(tokens))).json()
+    assert got["asr_provider"] == "app:on-device" and got["language"] == "zh" and got["speakers"] == {}
+    assert [s["text"] for s in got["segments"]] == ["大家好。", "先说回款。"]  # in time order
+    assert await h.count("usage_records") == 0  # nothing was transcribed here
+
+    # Putting again replaces it.
+    again = await h.http.put(
+        path,
+        headers=bearer(tokens),
+        json={"engine": "own-service", "language": "en", "segments": [{"start_ms": 0, "end_ms": 900, "text": "Hi"}]},
+    )
+    assert again.json()["asr_provider"] == "app:own-service" and len(again.json()["segments"]) == 1
+
+    bad = {"engine": "on-device", "segments": [{"start_ms": 900, "end_ms": 100, "text": "x"}]}
+    backwards = await h.http.put(path, headers=bearer(tokens), json=bad)
+    assert backwards.status_code == 422 and backwards.json()["error"]["code"] == "invalid_segment"
+    empty = await h.http.put(path, headers=bearer(tokens), json={"engine": "on-device", "segments": []})
+    assert empty.status_code == 422
+    odd = await h.http.put(path, headers=bearer(tokens), json={"engine": "On Device!", "segments": lines})
+    assert odd.status_code == 422
+
+    other = await h.sms_login("13900000000")
+    theirs = await h.http.put(path, headers=bearer(other), json={"engine": "on-device", "segments": lines})
+    assert theirs.status_code == 404 and theirs.json()["error"]["code"] == "recording_not_found"
+
+
+async def test_the_app_transcript_waits_for_a_server_transcription(h, asr):
+    tokens = await h.sms_login()
+    recording = await uploaded(h, tokens)
+    await h.http.post(f"/v1/recordings/{recording['id']}/transcribe", headers=bearer(tokens))
+    path = f"/v1/recordings/{recording['id']}/transcript"
+    body = {"engine": "on-device", "segments": [{"start_ms": 0, "end_ms": 900, "text": "你好"}]}
+    busy = await h.http.put(path, headers=bearer(tokens), json=body)
+    assert busy.status_code == 409 and busy.json()["error"]["code"] == "transcription_running"
+    await tasks.run_one(h.run, HANDLERS)
+    assert (await h.http.put(path, headers=bearer(tokens), json=body)).status_code == 200
