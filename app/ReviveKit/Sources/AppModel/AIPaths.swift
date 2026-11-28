@@ -105,30 +105,37 @@ public extension AIPaths {
     static func app(preferences: Preferences, library: RecordingLibrary, assistant: AssistantConfigSource,
                     account: AccountSession?,
                     onDeviceSupported: @escaping @MainActor () -> Bool = { OnDeviceTranscriber.isSupported() }) -> AIPaths {
-        AIPaths(
-            situation: { work, hasTranscript in
-                let signedIn: Bool? = if let account { await account.isSignedIn } else { nil }
-                return AccountAI.situation(
-                    for: work, preferences: preferences, onDeviceSupported: onDeviceSupported(),
-                    ownTranscription: TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistant) != nil,
-                    ownService: assistant.current() != nil, accountSignedIn: signedIn, hasTranscript: hasTranscript)
-            },
-            transcriber: { path in
-                switch path {
-                case .onDevice: OnDeviceTranscriber(library: library)
-                case .ownService:
-                    TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistant)
-                        .map { CloudTranscriber(library: library, config: $0) }
-                case .account: account.map { AccountTranscriber(library: library, session: $0) }
+        let situation: @MainActor (AIWork, Bool) async -> AISituation = { work, hasTranscript in
+            var signedIn: Bool?
+            if let account { signedIn = await account.isSignedIn }
+            let ownTranscription = TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistant) != nil
+            return AccountAI.situation(for: work, preferences: preferences, onDeviceSupported: onDeviceSupported(),
+                                       ownTranscription: ownTranscription, ownService: assistant.current() != nil,
+                                       accountSignedIn: signedIn, hasTranscript: hasTranscript)
+        }
+        let transcriber: @MainActor (AIPath) -> (any SpeechTranscribing)? = { path in
+            switch path {
+            case .onDevice:
+                return OnDeviceTranscriber(library: library)
+            case .ownService:
+                guard let config = TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistant) else {
+                    return nil
                 }
-            },
-            accountSummary: account.map { session in
-                { recording, transcript, scene in
-                    try await AccountAI.summarize(recording, transcript: transcript, scene: scene?.rawValue,
-                                                  profession: preferences.assistantProfession,
-                                                  session: session, library: library)
-                }
-            },
-            preferences: preferences)
+                return CloudTranscriber(library: library, config: config)
+            case .account:
+                guard let account else { return nil }
+                return AccountTranscriber(library: library, session: account)
+            }
+        }
+        var accountSummary: (@MainActor (Recording, Transcript, RecordingScene?) async throws -> Summary)?
+        if let account {
+            accountSummary = { recording, transcript, scene in
+                try await AccountAI.summarize(recording, transcript: transcript, scene: scene?.rawValue,
+                                              profession: preferences.assistantProfession,
+                                              session: account, library: library)
+            }
+        }
+        return AIPaths(situation: situation, transcriber: transcriber, accountSummary: accountSummary,
+                       preferences: preferences)
     }
 }
