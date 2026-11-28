@@ -96,6 +96,40 @@ struct AssistantSettingsModelTests {
         #expect(!model.hasSavedService)
     }
 
+    /// Codex review of #154: leaving never hands the old key to a new address, and a page left
+    /// open in another tab never brings back a service cleared elsewhere.
+    @Test func leavingNeverMovesAKeyOrUndoesAnotherPage() throws {
+        let prefs = preferences()
+        let keys = InMemoryKeyStore()
+        let first = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        first.baseURL = "https://a.invalid/v1"
+        first.model = "m"
+        first.apiKey = "sk-a"
+        first.save()
+
+        // A new address with A's key still in the field: not kept on leaving.
+        let moved = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        moved.baseURL = "https://b.invalid/v1"
+        #expect(moved.canSave)
+        moved.saveOnLeave()
+        #expect(prefs.assistantBaseURL == "https://a.invalid/v1")
+        // With a key typed for it, it is.
+        moved.apiKey = "sk-b"
+        moved.saveOnLeave()
+        #expect(prefs.assistantBaseURL == "https://b.invalid/v1")
+        #expect(try keys.read() == "sk-b")
+
+        // Two pages open; one clears; the other, untouched or edited, does not write it back.
+        let stale = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        let edited = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        AssistantSettingsModel(preferences: prefs, keyStore: keys).clear()
+        stale.saveOnLeave()
+        edited.model = "m2"
+        edited.saveOnLeave()
+        #expect(prefs.assistantBaseURL.isEmpty)
+        #expect(try keys.read() == nil)
+    }
+
     @Test func errorsReadAsAdvice() {
         #expect(AssistantSettingsModel.text(for: .http(401, "")) == "密钥无效或没有权限")
         #expect(AssistantSettingsModel.text(for: .http(500, "")) == "服务返回错误 500")

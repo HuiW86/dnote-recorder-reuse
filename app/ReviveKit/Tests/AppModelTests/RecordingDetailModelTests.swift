@@ -238,6 +238,14 @@ struct RecordingDetailModelTests {
         #expect(model.title == "我的标题")
         #expect(model.toast?.text == "已恢复「我的标题」")
         #expect(try f.library.recording(id: f.recording.id)?.titleSource == .user)
+
+        // Renamed again after the AI title: 撤销 leaves the newer title alone.
+        model.retitle()
+        await waitUntil("retitled again") { !model.isRetitling && model.title == "定发布日" }
+        model.rename(to: "后来改的")
+        model.undoRetitle()
+        #expect(model.title == "后来改的")
+        #expect(model.toast?.text == "标题已经又改过，没有恢复")
     }
 
     /// 纠错词库 (#75): fixing a word in a line is remembered, and the next transcript of any

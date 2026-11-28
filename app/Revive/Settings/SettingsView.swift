@@ -68,14 +68,14 @@ struct SettingsView: View {
             .surfaceRows()
             // §7.3b: replaces 本机转写（试验）. Lists only the ways this phone has; a choice of one is
             // no choice, so it is not shown.
-            if transcriptionPaths.count > 1 || hasSummaryPath {
+            if choosesTranscription || choosesSummary {
                 Section {
-                    if transcriptionPaths.count > 1 {
+                    if choosesTranscription {
                         Picker("默认转写方式", selection: transcriptionPathBinding) {
                             ForEach(transcriptionPaths) { Text($0.title).tag($0) }
                         }
                     }
-                    if hasSummaryPath {
+                    if choosesSummary {
                         Picker("默认纪要方式", selection: $preferences.defaultSummaryPath) {
                             Text("第一次用时选").tag(AIPath?.none)
                             ForEach(summaryPaths) { Text($0.title).tag(AIPath?.some($0)) }
@@ -149,8 +149,16 @@ extension SettingsView {
         return paths
     }
 
-    /// A way to summarize exists: the user's service is filled in, or the build has the account.
-    private var hasSummaryPath: Bool { !preferences.assistantBaseURL.isEmpty || account != nil }
+    /// More than one way, or a stored default that is no longer offered and must be changeable.
+    private var choosesTranscription: Bool {
+        transcriptionPaths.count > 1 || !transcriptionPaths.contains(preferences.defaultTranscriptionPath ?? .onDevice)
+    }
+
+    /// A way to summarize exists (the user's service is filled in, or the build has the account),
+    /// or a default was chosen that can still be put back to 第一次用时选.
+    private var choosesSummary: Bool {
+        !preferences.assistantBaseURL.isEmpty || account != nil || preferences.defaultSummaryPath != nil
+    }
 
     private var summaryPaths: [AIPath] {
         var paths: [AIPath] = [.ownService]

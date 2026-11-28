@@ -141,9 +141,14 @@ public final class RecordingDetailModel {
                 audioMissing = true
             } catch {
                 log.error("cannot play \(recording.id, privacy: .public): \(String(describing: error), privacy: .public)")
-                toast = Toast("无法播放这条录音")
+                toast = Toast(Self.playFailureText(error))
             }
         }
+    }
+
+    /// The toast for a play that failed: a phone recording in progress has the microphone.
+    nonisolated static func playFailureText(_ error: any Error) -> String {
+        (error as? PlayerError) == .microphoneBusy ? "正在用这部手机录音，录完再播放" : "无法播放这条录音"
     }
 
     /// Jumps by `seconds` (negative goes back), within the recording.
@@ -482,15 +487,18 @@ public final class RecordingDetailModel {
         guard !material.isEmpty else { return }
         isRetitling = true
         let current = title
-        let previous = (title: recording.title, source: recording.titleSource)
         Task {
             defer { isRetitling = false }
             do {
                 let new = try await summarizer.retitle(material: material, avoiding: current, config: config)
-                if let titled = try library.applyAITitle(id: recording.id, new, replacingUserTitle: true) {
+                // The title it actually replaces, read right before the write: the user may have
+                // renamed it while the reply was on its way.
+                let replaced = try library.recording(id: recording.id).map { (title: $0.title, source: $0.titleSource) }
+                if let titled = try library.applyAITitle(id: recording.id, new, replacingUserTitle: true),
+                   let replaced {
                     self.recording = titled
                     // It may have replaced a title the user typed: one tap puts it back.
-                    titleBeforeRetitle = previous
+                    titleBeforeRetitle = (replaced.title, replaced.source, titled.title)
                     toast = Toast("已换成「\(titled.title)」", action: "撤销")
                 }
             } catch let error as AssistantError {
@@ -504,13 +512,19 @@ public final class RecordingDetailModel {
     }
 
     /// The title 让 AI 重新起标题 replaced, until "撤销" puts it back.
-    @ObservationIgnored private var titleBeforeRetitle: (title: String, source: Recording.TitleSource?)?
+    @ObservationIgnored private var titleBeforeRetitle: (title: String, source: Recording.TitleSource?, aiTitle: String)?
 
     /// "撤销" on the toast after 让 AI 重新起标题: the earlier title comes back as it was.
     public func undoRetitle() {
         guard let previous = titleBeforeRetitle else { return }
         titleBeforeRetitle = nil
         do {
+            // Only while the AI's title is still there: a newer one is the user's to keep.
+            guard let now = try library.recording(id: recordingId), now.titleSource == .ai,
+                  now.title == previous.aiTitle else {
+                toast = Toast("标题已经又改过，没有恢复")
+                return
+            }
             if let restored = try library.restoreTitle(id: recordingId, previous.title, source: previous.source) {
                 recording = restored
                 toast = Toast("已恢复「\(RecordingText.title(restored))」")
@@ -798,7 +812,7 @@ public final class RecordingDetailModel {
             } catch PlayerError.audioMissing {
                 audioMissing = true
             } catch {
-                toast = Toast("无法播放这条录音")
+                toast = Toast(Self.playFailureText(error))
             }
         }
     }
@@ -832,7 +846,7 @@ public final class RecordingDetailModel {
                 loopingIndex = nil
                 return
             } catch {
-                toast = Toast("无法播放这条录音")
+                toast = Toast(Self.playFailureText(error))
                 loopingIndex = nil
                 return
             }

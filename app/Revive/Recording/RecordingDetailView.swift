@@ -411,6 +411,7 @@ extension RecordingDetailContent {
                             model.transcribe()
                         }
                         .disabled(model.isTranscribing)
+                        Text(model.transcriptionFootnote).font(.caption).foregroundStyle(Theme.inkMuted)
                     }
                 } else {
                     Text("设置 AI 服务后，可以把这条录音改写成文章、邮件等，或直接提问。")
@@ -549,6 +550,8 @@ extension RecordingDetailContent {
                     model.transcribe()
                 }
                 .disabled(model.isTranscribing)
+                // Where the audio goes, before the tap (as under 文字稿).
+                Text(model.transcriptionFootnote).font(.caption).foregroundStyle(Theme.inkMuted)
             }
         } header: {
             Text("纪要")
