@@ -77,6 +77,8 @@ private struct MainContent: View {
     @State private var phoneConsent = false
     /// The record key was tapped while the card cannot record.
     @State private var offersPhone = false
+    /// A phone recording is starting (microphone permission, storage check): a second tap waits.
+    @State private var startingPhone = false
 
     var body: some View {
         // The bar sits below the pages, not over them. A safe-area inset on the outside does not
@@ -291,9 +293,12 @@ private struct MainContent: View {
             phoneConsent = true
             return
         }
+        guard !startingPhone else { return }
+        startingPhone = true
         // An old recording still playing would be heard by the microphone (X18).
         env.player?.stop()
         Task {
+            defer { startingPhone = false }
             if await recorder.start() {
                 showsPhoneStage = true
             } else if let toast = recorder.toast {

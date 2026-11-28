@@ -60,8 +60,8 @@ public final class OverviewModel {
     /// Ticks a todo from 总览; it leaves the list with the next change.
     public func complete(_ todo: OpenTodo) {
         do {
-            try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: true)
-            lastCompleted = todo
+            let summary = try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: true)
+            lastCompleted = summary.map { (todo, $0.createdAt) }
             toast = Toast("已完成", action: "撤销")
         } catch {
             toast = Toast("保存失败，请重试")
@@ -70,9 +70,18 @@ public final class OverviewModel {
 
     /// "撤销" on the toast: the todo just ticked is open again.
     public func undoComplete() {
-        guard let todo = lastCompleted else { return }
+        guard let last = lastCompleted else { return }
+        let todo = last.todo
         lastCompleted = nil
         do {
+            // Only the same todo in the same summary: a summary made again meanwhile has other
+            // todos at those places, and they are the user's.
+            guard let summary = try library.summary(recordingId: todo.recording.id),
+                  summary.createdAt == last.summaryMadeAt, summary.todos.indices.contains(todo.index),
+                  summary.todos[todo.index].text == todo.text, summary.todos[todo.index].done else {
+                toast = Toast("纪要已经变了，没有撤销")
+                return
+            }
             try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: false)
         } catch {
             toast = Toast("恢复失败，请重试")
@@ -80,5 +89,5 @@ public final class OverviewModel {
     }
 
     /// The todo `complete` ticked last, for "撤销".
-    @ObservationIgnored private var lastCompleted: OpenTodo?
+    @ObservationIgnored private var lastCompleted: (todo: OpenTodo, summaryMadeAt: Date)?
 }

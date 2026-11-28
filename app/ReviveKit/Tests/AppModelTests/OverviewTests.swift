@@ -95,6 +95,19 @@ struct OverviewModelTests {
         model.complete(model.visibleTodos[0])
         await waitUntil("ticked again") { model.digest.openTodos.count == 6 }
 
+        // The summary made again meanwhile: 撤销 leaves the new todos alone.
+        let other = OverviewModel(library: library)
+        other.start()
+        await waitUntil("listed again") { other.digest.openTodos.count == 6 }
+        other.complete(other.visibleTodos[0])
+        try library.saveSummary(Summary(recordingId: id, scene: "meeting", title: "T", summary: "S", sections: [],
+                                        todos: [SummaryTodo(text: "新事项", done: true)], tags: [],
+                                        people: [], model: "m", createdAt: start.addingTimeInterval(60)))
+        other.undoComplete()
+        #expect(other.toast?.text == "纪要已经变了，没有撤销")
+        #expect(try library.summary(recordingId: id)?.todos.first?.done == true)
+        other.stop()
+
         try library.saveTranscript(Transcript(recordingId: id, engine: "t", language: "zh-CN", segments: [],
                                               createdAt: start))
         await waitUntil("transcribed") { model.untranscribedText == nil }
