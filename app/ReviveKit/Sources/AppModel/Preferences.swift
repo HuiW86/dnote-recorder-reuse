@@ -22,6 +22,7 @@ public final class Preferences {
         static let autoProcessSince = "revive.autoProcessSince"
         static let defaultTranscriptionPath = "revive.ai.defaultTranscription"
         static let defaultSummaryPath = "revive.ai.defaultSummary"
+        static let aiConsentsAccount = "revive.ai.consentsAccount"
         static let earlierAIDefaultsAdopted = "revive.ai.earlierDefaultsAdopted"
         static func consent(_ consent: AIConsent) -> String { "revive.ai.consent.\(consent.rawValue)" }
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
@@ -208,6 +209,15 @@ public final class Preferences {
         withMutation(keyPath: \.aiConsents) {
             for consent in AIConsent.allCases { defaults.removeObject(forKey: Key.consent(consent)) }
         }
+    }
+
+    /// The consents belong to the account signed in when they were given: for any other account,
+    /// or none (a sign-in that ran out without 退出登录), they are forgotten.
+    public func keepAIConsents(for account: UUID?) {
+        let current = account?.uuidString
+        guard defaults.string(forKey: Key.aiConsentsAccount) != current else { return }
+        forgetAIConsents()
+        defaults.set(current, forKey: Key.aiConsentsAccount)
     }
 
     /// Once, on a phone that had the app before §7.3b: keeps the way it transcribed and

@@ -107,7 +107,13 @@ public extension AIPaths {
                     onDeviceSupported: @escaping @MainActor () -> Bool = { OnDeviceTranscriber.isSupported() }) -> AIPaths {
         let situation: @MainActor (AIWork, Bool) async -> AISituation = { work, hasTranscript in
             var signedIn: Bool?
-            if let account { signedIn = await account.isSignedIn }
+            if let account {
+                let user = await account.user
+                signedIn = await account.isSignedIn
+                // §7.3b: what was agreed to holds for that sign-in only. A sign-in that ended on
+                // its own, or another account, asks again.
+                preferences.keepAIConsents(for: signedIn == true ? user?.id : nil)
+            }
             let ownTranscription = TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistant) != nil
             return AccountAI.situation(for: work, preferences: preferences, onDeviceSupported: onDeviceSupported(),
                                        ownTranscription: ownTranscription, ownService: assistant.current() != nil,
