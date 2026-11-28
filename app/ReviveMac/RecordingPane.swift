@@ -164,6 +164,8 @@ struct RecordingPane: View {
                         Button("问一问") { asking = true }
                             .disabled(model.isAsking)
                     }
+                    Text("改写和问一问时，这条录音的文字稿和纪要会发给你在设置里填的 AI 服务。")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
         } else if let hint = model.summaryHint {
