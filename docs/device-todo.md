@@ -14,7 +14,7 @@
 
 | 工具 | 用途 |
 |---|---|
-| `client/check_log.py` | 判读调试页导出的 `card-debug.log`：只发了白名单命令、没有 `0x93`/`0x94`/`0xB0`/`0xB1`（T-M1-50、§3.5 第 3 道）；每个 `0x91` 都在该文件下载完整之后（硬规则 2、T-M15-54）；每个文件的字节数、耗时、吞吐和 24 KB/s 基线比（T-M1-53）；卡上停止录音到开始下载的秒数（T-M1-51）；写入的设置用 `0x81` 读回一致（T-M1-57）；日志已脱敏。`python check_log.py card-debug.log`，不通过时退出码 1 |
+| `client/check_log.py` | 判读调试页导出的 `card-debug.log`：只发了白名单命令、没有 `0x93`/`0x94`/`0xB0`/`0xB1`（T-M1-50、§3.5 第 3 道）；每个 `0x91` 都在该文件下载完整之后（硬规则 2、T-M15-54）；每个文件的字节数、耗时、吞吐和 24 KB/s 基线比（T-M1-53）；卡上停止录音到开始下载的秒数（T-M1-51）；写入的设置用 `0x81` 读回一致（T-M1-57）；日志已脱敏。`python check_log.py card-debug.log`，不通过时退出码 1；做 T-M1-53、T-M1-51 时加 `--case T-M1-53` / `--case T-M1-51`，超出通过线或日志里没有可判读的数据都算不通过 |
 | `scripts/check_evidence.py` | 证据目录里没有原始 `sn`、完整 `btaddr`、`bondId`（硬规则 4）；CI 也跑 |
 | `client/dnote.py toc` | Opus 帧头统计（T-M15-58） |
 | `app/project.yml` | 构建号已设为 7（已上传过的最大是 0.1.0 (6)，见 `evidence/v82-ble-cold-launch/`）。上传前在 App Store Connect 确认；那里已有更大的号就再往上加 |

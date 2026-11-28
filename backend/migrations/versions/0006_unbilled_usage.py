@@ -8,7 +8,6 @@ Create Date: 2026-11-25 10:00:00
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0006"
@@ -25,14 +24,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Cost records are never deleted to go back. 0005's code runs on this schema unchanged (it
-    # reads only asr_seconds and llm_tokens), so roll back the code and keep this migration.
-    # A NOT VALID check is no way out either: deleting an account would then fail on these rows.
-    kept = op.get_bind().execute(sa.text("SELECT 1 FROM usage_records WHERE kind = 'llm_unbilled' LIMIT 1"))
-    if kept.first() is not None:
-        raise RuntimeError(
-            "usage_records holds llm_unbilled costs; 0005's code runs on 0006 unchanged, so keep this "
-            "migration. Export and remove those rows by hand first if the schema must go back."
-        )
-    op.drop_constraint("usage_records_kind", "usage_records", type_="check")
-    op.create_check_constraint("usage_records_kind", "usage_records", "kind IN ('asr_seconds', 'llm_tokens')")
+    # Going back keeps the wider check and every llm_unbilled row: cost records are never deleted,
+    # and 0005's code reads only asr_seconds and llm_tokens, so it runs on this unchanged. (A NOT
+    # VALID check would make deleting an account fail on those rows when user_id is set to NULL.)
+    pass

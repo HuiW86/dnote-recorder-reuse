@@ -84,3 +84,21 @@ def test_the_name_a_recording_started_with_is_the_file_downloaded():
     assert any("downloaded under that name" in line for line in r.lines)
     other = started.replace("095900", "095959")
     assert any("no download of that name" in n for n in judge(other + LIST + DOWNLOAD).notes)
+
+
+def test_a_case_fails_what_is_over_its_pass_line():
+    late = DOWNLOAD.replace("10:00:02.000 [bg] tx 70", "10:00:15.000 [bg] tx 70")
+    r = judge(LIST + late)
+    r.judge(["T-M1-51"])
+    assert any(f.startswith("T-M1-51:") and "wants ≤ 10 s" in f for f in r.failures)
+    on_time = judge(LIST + DOWNLOAD)
+    on_time.judge(["T-M1-51"])
+    assert on_time.failures == []
+
+
+def test_a_case_with_nothing_to_judge_is_not_a_pass(tmp_path):
+    # A 400 B download says nothing about throughput: T-M1-53 cannot pass on it.
+    log = tmp_path / "short.log"
+    log.write_text(LIST + DOWNLOAD, encoding="utf-8")
+    assert L.main([str(log)]) == 0
+    assert L.main(["--case", "T-M1-53", str(log)]) == 1

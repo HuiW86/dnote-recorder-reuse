@@ -11,6 +11,12 @@ the protocol-level pass criteria of the device tests (docs/device-todo.md, docs/
   redaction  no raw sn, full btaddr or bondId in the log                     (rule 4)
 
     python check_log.py card-debug.log [more.log …]       exit 1 when a check fails
+    python check_log.py --case T-M1-53 long.log          also fail what that case's pass line rules out
+
+Without --case, throughput and stop-to-sync are only noted (a short or test log may not be about them).
+With --case T-M1-53 a judged download off the baseline by more than 20% fails, and a log with no
+download of at least 1 MB fails as not enough evidence; --case T-M1-51 does the same for a sync that
+starts more than 10 s after a stop, or a log with no stop followed by a download.
 
 Prints a summary that can go into the evidence README as it is. Pure standard library.
 """
@@ -79,6 +85,16 @@ class Report:
     failures: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     lines: list[str] = field(default_factory=list)
+    # Per device case: what is over its pass line, and how many measurements were judged.
+    over: dict[str, list[str]] = field(default_factory=lambda: {"T-M1-53": [], "T-M1-51": []})
+    measured: dict[str, int] = field(default_factory=lambda: {"T-M1-53": 0, "T-M1-51": 0})
+
+    def judge(self, cases) -> None:
+        """Turns the chosen cases' notes into failures; no measurement at all is not a pass."""
+        for case in cases:
+            self.failures += [f"{case}: {why}" for why in self.over[case]]
+            if not self.measured[case]:
+                self.failures.append(f"{case}: not enough evidence in this log (nothing it judges)")
 
 
 def parse(text: str) -> list[Frame]:
@@ -158,8 +174,11 @@ def check(frames: list[Frame], redaction=None) -> Report:
             r.failures.append(f"line {d.ended.line}: {d.name} ended at {d.offset + d.received} B, listed as {size} B")
         if speed and d.received >= THROUGHPUT_MIN_BYTES:
             text += f" ({speed / BASELINE_KBPS - 1:+.0%} vs {BASELINE_KBPS:g} KB/s)"
+            r.measured["T-M1-53"] += 1
             if abs(speed - BASELINE_KBPS) / BASELINE_KBPS > 0.2:
-                r.notes.append(f"{d.name}: {speed:.1f} KB/s is more than 20% from the {BASELINE_KBPS:g} KB/s baseline")
+                why = f"{d.name}: {speed:.1f} KB/s is more than 20% from the {BASELINE_KBPS:g} KB/s baseline"
+                r.notes.append(why)
+                r.over["T-M1-53"].append(why)
         r.lines.append(text)
     if not loads:
         r.lines.append("downloads: none")
@@ -193,8 +212,11 @@ def check(frames: list[Frame], redaction=None) -> Report:
                 continue
             wait = (nxt.started.time - f.time).total_seconds()
             r.lines.append(f"recording stopped [{f.state}] → download {nxt.name} after {wait:.1f} s")
+            r.measured["T-M1-51"] += 1
             if wait > STOP_TO_SYNC_SECONDS:
-                r.notes.append(f"line {f.line}: sync started {wait:.1f} s after the stop (T-M1-51 wants ≤ 10 s)")
+                why = f"line {f.line}: sync started {wait:.1f} s after the stop (T-M1-51 wants ≤ 10 s)"
+                r.notes.append(why)
+                r.over["T-M1-51"].append(why)
 
     # The name the card announced when a recording started is the file that was downloaded
     downloaded = {d.name for d in loads}
@@ -244,11 +266,14 @@ def _redaction(text: str):
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="judge a card-debug.log against the device test criteria")
     parser.add_argument("logs", nargs="+", type=Path)
+    parser.add_argument("--case", action="append", default=[], choices=["T-M1-51", "T-M1-53"],
+                        help="the device case this log is evidence for: fail what is over its pass line")
     args = parser.parse_args(argv)
     failed = False
     for path in args.logs:
         text = path.read_text(encoding="utf-8")
         report = check(parse(text), _redaction(text))
+        report.judge(args.case)
         print(f"## {path.name}")
         for line in report.lines:
             print(f"- {line}")

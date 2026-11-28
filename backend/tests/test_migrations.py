@@ -1,8 +1,8 @@
 """The migrations describe exactly the models, and go down and up again cleanly."""
 
 import os
+import uuid
 
-import pytest
 from alembic import command
 from alembic.config import Config
 from conftest import BACKEND, TEST_URL
@@ -37,15 +37,15 @@ def test_going_back_from_0006_keeps_unbilled_costs():
     with engine.begin() as connection:
         connection.execute(
             text(
-                "INSERT INTO usage_records (user_id, kind, amount, occurred_at) "
-                "VALUES (NULL, 'llm_unbilled', 50, now())"
-            )
+                "INSERT INTO usage_records (id, user_id, kind, amount, occurred_at) "
+                "VALUES (:id, NULL, 'llm_unbilled', 50, now())"
+            ),
+            {"id": uuid.uuid4()},
         )
     try:
-        with pytest.raises(RuntimeError, match="llm_unbilled"):
-            command.downgrade(config, "0005")
+        command.downgrade(config, "0005")
+        command.upgrade(config, "head")
         with engine.connect() as connection:
-            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0006"
             kept = connection.execute(text("SELECT count(*) FROM usage_records WHERE kind = 'llm_unbilled'"))
             assert kept.scalar() == 1
     finally:
