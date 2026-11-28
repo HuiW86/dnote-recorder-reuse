@@ -10,7 +10,7 @@ let package = Package(
     products: [
         .library(name: "ReviveKit", targets: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player",
-            "Transcription", "AppModel", "Assistant", "LinkImport", "Account",
+            "Transcription", "AppModel", "Assistant", "LinkImport", "Account", "AIRoute",
         ]),
         // The library on the command line and as an MCP server for AI assistants (features.md X19).
         .executable(name: "revive", targets: ["revive"]),
@@ -41,7 +41,7 @@ let package = Package(
         // networking, enforced by scripts/check-m1-rules.sh like the M1 modules.
         .target(name: "Transcription", dependencies: ["Library", "Player"]),
         .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player",
-                                                 "Transcription", "Assistant", "LinkImport"]),
+                                                 "Transcription", "Assistant", "LinkImport", "Account", "AIRoute"]),
         // Summaries through a service the user configures (features.md X11, G1; ADR-009). The one
         // module allowed to use the network: no device module may depend on it (CLAUDE.md rule 3).
         .target(name: "Assistant", dependencies: ["Library", "Player", "Transcription"]),
@@ -53,6 +53,10 @@ let package = Package(
         // (Security for the Keychain where it exists). No device or offline module may depend on it
         // (CLAUDE.md rule 3; scripts/check-m1-rules.sh): the card works without an account.
         .target(name: "Account"),
+        // Which AI path (this phone, the user's service, the 闻笺 account) a transcription or a
+        // summary takes, and what to confirm first (product-spec.md §7.3b). Rules only: Foundation,
+        // offline like the M1 modules (scripts/check-m1-rules.sh).
+        .target(name: "AIRoute"),
         // Search, read, list todos and add to the library for an AI assistant (features.md X19).
         // Offline like the M1 modules: only Library, no networking (scripts/check-m1-rules.sh).
         .target(name: "LibraryTools", dependencies: ["Library"]),
@@ -85,6 +89,7 @@ let package = Package(
         ),
         .testTarget(name: "LinkImportTests", dependencies: ["LinkImport"]),
         .testTarget(name: "AccountTests", dependencies: ["Account"]),
+        .testTarget(name: "AIRouteTests", dependencies: ["AIRoute"]),
         .testTarget(name: "LibraryToolsTests", dependencies: ["Library", "LibraryTools"]),
         .testTarget(name: "PlayerTests", dependencies: ["CardProtocol", "Library", "Player", "CardTestSupport"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
@@ -92,7 +97,7 @@ let package = Package(
         ]),
         .testTarget(name: "AppModelTests", dependencies: [
             "AppModel", "CardProtocol", "CardLink", "CardService", "Library", "SyncEngine", "Player", "CardTestSupport",
-            "Assistant", "LinkImport",
+            "Assistant", "LinkImport", "Account", "AIRoute",
         ]),
         .testTarget(name: "ArchitectureTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "Player", "AppModel",

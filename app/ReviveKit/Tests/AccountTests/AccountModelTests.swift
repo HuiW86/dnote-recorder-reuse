@@ -154,6 +154,9 @@ struct AccountModelTests {
             .json(202, #"{"resend_after_seconds":60}"#), .json(200, tokens(2)), .empty(204),
         ])
         let model = model(stub, store: store)
+        // The app forgets what it kept for the account that left (product-spec.md §7.3b).
+        var left: [(UUID, Bool)] = []
+        model.onLeave = { left.append(($0, $1)) }
         model.phone = "13812345678"
         await model.sendPhoneCode()
         model.code = "123456"
@@ -161,6 +164,8 @@ struct AccountModelTests {
         await model.signOut()
         let afterSignOut = try store.load()
         #expect(model.user == nil && model.notice == "已退出登录" && afterSignOut == nil)
+        let account = UUID(uuidString: "6f1c2d3e-0000-4000-8000-000000000001")!
+        #expect(left.count == 1 && left.first?.0 == account && left.first?.1 == false)
 
         clock.advance(61)
         await model.sendPhoneCode()
@@ -170,6 +175,10 @@ struct AccountModelTests {
         #expect(stub.requests.last.map { "\($0.httpMethod!) \($0.url!.path)" } == "DELETE /v1/me")
         #expect(model.user == nil && model.notice == "账号已注销。这部手机上的录音不受影响。")
         #expect(try store.load() == nil)
+        #expect(left.count == 2 && left.last?.0 == account && left.last?.1 == true)
+        // Signed out already: nobody left.
+        await model.signOut()
+        #expect(left.count == 2)
     }
 
     @Test func changingThePassword() async throws {

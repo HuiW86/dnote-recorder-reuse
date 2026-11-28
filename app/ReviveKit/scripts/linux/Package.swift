@@ -25,6 +25,7 @@ let package = Package(
         .target(name: "SyncEngine", dependencies: ["DeviceSource", "Library", "os", "ThreadingShim", crypto]),
         .target(name: "LinkImport"),
         .target(name: "Account"),
+        .target(name: "AIRoute"),
         .target(name: "LibraryTools", dependencies: ["Library", "ThreadingShim"]),
         .executableTarget(name: "revive", dependencies: ["Library", "LibraryTools"]),
         .target(name: "CardTestSupport", dependencies: ["CardProtocol", "CardLink"], path: "Tests/CardTestSupport",
@@ -38,6 +39,7 @@ let package = Package(
         .testTarget(name: "LibraryTests", dependencies: ["Library"]),
         .testTarget(name: "LinkImportTests", dependencies: ["LinkImport"]),
         .testTarget(name: "AccountTests", dependencies: ["Account"]),
+        .testTarget(name: "AIRouteTests", dependencies: ["AIRoute"]),
         .testTarget(name: "LibraryToolsTests", dependencies: ["Library", "LibraryTools"]),
         .testTarget(name: "SyncEngineTests", dependencies: [
             "CardProtocol", "CardLink", "CardService", "DeviceSource", "Library", "SyncEngine", "CardTestSupport",

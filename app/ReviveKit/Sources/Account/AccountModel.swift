@@ -47,6 +47,10 @@ public final class AccountModel {
     private var resendAt: Date?
 
     @ObservationIgnored public let session: AccountSession
+    /// Called after the user signed out (`deleted` false) or deleted the account (true), with the
+    /// account that left: the app forgets what it kept for it (product-spec.md §7.3b: the
+    /// confirmations; after a deletion, which server recording each local one was).
+    @ObservationIgnored public var onLeave: ((_ account: UUID, _ deleted: Bool) -> Void)?
     @ObservationIgnored private let now: () -> Date
 
     public static let passwordMinimum = 8
@@ -216,20 +220,24 @@ public final class AccountModel {
 
     public func signOut() async {
         isBusy = true
+        let leaving = await session.user?.id
         await session.signOut()
         isBusy = false
         user = nil
         clearForm()
         notice = "已退出登录"
+        if let leaving { onLeave?(leaving, false) }
     }
 
     /// Deletes the account on the server (the view asks first). Recordings on this phone stay.
     public func deleteAccount() async {
+        let leaving = await session.user?.id
         await run {
             try await self.session.deleteAccount()
             self.user = nil
             self.clearForm()
             self.notice = "账号已注销。这部手机上的录音不受影响。"
+            if let leaving { self.onLeave?(leaving, true) }
         }
     }
 

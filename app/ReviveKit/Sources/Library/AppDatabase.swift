@@ -217,6 +217,21 @@ public final class AppDatabase: Sendable {
             try db.create(index: "phone_mark_recording", on: "phone_mark", columns: ["recording_id"])
         }
 
+        // Which recording on our backend a local one is, per 闻笺 account (product-spec.md §7.3b,
+        // ADR-009): so a summary or a second transcription does not put the recording there again.
+        // Keyed by account, as another account signing in on this phone has its own recordings.
+        migrator.registerMigration("v17") { db in
+            try db.create(table: "remote_recording") { t in
+                t.column("account_id", .blob).notNull()
+                t.column("recording_id", .blob).notNull().references("recording", onDelete: .cascade)
+                t.column("server_id", .blob).notNull()
+                t.column("has_audio", .boolean).notNull()
+                t.column("created_at", .datetime).notNull()
+                t.primaryKey(["account_id", "recording_id"])
+            }
+            try db.create(index: "remote_recording_recording", on: "remote_recording", columns: ["recording_id"])
+        }
+
         return migrator
     }
 
