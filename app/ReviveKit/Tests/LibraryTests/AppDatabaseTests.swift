@@ -1,9 +1,25 @@
+import CryptoKit
 import Foundation
 import GRDB
 import Testing
 @testable import Library
 
 struct AppDatabaseTests {
+    @Test func capacityPrefersPositiveImportantUsage() {
+        func unexpectedFallback() -> Int? {
+            Issue.record("ordinary capacity should only be queried as a fallback")
+            return 99
+        }
+        #expect(AudioStore.availableCapacity(important: 5, ordinary: unexpectedFallback()) == 5)
+    }
+
+    @Test func capacityUsesAvailableBytesWhenImportantUsageCannotBeRead() {
+        #expect(AudioStore.availableCapacity(important: nil, ordinary: 20) == 20)
+        #expect(AudioStore.availableCapacity(important: 0, ordinary: 20) == 20)
+        #expect(AudioStore.availableCapacity(important: nil, ordinary: nil) == 0)
+        #expect(AudioStore.availableCapacity(important: 0, ordinary: 0) == 0)
+    }
+
     @Test func inMemoryDatabaseOpensAndMigrates() throws {
         let db = try AppDatabase.inMemory()
         let foreignKeys = try db.writer.read { try Bool.fetchOne($0, sql: "PRAGMA foreign_keys") }
@@ -740,6 +756,23 @@ struct RecordingLibraryTests {
         try lib.setTodoDone(recordingId: new, index: 0, done: true)
         #expect(try lib.recordingIdsWithOpenTodos() == [old])
         #expect(!(try lib.recentSummaries().map(\.recording.id).contains(none)))
+    }
+
+    /// Check persisted digests against a single-pass reference, including an exact block and a distinct tail.
+    @Test(arguments: [0, 1 << 20, (1 << 20) + 7])
+    func importedFileKeepsItsSHA256(byteCount: Int) throws {
+        let (library, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("prepared.m4a")
+        var bytes = Data(repeating: 0x31, count: byteCount)
+        if !bytes.isEmpty { bytes[byteCount - 1] = 0x7a }
+        try bytes.write(to: source)
+        let expected = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+
+        let stored = try library.addLocalRecording(file: source, source: .import, startedAt: Date(),
+                                                   durationMs: 1, title: nil)
+        #expect(try library.recording(id: stored.id)?.audioSha256 == expected)
+        #expect(try Data(contentsOf: library.store.url(forAudioPath: stored.audioPath)) == bytes)
     }
 
     /// X18: a phone recording keeps its M4A, gets a default title, and an orphaned M4A (crash

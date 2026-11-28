@@ -56,6 +56,8 @@ public final class SyncEngine {
     /// Test seams for fault injection (test-spec.md §3.3). Unused in the app.
     public struct Hooks {
         public var beforeDownload: (@MainActor (SourceFile) -> Void)?
+        /// Replaces a single disk append so tests can model a short write or full volume.
+        public var appendChunk: (@MainActor (PartWriter, Data) throws -> Void)?
         public var afterDownload: (@MainActor (SourceFile) -> Void)?
         /// Runs after the OGG file is in place and before the transaction commits.
         public var beforeCommit: (@MainActor () async -> Void)?
@@ -111,8 +113,6 @@ public final class SyncEngine {
     private var pass: Task<Void, Never>?
     @ObservationIgnored private var rerunRequested = false
     @ObservationIgnored private var retryTimer: Task<Void, Never>?
-    /// The device said a listed file does not exist: list once more (prd.md §6 `fileNotFound`).
-    @ObservationIgnored private var relistAfterNotFound = false
     /// The card `failures` belongs to.
     @ObservationIgnored private var failuresDeviceId: UUID?
     /// The card and the "同步后删除" setting a pass started with (see `runPass`).
@@ -180,15 +180,19 @@ public final class SyncEngine {
     private func runPasses() async {
         repeat {
             rerunRequested = false
-            await runPass()
+            let needsRelist = await runPass()
+            if needsRelist && !rerunRequested {
+                _ = await runPass()  // One confirmation per trigger, even if the listing stays stale.
+            }
         } while rerunRequested
         pass = nil
     }
 
     // MARK: - One pass
 
-    private func runPass() async {
-        guard source.isConnected else { return }
+    /// Returns true if a completed pass needs a fresh listing to confirm a missing file.
+    private func runPass() async -> Bool {
+        guard source.isConnected else { return false }
         defer { progress = nil }
         // A pass belongs to the card it started on: after a switch it must not list, download
         // or delete on the next card with this card's file names, nor use that card's setting.
@@ -203,14 +207,14 @@ public final class SyncEngine {
             // The card serves files whether or not it is paired (#38 E): never sync, let alone
             // delete, on a card that was re-bound to another phone.
             guard try await source.isPairedWithThisPhone() else { throw SourceError.notPaired }
-            guard try await cardIsIdle() else { return }
+            guard try await cardIsIdle() else { return false }
             let files: [SourceFile]
             do {
                 files = try await source.listFiles()
             } catch SourceError.busyRecording {
                 // An empty list while recording says nothing about the card's files (#5).
                 status = .waitingForRecording
-                return
+                return false
             }
             let listed = Set(files.map { Key($0.name, $0.size) })
 
@@ -240,13 +244,18 @@ public final class SyncEngine {
                 }
             }
 
+            var needsRelist = false
             pendingCount = queue.count
             for (index, item) in queue.enumerated() {
                 // Recording started mid-sync: stop after the current file (prd.md §4.4).
                 try checkSameCard()
-                if index > 0, try await !cardIsIdle() { return }
+                if index > 0, try await !cardIsIdle() { return false }
                 progress = Progress(index: index + 1, total: queue.count)
-                if try await sync(item, device: device, converter: source.audioConverter) { pendingCount -= 1 }
+                switch try await sync(item, device: device, converter: source.audioConverter) {
+                case .stored: pendingCount -= 1
+                case .missing: needsRelist = true
+                case .failed: break
+                }
             }
             progress = nil
             failures = try failureCounts(device, listed: listed)
@@ -260,15 +269,13 @@ public final class SyncEngine {
             // P08 "上次同步" per card; a failed write only loses the display, not the pass.
             if let synced = try? library.markSynced(deviceId: device.id, at: completed) { onDeviceSaved?(synced) }
             onPassCompleted?(listed.count, queue.count, failures.autoRetrying)
-            if relistAfterNotFound {
-                relistAfterNotFound = false
-                rerunRequested = true
-            }
             scheduleRetry(device, listed: listed)
+            return needsRelist
         } catch {
             let code = SyncFailure.code(error)
             log.error("sync pass stopped: \(code, privacy: .public)")
             status = .stopped(code)
+            return false
         }
     }
 
@@ -319,12 +326,13 @@ public final class SyncEngine {
 
     // MARK: - One file (prd.md §4.1, §4.2)
 
+    private enum FileOutcome { case stored, missing, failed }
+
     /// Downloads, converts and commits one file. Errors that concern only this file are
     /// recorded on the item; errors that end the pass (link lost, phone full) are thrown.
-    /// Returns true when the recording was committed.
-    private func sync(_ item: SyncItem, device: Device, converter: any SourceAudioConverter) async throws -> Bool {
+    private func sync(_ item: SyncItem, device: Device, converter: any SourceAudioConverter) async throws -> FileOutcome {
         var item = item
-        guard let id = item.id else { return false }
+        guard let id = item.id else { return .failed }
         let file = SourceFile(name: item.cardFileName, size: item.cardFileSize)
         let store = library.store
 
@@ -344,33 +352,26 @@ public final class SyncEngine {
         try library.update(item)
         hooks.beforeDownload?(file)
 
-        let writer = try store.openPart(id)
-        var writeFailed = false
-        var received = offset
-        status = .syncing(file: file.name, received: received, total: file.size)
         do {
-            try await source.download(file, from: offset) { [weak self] chunk in
-                do { try writer.append(chunk) } catch { writeFailed = true }
-                received += chunk.count
-                self?.status = .syncing(file: file.name, received: received, total: file.size)
-            }
-            writer.close()
+            try await downloadPart(file, id: id, from: offset)
+        } catch SyncFailure.phoneStorageFull {
+            store.removePart(id)
+            fail(&item, .phoneStorageFull, countsAsAttempt: false)
+            throw SyncFailure.phoneStorageFull
         } catch let error as SourceError {
-            writer.close()
             switch error {
             case .fileNotFound:
                 store.removePart(id)
                 fail(&item, .fileNotFound, countsAsAttempt: false)
-                relistAfterNotFound = true
-                return false
+                return .missing
             case .transferFailed:
                 // Offsets are checked per chunk, but a bad length at EOF leaves a full, wrong part.
                 store.removePart(id)
                 fail(&item, .transferFailed, countsAsAttempt: true)
-                return false
+                return .failed
             case .requestTimeout:
                 fail(&item, .transferFailed, countsAsAttempt: true)
-                return false
+                return .failed
             case .busy:
                 // Every file would be refused until the card restarts: keep the part, stop the pass.
                 fail(&item, .cardBusy, countsAsAttempt: false)
@@ -383,17 +384,12 @@ public final class SyncEngine {
             }
         }
         hooks.afterDownload?(file)
-        if writeFailed {
-            store.removePart(id)
-            fail(&item, .phoneStorageFull, countsAsAttempt: false)
-            throw SyncFailure.phoneStorageFull
-        }
 
         let raw = try store.readPart(id)
         guard raw.count == file.size else {
             store.removePart(id)
             fail(&item, .transferFailed, countsAsAttempt: true)
-            return false
+            return .failed
         }
         let audio: ConvertedAudio
         do {
@@ -403,7 +399,7 @@ public final class SyncEngine {
             try? store.saveDiagnostic(raw, name: "\(device.id.uuidString)-\(file.name)")
             store.removePart(id)
             fail(&item, .decryptFailed, countsAsAttempt: false)
-            return false
+            return .failed
         }
 
         let recordingId = UUID()
@@ -428,11 +424,37 @@ public final class SyncEngine {
             store.removeAudio(path)
             store.removePart(id)
             fail(&item, .storeFailed, countsAsAttempt: true)
-            return false
+            return .failed
         }
         store.removePart(id)
         hooks.afterCommit?(item)
-        return true
+        return .stored
+    }
+
+    /// A resumable part must be a contiguous prefix. Once an append fails, ignore the rest
+    /// of the transfer, even if the device keeps sending chunks or eventually drops the link.
+    private func downloadPart(_ file: SourceFile, id: Int64, from offset: Int) async throws {
+        let writer = try library.store.openPart(id)
+        defer { writer.close() }
+        let append = hooks.appendChunk ?? { try $0.append($1) }
+        var received = offset
+        var writeFailed = false
+        status = .syncing(file: file.name, received: received, total: file.size)
+        do {
+            try await source.download(file, from: offset) { [weak self] chunk in
+                guard !writeFailed else { return }
+                do {
+                    try append(writer, chunk)
+                    received += chunk.count
+                    self?.status = .syncing(file: file.name, received: received, total: file.size)
+                } catch {
+                    writeFailed = true
+                }
+            }
+        } catch {
+            if !writeFailed { throw error }
+        }
+        if writeFailed { throw SyncFailure.phoneStorageFull }
     }
 
     private func fail(_ item: inout SyncItem, _ failure: SyncFailure, countsAsAttempt: Bool) {

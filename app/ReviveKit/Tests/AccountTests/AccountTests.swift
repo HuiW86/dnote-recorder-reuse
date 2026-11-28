@@ -20,9 +20,11 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
     private var _requests: [URLRequest] = []
     /// Held before answering, so tests can start overlapping calls.
     var delay: UInt64 = 0
+    let beforeReply: @Sendable (URLRequest) async -> Void
 
-    init(_ answers: [Answer]) {
+    init(_ answers: [Answer], beforeReply: @escaping @Sendable (URLRequest) async -> Void = { _ in }) {
         self.answers = answers
+        self.beforeReply = beforeReply
     }
 
     var requests: [URLRequest] { lock.withLock { _requests } }
@@ -37,6 +39,7 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
             _requests.append(request)
             return answers.isEmpty ? .empty(500) : answers.removeFirst()
         }
+        await beforeReply(request)
         if delay > 0 { try await Task.sleep(nanoseconds: delay) }
         let url = request.url!
         switch answer {
@@ -263,6 +266,85 @@ struct AccountSessionTests {
         _ = try await session.reloadUser()
         #expect(stub.body(3) == ["refresh_token": "r2"])
         #expect(stub.requests[3].value(forHTTPHeaderField: "Idempotency-Key") != first)
+    }
+
+    @Test func pendingRefreshSurvivesRelaunchAfterALostResponse() async throws {
+        let store = InMemorySessionStore()
+        let clock = TestClock()
+        let first = StubTransport([.fail(.networkConnectionLost)])
+        let original = try await signedIn(first, clock: clock, store: store)
+        clock.advance(3600)
+        await #expect(throws: AccountError.self) { _ = try await original.reloadUser() }
+        let key = try #require(first.requests.first?.value(forHTTPHeaderField: "Idempotency-Key"))
+        let pending = try #require(try store.load())
+        #expect(pending.refreshToken == "r1" && pending.pendingRefreshKey == key)
+
+        // Round-trip the same JSON that the Keychain persists and create a fresh actor.
+        let restored = try JSONDecoder().decode(SavedSession.self, from: JSONEncoder().encode(pending))
+        let newStore = InMemorySessionStore(restored)
+        let second = StubTransport([.json(200, tokens(2)), .json(200, userJSON)])
+        _ = try await session(second, store: newStore).reloadUser()
+        #expect(second.requests.first?.value(forHTTPHeaderField: "Idempotency-Key") == key)
+        #expect(second.body(0) == first.body(0))
+        let rotated = try #require(try newStore.load())
+        #expect(rotated.refreshToken == "r2" && rotated.pendingRefreshKey == nil)
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func aRefreshCannotRestoreOrClearASupersededSignIn(signOut: Bool, oldRefreshFails: Bool) async throws {
+        let (entered, started) = AsyncStream<Void>.makeStream()
+        let (hold, release) = AsyncStream<Void>.makeStream()
+        let oldReply: StubTransport.Answer = oldRefreshFails ? .json(401, error("refresh_reused")) : .json(200, tokens(2))
+        let stub = StubTransport([oldReply, signOut ? .empty(204) : .json(200, tokens(6))]) { request in
+            guard request.url?.lastPathComponent == "refresh", let body = request.httpBody,
+                  let args = try? JSONDecoder().decode([String: String].self, from: body),
+                  args["refresh_token"] == "r1" else { return }
+            started.finish()
+            for await _ in hold {}
+        }
+        let store = InMemorySessionStore()
+        let clock = TestClock()
+        let session = try await signedIn(stub, clock: clock, store: store)
+        clock.advance(3600)
+        let oldRefresh = Task { try await session.accessToken() }
+        for await _ in entered {}
+        // Prevent an implementation that joins the old task from hanging the suite.
+        let timeout = Task {
+            try await Task.sleep(for: .seconds(5))
+            release.finish()
+        }
+        defer { timeout.cancel(); release.finish() }
+
+        if signOut {
+            await session.signOut()
+        } else {
+            let user = try #require(await session.user)
+            try await session.adopt(AccountTokens(accessToken: "a5", refreshToken: "r5", expiresIn: 0, user: user))
+            #expect(try await session.accessToken() == "a6")
+            try #require(stub.requests.count == 2)
+            #expect(stub.body(1) == ["refresh_token": "r5"])
+        }
+        release.finish()
+        await #expect(throws: CancellationError.self) { try await oldRefresh.value }
+        #expect(try store.load()?.refreshToken == (signOut ? nil : "r6"))
+    }
+
+    @Test func oldSessionCanLoadAndALockedStoreDoesNotSpendItsToken() async throws {
+        let oldRecord = """
+            {"refreshToken":"r1","user":{"id":"6f1c2d3e-0000-4000-8000-000000000001",
+             "emailVerified":false,"hasPassword":false}}
+            """
+        let old = try JSONDecoder().decode(SavedSession.self, from: Data(oldRecord.utf8))
+        #expect(old.refreshToken == "r1" && old.pendingRefreshKey == nil)
+        struct ReadOnlyStore: SessionStoring {
+            let old: SavedSession
+            func load() throws -> SavedSession? { old }
+            func save(_ session: SavedSession?) throws { throw SessionStoreError.keychain(-1) }
+        }
+        let stub = StubTransport([])
+        let session = AccountSession(client: AccountClient(baseURL: base, transport: stub), store: ReadOnlyStore(old: old))
+        await #expect(throws: SessionStoreError.keychain(-1)) { _ = try await session.accessToken() }
+        #expect(stub.requests.isEmpty)
     }
 
     @Test func aSpentOrRevokedSignInSignsOut() async throws {

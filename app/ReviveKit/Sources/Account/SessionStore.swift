@@ -10,6 +10,8 @@ import Security
 public struct SavedSession: Codable, Equatable, Sendable {
     public var refreshToken: String
     public var user: AccountUser
+    /// Written before rotating this token so a lost reply can be replayed after relaunch.
+    public var pendingRefreshKey: String?
 
     public init(refreshToken: String, user: AccountUser) {
         self.refreshToken = refreshToken

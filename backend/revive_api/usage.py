@@ -63,7 +63,7 @@ async def used(db: AsyncSession, user_id, kind: str, period: Period) -> int:
 async def reserved_asr(db: AsyncSession, user_id) -> int:
     """Seconds of the recordings waiting to be transcribed (queued, retrying or running)."""
     total = await db.scalar(
-        select(func.coalesce(func.sum((Recording.duration_ms + 999) / 1000), 0))
+        select(func.coalesce(func.sum(func.ceil(Recording.duration_ms / 1000)), 0))
         .select_from(Task)
         .join(Recording, Recording.id == Task.recording_id)
         .where(Task.user_id == user_id, Task.kind == "transcribe", Task.status.in_([QUEUED, RUNNING]))

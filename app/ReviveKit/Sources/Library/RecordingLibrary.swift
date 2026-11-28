@@ -122,8 +122,11 @@ public final class RecordingLibrary: Sendable {
     /// file may be deleted only then (CLAUDE.md rule 2); a recording deleted in the app leaves
     /// the item `stored` with no recording, and the card copy is then the only one.
     public func hasLocalCopy(_ item: SyncItem) throws -> Bool {
-        guard let id = item.recordingId, let recording = try recording(id: id) else { return false }
-        return FileManager.default.fileExists(atPath: store.url(forAudioPath: recording.audioPath).path)
+        // Older builds could store a header-only OGG with zero duration.
+        guard let id = item.recordingId, let recording = try recording(id: id),
+              recording.durationMs > 0, recording.hasAudio else { return false }
+        let info = try? store.url(forAudioPath: recording.audioPath).resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+        return info?.isRegularFile == true && (info?.fileSize ?? 0) > 0
     }
 
     // MARK: Recordings
@@ -357,8 +360,7 @@ public final class RecordingLibrary: Sendable {
     public func addLocalRecording(file: URL, source: Recording.Source, startedAt: Date, durationMs: Int,
                                   title: String?, marksMs: [Int] = [], now: Date = Date()) throws -> Recording {
         let id = UUID()
-        let data = try Data(contentsOf: file)
-        let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let sha = try Self.audioDigest(of: file)
         let path = try store.importAudio(from: file, id: id)
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let recording = Recording(id: id, deviceId: nil, source: source, cardFileName: nil, cardFileSize: nil,
@@ -379,6 +381,17 @@ public final class RecordingLibrary: Sendable {
             throw error
         }
         return recording
+    }
+
+    /// Imported audio can be hours long. Hash the prepared file before moving it into the library.
+    private static func audioDigest(of file: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: file)
+        defer { try? handle.close() }
+        var hash = SHA256()
+        while let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+            hash.update(data: chunk)
+        }
+        return hash.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: Folders (features.md D1c)
