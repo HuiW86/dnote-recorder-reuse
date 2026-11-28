@@ -33,8 +33,13 @@ public final class AssistantSettingsModel {
         model = preferences.assistantModel
         transcriptionModel = preferences.assistantTranscriptionModel
         profession = preferences.assistantProfession
-        apiKey = (try? keyStore.read()) ?? ""
+        let key = (try? keyStore.read()) ?? ""
+        apiKey = key
+        savedKey = key
     }
+
+    /// The key as stored in the Keychain, to tell an edited form from the saved one.
+    @ObservationIgnored private var savedKey = ""
 
     /// The transcription model the chosen provider suggests, if it transcribes at all.
     public var suggestedTranscriptionModel: String? {
@@ -69,6 +74,14 @@ public final class AssistantSettingsModel {
 
     /// Stores address and model in Preferences and the key in the Keychain; an empty key is removed.
     public func save() {
+        if persist() {
+            toast = Toast("已保存")
+        } else {
+            toast = Toast("密钥保存失败，请重试")
+        }
+    }
+
+    @discardableResult private func persist() -> Bool {
         let current = config
         preferences.assistantBaseURL = current.baseURL
         preferences.assistantModel = current.model
@@ -76,10 +89,34 @@ public final class AssistantSettingsModel {
         preferences.assistantProfession = current.profession
         do {
             try keyStore.save(current.apiKey)
-            toast = Toast("已保存")
+            savedKey = current.apiKey
+            return true
         } catch {
-            toast = Toast("密钥保存失败，请重试")
+            return false
         }
+    }
+
+    /// A service is stored on this phone: 「清除这个服务」 has something to clear.
+    public var hasSavedService: Bool { !preferences.assistantBaseURL.isEmpty || !savedKey.isEmpty }
+
+    /// The form differs from what is stored.
+    public var hasUnsavedChanges: Bool { !serviceUnchanged || config.profession != preferences.assistantProfession }
+
+    /// Saving makes sense: something changed, and the service is complete or untouched (only the
+    /// job changed, which works without a service).
+    public var canSave: Bool { hasUnsavedChanges && (isConfigured || serviceUnchanged) }
+
+    /// Leaving the page keeps what can be kept, so a filled-in form is never lost to a missed 保存.
+    public func saveOnLeave() {
+        guard canSave else { return }
+        persist()
+    }
+
+    private var serviceUnchanged: Bool {
+        let current = config
+        return current.baseURL == preferences.assistantBaseURL && current.model == preferences.assistantModel
+            && current.apiKey == savedKey
+            && transcriptionModel.trimmingCharacters(in: .whitespacesAndNewlines) == preferences.assistantTranscriptionModel
     }
 
     /// Removes the service: the app goes back to working without AI.
@@ -94,6 +131,7 @@ public final class AssistantSettingsModel {
         preferences.assistantTranscriptionModel = ""
         // The job is about the user, not the service: it stays.
         try? keyStore.delete()
+        savedKey = ""
         toast = Toast("已清除")
     }
 
@@ -111,7 +149,12 @@ public final class AssistantSettingsModel {
             defer { isTesting = false }
             do {
                 _ = try await client.complete(current, system: "只回复两个字：可用", user: "测试", json: false)
-                testResult = "可以连接"
+                // It works: keep it, unless the form was edited while the test ran.
+                if config == current, persist() {
+                    testResult = "可以连接，已保存"
+                } else {
+                    testResult = "可以连接"
+                }
             } catch let error as AssistantError {
                 testResult = Self.text(for: error)
             } catch {

@@ -29,6 +29,8 @@ private struct TagList: View {
     @Bindable var model: TagsModel
     @State private var renaming: String?
     @State private var newName = ""
+    /// Asks first, as the tag's own page does: it changes every summary that has it.
+    @State private var deleting: String?
 
     var body: some View {
         List {
@@ -49,12 +51,12 @@ private struct TagList: View {
                         }
                         .accessibilityLabel("标签 \(tag.name)，\(tag.count) 条录音")
                         .swipeActions {
-                            Button("删除") { model.delete(tag.name) }.tint(.red)
+                            Button("删除") { deleting = tag.name }.tint(.red)
                             Button("重命名") { startRename(tag.name) }
                         }
                         .contextMenu {
                             Button("重命名", systemImage: "pencil") { startRename(tag.name) }
-                            Button("删除标签", systemImage: "trash", role: .destructive) { model.delete(tag.name) }
+                            Button("删除标签", systemImage: "trash", role: .destructive) { deleting = tag.name }
                         }
                     }
                 } footer: {
@@ -72,6 +74,13 @@ private struct TagList: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("改成已有的名字会合并两个标签。")
+        }
+        .confirmationDialog(deleting.map { "删除标签「\($0)」？" } ?? "",
+                            isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+                            titleVisibility: .visible, presenting: deleting) { tag in
+            Button("删除标签", role: .destructive) { model.delete(tag) }
+        } message: { _ in
+            Text("只从纪要里去掉这个标签，录音和纪要都还在。以后生成的纪要也不会再加它。")
         }
     }
 

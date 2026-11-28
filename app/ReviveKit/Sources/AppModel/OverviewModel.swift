@@ -61,9 +61,24 @@ public final class OverviewModel {
     public func complete(_ todo: OpenTodo) {
         do {
             try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: true)
-            toast = Toast("已完成")
+            lastCompleted = todo
+            toast = Toast("已完成", action: "撤销")
         } catch {
             toast = Toast("保存失败，请重试")
         }
     }
+
+    /// "撤销" on the toast: the todo just ticked is open again.
+    public func undoComplete() {
+        guard let todo = lastCompleted else { return }
+        lastCompleted = nil
+        do {
+            try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: false)
+        } catch {
+            toast = Toast("恢复失败，请重试")
+        }
+    }
+
+    /// The todo `complete` ticked last, for "撤销".
+    @ObservationIgnored private var lastCompleted: OpenTodo?
 }

@@ -5,6 +5,7 @@ import SwiftUI
 /// 设置 → AI 服务 (features.md X11, ADR-009): the user's own OpenAI-compatible service.
 struct AssistantSettingsView: View {
     @State private var model: AssistantSettingsModel
+    @State private var confirmingClear = false
 
     init(preferences: Preferences) {
         _model = State(initialValue: AssistantSettingsModel(preferences: preferences, keyStore: KeychainKeyStore()))
@@ -60,7 +61,7 @@ struct AssistantSettingsView: View {
 
             Section {
                 Button("保存") { model.save() }
-                    .disabled(!model.isConfigured)
+                    .disabled(!model.canSave)
                 Button {
                     model.test()
                 } label: {
@@ -80,7 +81,10 @@ struct AssistantSettingsView: View {
             .surfaceRows()
 
             Section {
-                Button("清除这个服务", role: .destructive) { model.clear() }
+                // Nothing to clear until a service is stored.
+                if model.hasSavedService {
+                    Button("清除这个服务", role: .destructive) { confirmingClear = true }
+                }
             } footer: {
                 Text("用这个服务生成纪要时，录音的文字稿会发送给它；录音音频不会发送。服务怎样处理这些文字，以它自己的隐私政策为准。不填就不会发送任何内容。")
             }
@@ -91,5 +95,12 @@ struct AssistantSettingsView: View {
         .navigationTitle("AI 服务")
         .navigationBarTitleDisplayMode(.inline)
         .toast($model.toast)
+        // A filled-in form is kept even without 保存; half a service is not stored.
+        .onDisappear { model.saveOnLeave() }
+        .confirmationDialog("清除这个 AI 服务？", isPresented: $confirmingClear, titleVisibility: .visible) {
+            Button("清除", role: .destructive) { model.clear() }
+        } message: {
+            Text("地址、模型和密钥会从这部手机上删除，要用时得重新填写密钥。已生成的文字稿和纪要都还在。")
+        }
     }
 }

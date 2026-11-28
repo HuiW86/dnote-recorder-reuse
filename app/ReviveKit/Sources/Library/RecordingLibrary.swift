@@ -187,6 +187,21 @@ public final class RecordingLibrary: Sendable {
         }
     }
 
+    /// Puts back a title exactly as it was, source included: "撤销" after an AI title replaced it.
+    /// Returns the stored recording, nil when it is not in the library.
+    @discardableResult
+    public func restoreTitle(id: UUID, _ title: String, source: Recording.TitleSource?,
+                             now: Date = Date()) throws -> Recording? {
+        try database.writer.write { db in
+            guard var recording = try Recording.fetchOne(db, key: id) else { return nil }
+            recording.title = title
+            recording.titleSource = source
+            recording.updatedAt = now
+            try recording.update(db)
+            return recording
+        }
+    }
+
     /// Moves a recording to 最近删除: the row and the audio stay, so it can be restored as it
     /// was. Like a delete, nothing is sent to the card and the SyncItem stays `stored`.
     public func trashRecording(id: UUID, now: Date = Date()) throws {

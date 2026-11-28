@@ -38,17 +38,22 @@ struct DeviceChip: View {
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
-            .disabled(device == nil)
+            // With no card the words "添加录音卡" lead to the 录音卡 tab and its add button.
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilityText)
-            Button(action: openSwitcher) {
-                Image(systemName: "chevron.down")
-                    .imageScale(.small)
-                    .foregroundStyle(Theme.inkMuted)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
+            // Nothing to switch between without a card; the words already add one.
+            if device != nil {
+                Button(action: openSwitcher) {
+                    Image(systemName: "chevron.down")
+                        .imageScale(.small)
+                        .foregroundStyle(Theme.inkMuted)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("切换录音卡")
+            } else {
+                Spacer().frame(width: 12)
             }
-            .accessibilityLabel("切换录音卡")
         }
         .buttonStyle(.plain)
         .font(.subheadline.weight(.medium))
@@ -279,6 +284,8 @@ struct ConsentSheet: View {
                 Label("我已征得对方同意", systemImage: agreed ? "checkmark.square.fill" : "square")
             }
             .foregroundStyle(Theme.ink)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityAddTraits(agreed ? .isSelected : [])
             Spacer()
             Button(action: onStart) {

@@ -50,7 +50,7 @@ python3 scripts/build_privacy_page.py \
 
 ### 3.1 Beta 版 App 描述（必填）
 
-> 闻笺是适用于 D·NOTE 录音卡的 iOS App，不需要注册：通过蓝牙配对录音卡，在手机上开始或停止录音，录音结束后自动把卡上的录音同步到手机，可以播放、标重点、改标题，也可以导出为 M4A 等格式。卡不在身边时可以用手机麦克风录，也可以从「文件」导入音频。打开「本机转写」可以在手机上离线转成文字。录音保存到本机录音库。
+> 闻笺是适用于 D·NOTE 录音卡的 iOS App，不需要注册：通过蓝牙配对录音卡，在手机上开始或停止录音，录音结束后自动把卡上的录音同步到手机，可以播放、标重点、改标题，也可以导出为 M4A 等格式。卡不在身边时可以用手机麦克风录，也可以从「文件」导入音频。在录音详情里点「转成文字」，默认在手机上离线转成文字。录音保存到本机录音库。
 >
 > 纪要、改写、提问等 AI 功能是可选的，要在设置里填你自己的 AI 服务（兼容 OpenAI 接口的地址和密钥），内容从手机直接发给你选的服务；不填也不影响其他功能。
 >
@@ -63,7 +63,7 @@ python3 scripts/build_privacy_page.py \
 > 2. 录音：在 App 里开始、停止录音；也试试直接按卡上的按键录音
 > 3. 同步：录音结束后，录音会自动出现在「录音」列表；试试锁屏、切到其他 App 时是否也能同步
 > 4. 播放与导出：播放录音，用「⋯ → 分享」导出 M4A，在微信或「文件」里打开试试
-> 5. （可选）在「设置」里打开「本机转写」，把一条录音转成文字
+> 5. （可选）在一条录音的详情里点「转成文字」，在手机上离线转成文字
 >
 > 说明：
 > - 首次打开时，系统可能询问「是否允许闻笺使用无线数据」。录音卡、录音、同步、播放和导出都不需要联网，选「不允许」不影响这些功能；以后要用自己的 AI 服务时，到 iPhone 的「设置 › 闻笺 › 无线数据」里打开
@@ -80,17 +80,17 @@ python3 scripts/build_privacy_page.py \
 - **登录信息**：不需要登录。取消勾选「需要登录」
 - **审核备注**：
 
-> This app is a companion for the D·NOTE voice recorder card, a Bluetooth hardware device. Pairing and syncing need the card; a video of the full flow on a real card is here: 【演示视频链接】. Without a card you can still try most of the app: on the first screen, tap "先不连卡，直接用" (use without a card). Then tap the red button in the middle of the tab bar and choose "用这部手机录" to record with the iPhone microphone, or import an audio or text file with the button at the top right of 录音 (the same menu can also import a public podcast episode from its link or RSS feed). You can play, rename, star and export recordings, and transcribe them on the device after turning on 本机转写 in Settings (录音卡 tab, gear at the top right). Choosing "先不连卡" does not ask for Bluetooth.
+> This app is a companion for the D·NOTE voice recorder card, a Bluetooth hardware device. Pairing and syncing need the card; a video of the full flow on a real card is here: 【演示视频链接】. Without a card you can still try most of the app: on the first screen, tap "先不连卡，直接用" (use without a card). Then tap the red button in the middle of the tab bar to record with the iPhone microphone right away, or import an audio or text file with the button at the top right of 录音 (the same menu can also import a public podcast episode from its link or RSS feed). You can play, rename, star and export recordings, and transcribe them on the device with "转成文字" on a recording's page (offline by default). Choosing "先不连卡" does not ask for Bluetooth.
 >
 > There is no account, no developer server and no third-party SDK. The optional AI features (summaries, rewriting, questions) use an OpenAI-compatible service that the user configures with their own address and API key; the app contacts only that service, only when the user taps an AI feature or turns on automatic processing of new recordings, and ships with no key of ours. Importing from a podcast link contacts only the link the user pastes (and Apple's public podcast lookup for Apple Podcasts links). Everything else works offline. On some iPhones, iOS shows a "wireless data" permission prompt on first launch; choosing "Don't Allow" does not affect the card, recording, playback or export.
 >
-> 本 App 用于配合 D·NOTE 录音卡（蓝牙硬件）。配对和同步需要录音卡，真卡全流程演示视频：【演示视频链接】。没有录音卡也能试大部分功能：在第一页点「先不连卡，直接用」，然后点底栏中间的红色按钮，选「用这部手机录」用手机麦克风录音，或在「录音」右上角导入音频或文字文件（同一个菜单也能从公开的播客链接或 RSS 导入一期节目）；可以播放、改名、标星、导出，在「设置」（「录音卡」标签右上角的齿轮）里打开「本机转写」后可以在手机上转成文字。选「先不连卡」不会请求蓝牙权限。没有账号、开发者服务器和第三方 SDK。可选的 AI 功能（纪要、改写、提问）使用用户自己填写地址和密钥的兼容 OpenAI 接口的服务，只在用户点了 AI 功能或自己打开「录完自动整理」时联系那个服务，App 不内置我们的密钥；从链接导入只访问用户粘贴的链接（Apple 播客的链接另向 Apple 的公开查询服务查询）；其余功能都不联网。部分 iPhone 首次启动时系统会弹出「无线数据」权限询问，选「不允许」不影响录音卡、录音、播放和导出。
+> 本 App 用于配合 D·NOTE 录音卡（蓝牙硬件）。配对和同步需要录音卡，真卡全流程演示视频：【演示视频链接】。没有录音卡也能试大部分功能：在第一页点「先不连卡，直接用」，然后点底栏中间的红色按钮，直接用手机麦克风录音，或在「录音」右上角导入音频或文字文件（同一个菜单也能从公开的播客链接或 RSS 导入一期节目）；可以播放、改名、标星、导出，在录音详情里点「转成文字」，默认在手机上离线转成文字。选「先不连卡」不会请求蓝牙权限。没有账号、开发者服务器和第三方 SDK。可选的 AI 功能（纪要、改写、提问）使用用户自己填写地址和密钥的兼容 OpenAI 接口的服务，只在用户点了 AI 功能或自己打开「录完自动整理」时联系那个服务，App 不内置我们的密钥；从链接导入只访问用户粘贴的链接（Apple 播客的链接另向 Apple 的公开查询服务查询）；其余功能都不联网。部分 iPhone 首次启动时系统会弹出「无线数据」权限询问，选「不允许」不影响录音卡、录音、播放和导出。
 
 **【待核对】** 需要硬件的 App，审核员手上没有设备时，常见做法是提供一段演示视频。演示视频用真卡录：从配对到导出 M4A 走一遍，最好和 T-M1-50 一起录。画面里不要出现完整的 `sn` 或蓝牙地址（硬规则 4）。
 
 **【待核对】** AI 功能要用户自己的密钥。审核员如果要求试用，是否要另给一个测试用的密钥，以审核反馈为准；给的话只写在「审核备注」里，不进 App、不进仓库，审核结束后在服务商那里作废。
 
-「先不连卡，直接用」和「用这部手机录」「导入」入口的位置以 `product-spec.md` 当前版本为准（1.3.3）；界面再改时同步改这段备注。审核员走的就是 T-M15-60 这条路，提交审核前先在真机上走一遍。
+「先不连卡，直接用」和「用这部手机录」「导入」入口的位置以 `product-spec.md` 当前版本为准（1.6.3：没有卡时红色录音键直接用这部手机录）；界面再改时同步改这段备注。审核员走的就是 T-M15-60 这条路，提交审核前先在真机上走一遍。
 
 ## 4. 出口合规
 

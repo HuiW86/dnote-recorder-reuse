@@ -85,6 +85,15 @@ struct OverviewModelTests {
         #expect(model.visibleTodos.first?.text == "事项 2")
         #expect(model.moreTodosText == "还有 1 件，在各条录音的纪要里")
         #expect(try library.summary(recordingId: id)?.todos.first?.done == true)
+        #expect(model.toast?.action == "撤销")
+
+        // 撤销 opens the todo again.
+        model.undoComplete()
+        await waitUntil("reopened") { model.digest.openTodos.count == 7 }
+        #expect(model.visibleTodos.first?.text == "事项 1")
+        #expect(try library.summary(recordingId: id)?.todos.first?.done == false)
+        model.complete(model.visibleTodos[0])
+        await waitUntil("ticked again") { model.digest.openTodos.count == 6 }
 
         try library.saveTranscript(Transcript(recordingId: id, engine: "t", language: "zh-CN", segments: [],
                                               createdAt: start))

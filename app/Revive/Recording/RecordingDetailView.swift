@@ -63,7 +63,6 @@ private struct RecordingDetailContent: View {
     @State private var pane: DetailPane?
     /// The transcript line being played, polled while 文字稿 is shown.
     @State private var playingLine: Int?
-    @State private var confirmingDelete = false
     @State private var shareURL: URL?
     /// 思维导图 (features.md G1) in a sheet.
     @State private var showsMindMap = false
@@ -87,7 +86,7 @@ private struct RecordingDetailContent: View {
                 ContentUnavailableView {
                     Label("找不到这条录音的音频文件", systemImage: "exclamationmark.triangle")
                 } actions: {
-                    Button("删除这条记录", role: .destructive) { confirmingDelete = true }
+                    Button("删除这条记录", role: .destructive) { model.delete() }
                         .buttonStyle(.borderedProminent)
                 }
                 .paperPage()
@@ -107,11 +106,6 @@ private struct RecordingDetailContent: View {
                     moreMenu
                 }
             }
-        }
-        .confirmationDialog("删除这条录音？", isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button("删除录音", role: .destructive) { model.delete() }
-        } message: {
-            Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
         }
         .alert("修改这一句", isPresented: Binding(get: { editingLine != nil }, set: { if !$0 { editingLine = nil } })) {
             TextField("文字", text: $lineText, axis: .vertical)
@@ -148,7 +142,8 @@ private struct RecordingDetailContent: View {
             onDeleted(model.recordingId)
             dismiss()
         }
-        .toast($model.toast)
+        // The only toast here with "撤销" follows 让 AI 重新起标题.
+        .toast($model.toast) { model.undoRetitle() }
         .sheet(isPresented: $showsMindMap) {
             if let summary = model.summary {
                 MindMapSheet(title: model.title, outline: summary.outline)
@@ -223,6 +218,8 @@ private struct RecordingDetailContent: View {
                 Button("让 AI 重新起标题", systemImage: "wand.and.stars") { model.retitle() }
                     .disabled(!model.canRetitle)
             }
+            // Only when there is something to share (a page with no audio and no text has none).
+            if (model.hasAudio && !model.audioMissing) || model.canExportMarkdown || model.canExportMindMap {
             Menu("分享", systemImage: "square.and.arrow.up") {
                 if model.hasAudio, !model.audioMissing {
                     Button("M4A（微信等大多数 App 可播放）", systemImage: "waveform") {
@@ -253,6 +250,7 @@ private struct RecordingDetailContent: View {
                 }
             }
             .disabled(model.isExporting)
+            }
             if let transcript = model.transcript, !transcript.segments.isEmpty {
                 Button("拷贝文字稿", systemImage: "doc.on.doc") {
                     UIPasteboard.general.string = transcript.segments.map(\.text).joined(separator: "\n")
@@ -260,7 +258,8 @@ private struct RecordingDetailContent: View {
                 }
             }
             Divider()
-            Button("删除录音", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+            // Straight to 最近删除: the page closes and the list offers "撤销" (#85).
+            Button("删除录音", systemImage: "trash", role: .destructive) { model.delete() }
         } label: {
             Image(systemName: "ellipsis.circle")
         }
@@ -268,9 +267,9 @@ private struct RecordingDetailContent: View {
     }
 
     /// The pane shown: the user's choice, else the one asked for, else 纪要 when there is one,
-    /// then 文字稿.
+    /// else 文字稿 (where 转成文字 and the marks are).
     private var currentPane: DetailPane {
-        pane ?? initialPane ?? (model.summary == nil && model.transcript != nil ? .transcript : .summary)
+        pane ?? initialPane ?? (model.summary != nil ? .summary : .transcript)
     }
 
     private var paneBinding: Binding<DetailPane> {
@@ -404,6 +403,18 @@ extension RecordingDetailContent {
                 Text("转成文字、并在设置里填了 AI 服务后，可以把这条录音改写成别的样子，或者问它问题。")
                     .font(.subheadline)
                     .foregroundStyle(Theme.inkMuted)
+                // The missing step, one tap away.
+                if model.transcript == nil, model.summary == nil {
+                    if model.canTranscribe {
+                        Button(model.isTranscribing ? "正在转文字…" : "转成文字") {
+                            pane = .transcript
+                            model.transcribe()
+                        }
+                        .disabled(model.isTranscribing)
+                    }
+                } else {
+                    NavigationLink("设置 AI 服务", value: Route.assistant)
+                }
             }
             .listRowBackground(Color.clear)
         } else {
@@ -526,11 +537,21 @@ extension RecordingDetailContent {
                 Button(model.summary == nil ? "生成纪要" : "重新生成纪要") { model.summarize() }
             } else if let hint = model.summaryHint {
                 Text(hint).font(.subheadline).foregroundStyle(Theme.inkMuted)
+            } else if model.transcript == nil, model.canTranscribe {
+                // No text yet: the one step that leads to a summary, right here.
+                Text("纪要从文字稿整理而来，先把这条录音转成文字。")
+                    .font(.subheadline).foregroundStyle(Theme.inkMuted)
+                Button(model.isTranscribing ? "正在转文字…" : "转成文字") {
+                    pane = .transcript
+                    model.transcribe()
+                }
+                .disabled(model.isTranscribing)
             }
         } header: {
             Text("纪要")
         } footer: {
-            Text(model.summaryFootnote)
+            // Only next to a 生成纪要 that is on the page.
+            if model.canSummarize || model.summary != nil { Text(model.summaryFootnote) }
         }
         .listRowBackground(Color.clear)
     }
@@ -664,6 +685,10 @@ extension RecordingDetailContent {
             Text("文字稿")
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
+                if let transcript = model.transcript, !transcript.segments.isEmpty {
+                    // The long press is otherwise invisible.
+                    Text(model.lineHint)
+                }
                 if model.canTranscribe {
                     Text(model.transcriptionFootnote)
                 }

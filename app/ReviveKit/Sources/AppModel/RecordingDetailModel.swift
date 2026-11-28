@@ -147,15 +147,23 @@ public final class RecordingDetailModel {
     }
 
     /// Jumps by `seconds` (negative goes back), within the recording.
+    /// Before the first play, forward starts playing from there; back has nowhere to go.
     public func skip(by seconds: TimeInterval) {
-        guard isLoaded else { return }
+        guard isLoaded else {
+            if seconds > 0 { play(fromMs: Int(seconds * 1000)) }
+            return
+        }
         stopLoop()
         player.seek(to: player.currentTime + seconds)
     }
 
+    /// Before the first play, dragging the bar starts playing where it was let go.
     public func seek(to time: TimeInterval) {
-        guard isLoaded else { return }
         stopLoop()
+        guard isLoaded else {
+            play(fromMs: Int(max(0, time) * 1000))
+            return
+        }
         player.seek(to: time)
     }
 
@@ -232,6 +240,14 @@ public final class RecordingDetailModel {
         case .ownService?: return "生成纪要时，只发送文字稿给你设置的 AI 服务，不传录音。"
         default: return "点「生成纪要」时会先让你选方式，选好后才发送文字稿。"
         }
+    }
+
+    /// Under the transcript: what tapping and holding a line does, as the menu offers it.
+    public var lineHint: String {
+        var held: [String] = hasAudio ? ["单句循环", "修改"] : ["修改"]
+        if canRewrite { held.append("解释") }
+        let hold = "长按一句可以" + held.joined(separator: "、")
+        return hasAudio ? "点一句从那里播放；\(hold)。" : "\(hold)。"
     }
 
     /// 「⋯ → 选择转写方式」, or 「用其他方式重新转写」 once there is a transcript (§7.3b).
@@ -466,13 +482,16 @@ public final class RecordingDetailModel {
         guard !material.isEmpty else { return }
         isRetitling = true
         let current = title
+        let previous = (title: recording.title, source: recording.titleSource)
         Task {
             defer { isRetitling = false }
             do {
                 let new = try await summarizer.retitle(material: material, avoiding: current, config: config)
                 if let titled = try library.applyAITitle(id: recording.id, new, replacingUserTitle: true) {
                     self.recording = titled
-                    toast = Toast("已换成「\(titled.title)」")
+                    // It may have replaced a title the user typed: one tap puts it back.
+                    titleBeforeRetitle = previous
+                    toast = Toast("已换成「\(titled.title)」", action: "撤销")
                 }
             } catch let error as AssistantError {
                 toast = Toast(AssistantSettingsModel.text(for: error))
@@ -481,6 +500,23 @@ public final class RecordingDetailModel {
             } catch {
                 toast = Toast("起标题失败，请重试")
             }
+        }
+    }
+
+    /// The title 让 AI 重新起标题 replaced, until "撤销" puts it back.
+    @ObservationIgnored private var titleBeforeRetitle: (title: String, source: Recording.TitleSource?)?
+
+    /// "撤销" on the toast after 让 AI 重新起标题: the earlier title comes back as it was.
+    public func undoRetitle() {
+        guard let previous = titleBeforeRetitle else { return }
+        titleBeforeRetitle = nil
+        do {
+            if let restored = try library.restoreTitle(id: recordingId, previous.title, source: previous.source) {
+                recording = restored
+                toast = Toast("已恢复「\(restored.title)」")
+            }
+        } catch {
+            toast = Toast("恢复失败，请重试")
         }
     }
 

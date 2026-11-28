@@ -140,6 +140,19 @@ public final class DeviceModel {
 
     public func disconnect() { session.disconnect() }
 
+    /// After 断开连接 the app stops looking for the card; 重新连接 starts again (the same as
+    /// pulling down on 录音).
+    public var canReconnect: Bool { session.userDisconnected && status == .waiting }
+
+    public func reconnect() {
+        guard canReconnect, let device else { return }
+        do {
+            try session.connectWhenSeen(device)
+        } catch {
+            toast = Toast((error as? CardServiceError)?.userText ?? "连接失败，请重试")
+        }
+    }
+
     /// Why "解绑此卡" is disabled; nil when it can be used (product-spec.md §5.3).
     public var unpairBlockedReason: String? {
         switch status {

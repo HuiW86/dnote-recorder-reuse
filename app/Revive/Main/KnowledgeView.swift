@@ -57,9 +57,9 @@ struct KnowledgeView: View {
                 ContentUnavailableView {
                     Label("还没有整理好的纪要", systemImage: "books.vertical")
                 } description: {
-                    Text("录音转成文字、生成纪要后，会出现在这里。转文字可以打开本机转写，或者用你自己的 AI 服务。")
+                    Text("在录音详情里点「转成文字」、再生成纪要后，会出现在这里。转文字默认在这部手机上离线完成；生成纪要要用 AI 服务。")
                 } actions: {
-                    NavigationLink("去设置", value: Route.settings)
+                    NavigationLink("设置 AI 服务", value: Route.assistant)
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)

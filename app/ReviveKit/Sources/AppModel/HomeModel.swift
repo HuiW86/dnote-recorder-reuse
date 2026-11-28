@@ -515,6 +515,16 @@ public final class HomeModel {
     }
 
     public var filter: Filter = .all
+
+    /// 「全部」: clears every chip (filter, folder and source).
+    public func showAll() { showOnly(.all) }
+
+    /// One filter alone, with no folder or source on top (总览 → 「还有 N 条没转成文字」).
+    public func showOnly(_ filter: Filter) {
+        self.filter = filter
+        folderFilter = nil
+        sourceFilter = nil
+    }
     /// The folder chip that is selected, if any (features.md D1c); applies on top of `filter`.
     public var folderFilter: UUID?
     /// The source chip that is selected, if any (features.md D1c 按来源筛选); also on top of `filter`.

@@ -59,7 +59,7 @@ private struct SignInView: View {
 
             if let error = model.errorText {
                 Section {
-                    Text(error).foregroundStyle(Theme.accent)
+                    Text(error).foregroundStyle(.red)  // errors keep the system red (design-spec.md §2.1)
                 }
                 .surfaceRows()
             }
@@ -218,7 +218,7 @@ private struct SignedInView: View {
 
             if let error = model.errorText {
                 Section {
-                    Text(error).foregroundStyle(Theme.accent)
+                    Text(error).foregroundStyle(.red)  // errors keep the system red (design-spec.md §2.1)
                 }
                 .surfaceRows()
             }
@@ -298,7 +298,7 @@ private struct FeedbackView: View {
 
             if let error = model.errorText {
                 Section {
-                    Text(error).foregroundStyle(Theme.accent)
+                    Text(error).foregroundStyle(.red)  // errors keep the system red (design-spec.md §2.1)
                 }
                 .surfaceRows()
             }

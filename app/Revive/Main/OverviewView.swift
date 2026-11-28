@@ -1,3 +1,4 @@
+import AIRoute
 import AppModel
 import Library
 import SwiftUI
@@ -8,6 +9,8 @@ struct OverviewView: View {
     @Bindable var model: HomeModel
     @Bindable var overview: OverviewModel
     let env: AppEnvironment
+    /// 录音, showing only the recordings not yet transcribed.
+    let showUntranscribed: () -> Void
 
     /// How many of the latest recordings 总览 lists.
     private let recentCount = 3
@@ -20,9 +23,8 @@ struct OverviewView: View {
                     .foregroundStyle(Theme.ink)
                     .accessibilityAddTraits(.isHeader)
                 if let problem = model.session.bluetoothProblem {
-                    Label(problem.userText ?? "", systemImage: "antenna.radiowaves.left.and.right.slash")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.ink)
+                    // The same banner as 录音, with 去设置 when it can help.
+                    BluetoothBanner(problem: problem)
                 }
                 if let card = model.syncCard, !isDone(card) {
                     SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
@@ -35,10 +37,18 @@ struct OverviewView: View {
             if hasAttention {
                 Section("需要处理") {
                     if let text = overview.untranscribedText {
-                        Label(text, systemImage: "text.bubble")
-                            .foregroundStyle(Theme.ink)
+                        Button(action: showUntranscribed) {
+                            HStack {
+                                Label(text, systemImage: "text.bubble").foregroundStyle(Theme.ink)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Theme.inkMuted)
+                            }
+                        }
+                        .accessibilityHint("在「录音」里只看这些录音")
                     }
-                    if env.assistantConfig.current() == nil {
+                    if needsAIService {
                         NavigationLink(value: Route.assistant) {
                             Label("还没设置 AI 服务，生成不了纪要和待办", systemImage: "sparkles")
                                 .foregroundStyle(Theme.ink)
@@ -89,11 +99,19 @@ struct OverviewView: View {
         .listStyle(.insetGrouped)
         .paperBackground()
         .navigationBarTitleDisplayMode(.inline)
-        .toast($overview.toast)
+        // As on 录音: pulling down syncs, or connects again after 断开连接.
+        .refreshable { await model.refresh() }
+        .toast($overview.toast) { overview.undoComplete() }
     }
 
     private var hasAttention: Bool {
-        overview.untranscribedText != nil || env.assistantConfig.current() == nil
+        overview.untranscribedText != nil || needsAIService
+    }
+
+    /// Only once there is something to summarize, and not when summaries go through the account.
+    private var needsAIService: Bool {
+        !model.recordings.isEmpty && env.assistantConfig.current() == nil
+            && env.preferences.defaultSummaryPath != .account
     }
 
     private func isDone(_ card: SyncCard) -> Bool {

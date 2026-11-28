@@ -65,6 +65,36 @@ struct AssistantSettingsModelTests {
         #expect(try keys.read() == nil)
     }
 
+    /// Leaving the page keeps a complete form or a changed job, never half a service; 清除 is
+    /// offered only for a stored service.
+    @Test func leavingKeepsWhatCanBeKept() throws {
+        let prefs = preferences()
+        let keys = InMemoryKeyStore()
+        let model = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        #expect(!model.hasUnsavedChanges && !model.canSave && !model.hasSavedService)
+
+        // Only the job: works without a service, so it can be saved.
+        model.profession = "律师"
+        #expect(model.canSave)
+        model.saveOnLeave()
+        #expect(prefs.assistantProfession == "律师" && !model.hasUnsavedChanges)
+
+        // Half a service is not stored.
+        model.baseURL = "https://example.invalid/v1"
+        #expect(model.hasUnsavedChanges && !model.canSave)
+        model.saveOnLeave()
+        #expect(prefs.assistantBaseURL.isEmpty)
+
+        // A complete one is.
+        model.model = "m"
+        model.apiKey = "sk"
+        model.saveOnLeave()
+        #expect(prefs.assistantBaseURL == "https://example.invalid/v1" && (try keys.read()) == "sk")
+        #expect(model.hasSavedService && !model.hasUnsavedChanges)
+        model.clear()
+        #expect(!model.hasSavedService)
+    }
+
     @Test func errorsReadAsAdvice() {
         #expect(AssistantSettingsModel.text(for: .http(401, "")) == "密钥无效或没有权限")
         #expect(AssistantSettingsModel.text(for: .http(500, "")) == "服务返回错误 500")

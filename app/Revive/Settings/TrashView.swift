@@ -52,14 +52,18 @@ private struct TrashContent: View {
                             presenting: pendingDelete) { recording in
             Button("彻底删除", role: .destructive) { model.deleteForever(recording.id) }
         } message: { recording in
-            Text(model.isLastCopy(recording)
-                 ? "录音卡上已经没有这条录音，这是最后一份，删除后不能恢复。"
+            Text(recording.source != .card ? "这是这条录音唯一的一份，删除后不能恢复。"
+                 : model.isLastCopy(recording) ? "录音卡上已经没有这条录音，这是最后一份，删除后不能恢复。"
                  : "删除后不能恢复。录音卡上的原文件不受影响。")
         }
         .confirmationDialog("清空最近删除？", isPresented: $confirmingEmpty, titleVisibility: .visible) {
             Button("全部彻底删除", role: .destructive) { model.empty() }
         } message: {
-            Text("这里的 \(model.recordings.count) 条录音都会被删除，不能恢复。录音卡不受影响。")
+            // Says how many exist nowhere else, instead of promising the card has them.
+            let lastCopies = model.recordings.filter { model.isLastCopy($0) }.count
+            Text(lastCopies == 0
+                 ? "这里的 \(model.recordings.count) 条录音都会被删除，不能恢复。录音卡上的原文件不受影响。"
+                 : "这里的 \(model.recordings.count) 条录音都会被删除，不能恢复。其中 \(lastCopies) 条只有这一份。")
         }
         .toast($model.toast)
     }

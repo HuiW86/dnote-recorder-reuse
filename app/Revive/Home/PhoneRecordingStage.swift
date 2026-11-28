@@ -6,6 +6,8 @@ import UIKit
 /// page, dark in both schemes. Stopping keeps the recording in the list.
 struct PhoneRecordingStage: View {
     @Bindable var recorder: PhoneRecorder
+    /// Hides the page; recording goes on and the record key shows the time (as on P13).
+    let collapse: () -> Void
     let close: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -15,16 +17,33 @@ struct PhoneRecordingStage: View {
         ZStack {
             Theme.stage.ignoresSafeArea()
             VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(paused ? Theme.onDark.opacity(0.4) : Theme.record)
-                        .frame(width: 9, height: 9)
-                        .accessibilityHidden(true)
-                    Text(saving ? "正在保存 · 这部手机" : paused ? "已暂停 · 这部手机" : "录音中 · 这部手机")
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(Theme.onDark.opacity(0.9))
+                HStack {
+                    Button(action: collapse) {
+                        Image(systemName: "chevron.down")
+                            .font(.headline)
+                            .foregroundStyle(Theme.onDark.opacity(0.8))
+                            .frame(width: 44, height: 44)
+                            .background(Theme.onDark.opacity(0.1), in: Circle())
+                    }
+                    .accessibilityLabel("收起，录音继续")
+                    .opacity(saving ? 0 : 1)
+                    .disabled(saving)
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(paused ? Theme.onDark.opacity(0.4) : Theme.record)
+                            .frame(width: 9, height: 9)
+                            .accessibilityHidden(true)
+                        Text(saving ? "正在保存 · 这部手机" : paused ? "已暂停 · 这部手机" : "录音中 · 这部手机")
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(Theme.onDark.opacity(0.9))
+                    }
+                    Spacer()
+                    // Balances the collapse button so the title stays centred.
+                    Color.clear.frame(width: 44, height: 44)
                 }
-                .padding(.top, 20)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
                 Spacer(minLength: 16)
                 Image(systemName: paused ? "pause.fill" : "mic.fill")
                     .font(.system(size: 44))

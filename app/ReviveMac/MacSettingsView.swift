@@ -26,6 +26,7 @@ struct MacSettingsView: View {
 
 private struct AssistantSettingsForm: View {
     @State private var model: AssistantSettingsModel
+    @State private var confirmingClear = false
 
     init(preferences: Preferences) {
         _model = State(initialValue: AssistantSettingsModel(preferences: preferences, keyStore: KeychainKeyStore()))
@@ -68,11 +69,13 @@ private struct AssistantSettingsForm: View {
             }
             Section {
                 HStack {
-                    Button("保存") { model.save() }.disabled(!model.isConfigured)
+                    Button("保存") { model.save() }.disabled(!model.canSave)
                     Button("测试连接") { model.test() }.disabled(model.isTesting)
                     if model.isTesting { ProgressView().controlSize(.small) }
                     Spacer()
-                    Button("清除这个服务", role: .destructive) { model.clear() }
+                    if model.hasSavedService {
+                        Button("清除这个服务", role: .destructive) { confirmingClear = true }
+                    }
                 }
                 if let result = model.testResult {
                     Text(result).font(.callout).foregroundStyle(.secondary)
@@ -86,5 +89,12 @@ private struct AssistantSettingsForm: View {
             }
         }
         .formStyle(.grouped)
+        // As on the iPhone: a filled-in form is kept even without 保存.
+        .onDisappear { model.saveOnLeave() }
+        .confirmationDialog("清除这个 AI 服务？", isPresented: $confirmingClear) {
+            Button("清除", role: .destructive) { model.clear() }
+        } message: {
+            Text("地址、模型和密钥会从这台 Mac 上删除，要用时得重新填写密钥。已生成的文字稿和纪要都还在。")
+        }
     }
 }

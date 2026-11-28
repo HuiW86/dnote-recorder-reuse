@@ -32,9 +32,12 @@ struct CardTabView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("切换") { showsSwitcher = true }
-                    .accessibilityLabel("切换或添加录音卡")
+            // With no card the page's own button adds one.
+            if model.currentDevice != nil {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("切换") { showsSwitcher = true }
+                        .accessibilityLabel("切换或添加录音卡")
+                }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(value: Route.settings) {
