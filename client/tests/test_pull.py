@@ -256,25 +256,55 @@ def test_client_never_publishes_by_replacing():
     assert not offenders, f"use dnote._save_copy instead of replacing files: {offenders}"
 
 
+def _watch_folder_syncs(dnote, card, monkeypatch):
+    """(real path, card already deleted) for each folder fsync, by the handle os.open returned."""
+    opened, synced = {}, []
+    real_open, real_fsync = dnote.os.open, dnote.os.fsync
+
+    def watching_open(path, flags, *args, **kwargs):
+        handle = real_open(path, flags, *args, **kwargs)
+        opened[handle] = dnote.os.path.realpath(path)
+        return handle
+
+    def watching_fsync(handle):
+        if handle in opened:
+            synced.append((opened[handle], bool(card.deleted)))
+        return real_fsync(handle)
+
+    monkeypatch.setattr(dnote.os, "open", watching_open)
+    monkeypatch.setattr(dnote.os, "fsync", watching_fsync)
+    return synced
+
+
 def test_delete_waits_for_every_new_folder_on_disk(dnote, tmp_path, monkeypatch):
     # A first pull into a new nested folder: the folder chain is synced before 0x91 goes.
     if not hasattr(dnote.os, "O_DIRECTORY"):
         pytest.skip("POSIX only")
     out = tmp_path / "new" / "backup"
     card = Card(40, [(0x20, 0, AUDIO)])
-    synced = []
-    real_fsync = dnote.os.fsync
-
-    def recording_fsync(handle):
-        synced.append((dnote.os.path.realpath(f"/proc/self/fd/{handle}"), bool(card.deleted)))
-        return real_fsync(handle)
-
-    monkeypatch.setattr(dnote.os, "fsync", recording_fsync)
+    synced = _watch_folder_syncs(dnote, card, monkeypatch)
     pull(dnote, card, out, monkeypatch)
     assert card.deleted
     before_delete = {path for path, deleted in synced if not deleted}
     for folder in (out, out.parent, tmp_path):
         assert str(folder.resolve()) in before_delete
+
+
+def test_delete_syncs_the_folder_a_link_and_dotdot_lead_to(dnote, tmp_path, monkeypatch):
+    # "--out link/../backup" with link -> archive/subdir writes to archive/backup; that folder
+    # (not tmp_path/backup) must be synced before the card copy goes.
+    if not hasattr(dnote.os, "O_DIRECTORY"):
+        pytest.skip("POSIX only")
+    (tmp_path / "archive" / "subdir").mkdir(parents=True)
+    (tmp_path / "archive" / "backup").mkdir()
+    (tmp_path / "backup").mkdir()
+    (tmp_path / "link").symlink_to(tmp_path / "archive" / "subdir")
+    card = Card(40, [(0x20, 0, AUDIO)])
+    synced = _watch_folder_syncs(dnote, card, monkeypatch)
+    pull(dnote, card, f"{tmp_path}/link/../backup", monkeypatch)
+    written = tmp_path / "archive" / "backup"
+    assert card.deleted and any(written.iterdir())
+    assert str(written.resolve()) in {path for path, deleted in synced if not deleted}
 
 
 def test_delete_is_refused_where_folders_cannot_be_synced(dnote, tmp_path, monkeypatch):

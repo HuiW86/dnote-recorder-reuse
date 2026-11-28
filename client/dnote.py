@@ -389,7 +389,7 @@ def _save_copy(path, data, *, require_exclusive=True):
 
 def _sync_path(folder):
     """fsync `folder` and each parent up to the root, so new names in them survive a power cut."""
-    current = os.path.abspath(folder)
+    current = os.path.realpath(folder)
     while True:
         handle = os.open(current, os.O_RDONLY | os.O_DIRECTORY)
         try:
@@ -406,6 +406,8 @@ async def cmd_pull(args):
     if args.delete and not hasattr(os, "O_DIRECTORY"):
         # Windows cannot sync a folder entry, so deleting from the card is never confirmed safe.
         raise SystemExit("这个系统不能确认备份已经写入磁盘，不支持 --delete；去掉它，录音会留在卡上。")
+    # One resolved path for saving and syncing: "link/../backup" must sync the folder written to.
+    args.out = os.path.realpath(args.out)
     addr = await _pick_device(args.address)
     os.makedirs(args.out, exist_ok=True)
     async with BleakClient(addr) as client:
