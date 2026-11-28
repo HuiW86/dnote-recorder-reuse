@@ -81,19 +81,21 @@ public final class AssistantSettingsModel {
         }
     }
 
+    /// The key first: if the Keychain refuses it, nothing changes, so a new address never pairs
+    /// with the old key.
     @discardableResult private func persist() -> Bool {
         let form = self.form
+        do {
+            try keyStore.save(form.apiKey)
+        } catch {
+            return false
+        }
         preferences.assistantBaseURL = form.baseURL
         preferences.assistantModel = form.model
         preferences.assistantTranscriptionModel = form.transcriptionModel
         preferences.assistantProfession = form.profession
-        do {
-            try keyStore.save(form.apiKey)
-            opened = form
-            return true
-        } catch {
-            return false
-        }
+        opened = form
+        return true
     }
 
     /// What the service settings hold, or what the form says, in stored (trimmed) form.
@@ -138,11 +140,14 @@ public final class AssistantSettingsModel {
         persist()
     }
 
-    /// Kept without 保存 only when no stored service is being replaced: moving to another address
-    /// changes where transcripts, audio and 录完自动整理 go, so that takes 保存.
+    /// Kept without 保存 only when it changes neither where things go nor what goes: moving to
+    /// another address redirects transcripts, audio and 录完自动整理, and filling in a
+    /// transcription model starts uploading audio ("留空则不会上传任何音频"). Those take 保存.
     private var mayKeepWithoutAsking: Bool {
+        let form = self.form
         let movesToAnotherService = !opened.baseURL.isEmpty && form.baseURL != opened.baseURL
-        return !movesToAnotherService && stored == opened
+        let startsUploadingAudio = opened.transcriptionModel.isEmpty && !form.transcriptionModel.isEmpty
+        return !movesToAnotherService && !startsUploadingAudio && stored == opened
     }
 
     /// The form names another service than the stored one; only 保存 switches to it.
@@ -174,21 +179,27 @@ public final class AssistantSettingsModel {
         }
         isTesting = true
         testResult = nil
+        let tested = form
         Task {
             defer { isTesting = false }
             do {
                 _ = try await client.complete(current, system: "只回复两个字：可用", user: "测试", json: false)
-                // It works: keep it, unless the form was edited while the test ran.
-                if config == current, mayKeepWithoutAsking, persist() {
+                // The form changed while the test ran (edited, cleared): the result is not about it.
+                guard form == tested else { return }
+                if mayKeepWithoutAsking, persist() {
                     testResult = "连接成功，已保存"
                 } else if switchesService {
                     testResult = "连接成功。点「保存」后改用这个服务"
+                } else if hasUnsavedChanges {
+                    testResult = "连接成功。点「保存」后生效"
                 } else {
                     testResult = "连接成功"
                 }
             } catch let error as AssistantError {
+                guard form == tested else { return }
                 testResult = Self.text(for: error)
             } catch {
+                guard form == tested else { return }
                 testResult = "连接失败：\(error.localizedDescription)"
             }
         }

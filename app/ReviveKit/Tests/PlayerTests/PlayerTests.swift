@@ -87,6 +87,15 @@ struct PlayerTests {
         player.volume = 0
         #expect(player.state == .playing)
         player.stop()
+
+        // A phone recording that starts while the file loads: refused, and nothing left loaded.
+        var checks = 0
+        player.microphoneInUse = {
+            checks += 1
+            return checks > 1
+        }
+        await #expect(throws: PlayerError.microphoneBusy) { try await player.play(f.recording) }
+        #expect(player.state == .idle && player.recordingId == nil)
     }
 
     @Test func missingAudioIsReported() async throws {

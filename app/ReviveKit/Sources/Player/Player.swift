@@ -59,7 +59,11 @@ public final class RecordingPlayer: NSObject {
             try await load(recording)
         }
         // Again after a decode that may have taken seconds: a phone recording may have started.
-        guard !microphoneInUse() else { throw PlayerError.microphoneBusy }
+        // Unload too, so the page does not take a half-loaded player for one it can seek.
+        guard !microphoneInUse() else {
+            stop()
+            throw PlayerError.microphoneBusy
+        }
         try activateSession()
         player?.play()
         state = .playing

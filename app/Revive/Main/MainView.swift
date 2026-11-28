@@ -290,6 +290,8 @@ private struct MainContent: View {
             phoneConsent = true
             return
         }
+        // An old recording still playing would be heard by the microphone (X18).
+        env.player?.stop()
         Task {
             if await recorder.start() {
                 showsPhoneStage = true

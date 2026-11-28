@@ -136,10 +136,74 @@ struct AssistantSettingsModelTests {
         #expect(try keys.read() == nil)
     }
 
+    /// 测试连接: a first setup is kept; another address or a new transcription model (audio
+    /// upload) is not kept without 保存; a form edited while the test ran gets no result.
+    @Test func passingTestKeepsOnlyWhatNeedsNoAsking() async throws {
+        let prefs = preferences()
+        let keys = InMemoryKeyStore()
+        let client = ChatClient(session: OKReply.session())
+        let first = AssistantSettingsModel(preferences: prefs, keyStore: keys, client: client)
+        first.baseURL = "https://a.invalid/v1"
+        first.model = "m"
+        first.apiKey = "sk-a"
+        first.test()
+        await waitUntil("tested") { !first.isTesting }
+        #expect(first.testResult == "连接成功，已保存")
+        #expect(prefs.assistantBaseURL == "https://a.invalid/v1")
+
+        let moved = AssistantSettingsModel(preferences: prefs, keyStore: keys, client: client)
+        moved.baseURL = "https://b.invalid/v1"
+        moved.apiKey = "sk-b"
+        moved.test()
+        await waitUntil("tested b") { !moved.isTesting }
+        #expect(moved.testResult == "连接成功。点「保存」后改用这个服务")
+        #expect(prefs.assistantBaseURL == "https://a.invalid/v1" && true)
+        #expect(try keys.read() == "sk-a")
+
+        let upload = AssistantSettingsModel(preferences: prefs, keyStore: keys, client: client)
+        upload.transcriptionModel = "whisper-1"
+        upload.test()
+        await waitUntil("tested upload") { !upload.isTesting }
+        #expect(upload.testResult == "连接成功。点「保存」后生效")
+        upload.saveOnLeave()
+        #expect(prefs.assistantTranscriptionModel.isEmpty)
+
+        let edited = AssistantSettingsModel(preferences: prefs, keyStore: keys, client: client)
+        edited.test()
+        edited.model = "m2"
+        await waitUntil("tested edited") { !edited.isTesting }
+        #expect(edited.testResult == nil)
+    }
+
     @Test func errorsReadAsAdvice() {
         #expect(AssistantSettingsModel.text(for: .http(401, "")) == "密钥无效或没有权限")
         #expect(AssistantSettingsModel.text(for: .http(500, "")) == "服务返回错误 500")
         #expect(AssistantSettingsModel.text(for: .unreachable("x")) == "连不上这个地址，请检查网络和地址")
         #expect(AssistantSettingsModel.text(for: .offline) == AssistantError.offlineAdvice)
     }
+}
+
+/// Answers every request with a short chat completion; no network.
+private final class OKReply: URLProtocol {
+    static func session() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [OKReply.self]
+        return URLSession(configuration: configuration)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let body = try? JSONSerialization.data(withJSONObject: [
+            "choices": [["message": ["role": "assistant", "content": "可用"]]],
+        ])
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+                                       headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: body ?? Data())
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
