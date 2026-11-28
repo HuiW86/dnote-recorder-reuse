@@ -433,28 +433,46 @@ public final class SyncEngine {
 
     /// A resumable part must be a contiguous prefix. Once an append fails, ignore the rest
     /// of the transfer, even if the device keeps sending chunks or eventually drops the link.
+    /// Bytes gathered before one write to the part file: a 30-minute recording is ~115 writes
+    /// instead of ~19,000 (#141).
+    static let writeBatchSize = 32 * 1024
+
     private func downloadPart(_ file: SourceFile, id: Int64, from offset: Int) async throws {
         let writer = try library.store.openPart(id)
         defer { writer.close() }
         let append = hooks.appendChunk ?? { try $0.append($1) }
-        var received = offset
+        var pending = Data()
+        pending.reserveCapacity(Self.writeBatchSize)
         var writeFailed = false
+        func flush() {
+            guard !pending.isEmpty, !writeFailed else { return }
+            do { try append(writer, pending) } catch { writeFailed = true }
+            pending.removeAll(keepingCapacity: true)
+        }
+        var received = offset
+        var lastProgress = offset
+        let progressStep = max(1, file.size / 100)
         status = .syncing(file: file.name, received: received, total: file.size)
+        var downloadError: (any Error)?
         do {
             try await source.download(file, from: offset) { [weak self] chunk in
                 guard !writeFailed else { return }
-                do {
-                    try append(writer, chunk)
-                    received += chunk.count
+                pending.append(chunk)
+                if pending.count >= Self.writeBatchSize { flush() }
+                received += chunk.count
+                // About 1% steps: the page does not need every 200 B chunk.
+                if received - lastProgress >= progressStep || received == file.size {
+                    lastProgress = received
                     self?.status = .syncing(file: file.name, received: received, total: file.size)
-                } catch {
-                    writeFailed = true
                 }
             }
         } catch {
-            if !writeFailed { throw error }
+            downloadError = error
         }
+        // Keep every validated byte on a link drop too, so the resume offset is exact.
+        flush()
         if writeFailed { throw SyncFailure.phoneStorageFull }
+        if let downloadError { throw downloadError }
     }
 
     private func fail(_ item: inout SyncItem, _ failure: SyncFailure, countsAsAttempt: Bool) {

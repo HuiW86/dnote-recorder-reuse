@@ -12,6 +12,7 @@ final class DebugLog {
         .appendingPathComponent("card-debug.log")
 
     private(set) var lines: [String] = []
+    @ObservationIgnored private var file: FileHandle?
     @ObservationIgnored private let formatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -27,17 +28,26 @@ final class DebugLog {
         lines.append(line)
         if lines.count > 500 { lines.removeFirst(lines.count - 500) }
         let data = Data((line + "\n").utf8)
-        if let h = try? FileHandle(forWritingTo: Self.fileURL) {
-            h.seekToEndOfFile()
-            h.write(data)
-            try? h.close()
-        } else {
-            try? data.write(to: Self.fileURL)
+        do {
+            if file == nil {
+                if !FileManager.default.fileExists(atPath: Self.fileURL.path) {
+                    try Data().write(to: Self.fileURL)
+                }
+                let handle = try FileHandle(forWritingTo: Self.fileURL)
+                try handle.seekToEnd()
+                file = handle
+            }
+            try file?.write(contentsOf: data)
+        } catch {
+            try? file?.close()
+            file = nil
         }
     }
 
     func clear() {
         lines = []
+        try? file?.close()
+        file = nil
         try? FileManager.default.removeItem(at: Self.fileURL)
     }
 }

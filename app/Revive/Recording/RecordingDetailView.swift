@@ -45,7 +45,8 @@ struct RecordingDetailView: View {
                 // The three AI paths (§7.3b) are read on every use, so a change in settings
                 // applies to this page too (#85).
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
-                                             assistant: env.assistantConfig, paths: env.aiPaths(library: library))
+                                             assistant: env.assistantConfig, paths: env.aiPaths(library: library),
+                                             diagnostics: env.diagnostics)
             }
         }
         .onDisappear { model?.leave() }

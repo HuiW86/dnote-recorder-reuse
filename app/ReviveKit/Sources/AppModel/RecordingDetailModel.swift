@@ -64,6 +64,7 @@ public final class RecordingDetailModel {
     /// The list, confirmation or pointer to settings the page shows before AI work goes ahead.
     public var aiPrompt: AIPrompt?
     @ObservationIgnored private let jobs: TranscriptionJobs
+    @ObservationIgnored private let diagnostics: DiagnosticLog?
     @ObservationIgnored private let summarizer: Summarizer
     @ObservationIgnored private let polisher: Polisher
     @ObservationIgnored private let grader: WordGrader
@@ -74,7 +75,7 @@ public final class RecordingDetailModel {
                 transcriberSource: (@MainActor () -> (any SpeechTranscribing)?)? = nil,
                 assistant: AssistantConfigSource? = nil, paths: AIPaths? = nil,
                 summarizer: Summarizer = Summarizer(), polisher: Polisher? = nil,
-                jobs: TranscriptionJobs = .shared) {
+                jobs: TranscriptionJobs = .shared, diagnostics: DiagnosticLog? = nil) {
         self.paths = paths
         self.recordingId = recordingId
         self.library = library
@@ -85,6 +86,7 @@ public final class RecordingDetailModel {
         self.polisher = polisher ?? Polisher(client: summarizer.client)
         grader = WordGrader(client: summarizer.client)
         self.jobs = jobs
+        self.diagnostics = diagnostics
         transcript = try? library.transcript(recordingId: recordingId)
         summary = try? library.summary(recordingId: recordingId)
         wordList = try? library.wordList(recordingId: recordingId)
@@ -342,6 +344,7 @@ public final class RecordingDetailModel {
                 succeeded = true
             } catch let error as TranscriptionError where path == .onDevice && error.offersOtherPaths {
                 // 本机转写失败 (§7.3b): say why and offer the other ways; the user picks one.
+                if case .failed(let failure) = error { diagnostics?.add("asr", failure) }
                 toast = Toast(Self.text(for: error))
                 if let paths {
                     let situation = await paths.situation(.transcribe, transcript != nil)
@@ -351,6 +354,9 @@ public final class RecordingDetailModel {
                     }
                 }
             } catch let error as TranscriptionError {
+                if !transcriber.usesNetwork, case .failed(let failure) = error {
+                    diagnostics?.add("asr", failure)
+                }
                 toast = Toast(Self.text(for: error))
             } catch let error as AccountError {
                 // Transcribing with the 闻笺 account: its message says what to do (额度用完, 没网…).
