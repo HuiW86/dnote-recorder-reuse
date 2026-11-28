@@ -42,9 +42,9 @@ public enum LibraryImport {
                     else { throw CocoaError(.fileReadCorruptFile) }
                 } else {
                     let prepared = try await AudioImporter.prepare(url)
+                    defer { try? FileManager.default.removeItem(at: prepared.file.deletingLastPathComponent()) }
                     try library.addLocalRecording(file: prepared.file, source: .import, startedAt: created,
                                                   durationMs: prepared.durationMs, title: title)
-                    try? FileManager.default.removeItem(at: prepared.file.deletingLastPathComponent())
                 }
                 outcome.imported += 1
             } catch {

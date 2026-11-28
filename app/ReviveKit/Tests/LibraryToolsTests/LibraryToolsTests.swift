@@ -250,6 +250,10 @@ struct MCPServerTests {
         #expect(missing.isError && missing.text.contains("没有这条录音"))
         let noArgument = try await call("search_recordings", "{}")
         #expect(noArgument.isError && noArgument.text.contains("缺少参数 query"))
+        for value in ["0", "2.5", "true", #""too many""#] {
+            let invalid = try await call("library_overview", #"{"recent":\#(value)}"#)
+            #expect(invalid.isError && invalid.text.contains("recent"))
+        }
     }
 
     @Test func protocolErrors() async throws {

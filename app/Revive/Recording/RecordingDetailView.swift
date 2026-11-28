@@ -34,7 +34,7 @@ struct RecordingDetailView: View {
     var body: some View {
         Group {
             if let model {
-                RecordingDetailContent(model: model, initialPane: initialPane ?? LaunchOptions.startPane,
+                RecordingDetailContent(model: model, env: env, initialPane: initialPane ?? LaunchOptions.startPane,
                                        onDeleted: onDeleted)
             } else {
                 ProgressView().paperPage()
@@ -42,10 +42,10 @@ struct RecordingDetailView: View {
         }
         .onAppear {
             if model == nil, let library = env.library, let player = env.player {
-                // Read on every use, so changing the switch applies to this page too (#85).
-                let source: @MainActor () -> (any SpeechTranscribing)? = { [env] in env.transcriber(library: library) }
+                // The three AI paths (§7.3b) are read on every use, so a change in settings
+                // applies to this page too (#85).
                 model = RecordingDetailModel(recordingId: recordingId, library: library, player: player,
-                                             transcriberSource: source, assistant: env.assistantConfig,
+                                             assistant: env.assistantConfig, paths: env.aiPaths(library: library),
                                              diagnostics: env.diagnostics)
             }
         }
@@ -55,6 +55,7 @@ struct RecordingDetailView: View {
 
 private struct RecordingDetailContent: View {
     @Bindable var model: RecordingDetailModel
+    let env: AppEnvironment
     var initialPane: DetailPane?
     var onDeleted: (UUID) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
@@ -159,6 +160,9 @@ private struct RecordingDetailContent: View {
         .sheet(item: $model.assistantOutput) { output in
             AssistantOutputSheet(output: output)
         }
+        .sheet(item: $model.aiPrompt) { prompt in
+            AIPathSheet(model: model, prompt: prompt, env: env)
+        }
     }
 
     /// Everything the page can do, in one menu (#89).
@@ -182,6 +186,12 @@ private struct RecordingDetailContent: View {
                 }
                 if model.recording?.folderId != nil {
                     Button("移出文件夹", systemImage: "folder.badge.minus") { model.move(toFolder: nil) }
+                }
+            }
+            if model.choosesPaths, model.canTranscribe, !model.isTranscribing {
+                // §7.3b: another way for this recording only.
+                Button(model.choosePathTitle, systemImage: "arrow.triangle.branch") {
+                    model.chooseTranscriptionPath()
                 }
             }
             if model.canSummarize {
@@ -520,7 +530,7 @@ extension RecordingDetailContent {
         } header: {
             Text("纪要")
         } footer: {
-            Text("生成纪要时，文字稿会发送给你在设置里填的 AI 服务；录音音频不会发送。")
+            Text(model.summaryFootnote)
         }
         .listRowBackground(Color.clear)
     }
@@ -605,7 +615,7 @@ extension RecordingDetailContent {
                     HStack(spacing: 8) {
                         ProgressView()
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(model.transcriptionUsesNetwork ? "正在用你的 AI 服务转成文字" : "正在这部手机上转成文字")
+                            Text(model.transcriptionProgressText)
                                 .font(.subheadline)
                                 .foregroundStyle(Theme.inkMuted)
                             // #75: learned from earlier runs on this phone; refreshed every few seconds.
@@ -643,7 +653,7 @@ extension RecordingDetailContent {
                         Button("列出生词（按 A1～C2 分级）") { model.listWords() }
                     }
                 }
-                if !model.isTranscribing, !model.canTranscribe, model.transcript == nil {
+                if !model.choosesPaths, !model.isTranscribing, !model.canTranscribe, model.transcript == nil {
                     Text("在设置里打开本机转写，或者给你的 AI 服务填上转写模型，就能把这条录音转成文字。")
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkMuted)
@@ -655,9 +665,7 @@ extension RecordingDetailContent {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 if model.canTranscribe {
-                    Text(model.transcriptionUsesNetwork
-                         ? "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
-                         : "在这部手机上识别，不联网，不区分说话人。试验功能，准确度有限。")
+                    Text(model.transcriptionFootnote)
                 }
                 if model.canPolish || model.transcript?.isPolished == true {
                     Text("润色时，文字稿会发送给你在设置里填的 AI 服务；原文保留，可以恢复。")

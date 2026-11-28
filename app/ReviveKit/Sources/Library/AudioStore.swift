@@ -113,11 +113,6 @@ public struct AudioStore: Sendable {
         }
     }
 
-    /// Ids of the OGG files in `audio/`.
-    public func storedAudioIds() -> [UUID] {
-        storedAudioFiles().filter { $0.path.hasSuffix(".ogg") }.map(\.id)
-    }
-
     /// Every audio file in `audio/` named after a recording id: card OGG files and phone M4A
     /// files. `path` is relative to `root`.
     public func storedAudioFiles() -> [(id: UUID, path: String)] {
@@ -137,8 +132,15 @@ public struct AudioStore: Sendable {
     }
 
     public func availableCapacity() -> Int64 {
-        let values = try? root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        return values?.volumeAvailableCapacityForImportantUsage ?? 0
+        let important = try? root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
+        return Self.availableCapacity(important: important,
+                                      ordinary: try? root.resourceValues(forKeys: [.volumeAvailableCapacityKey]).volumeAvailableCapacity)
+    }
+
+    // Some volumes report zero for important usage even when ordinary free bytes are available.
+    static func availableCapacity(important: Int64?, ordinary: @autoclosure () -> Int?) -> Int64 {
+        if let important, important > 0 { return important }
+        return Int64(max(0, ordinary() ?? 0))
     }
 }
 

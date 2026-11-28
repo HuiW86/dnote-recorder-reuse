@@ -7,22 +7,34 @@ on:
       - "client/**"
       - "scripts/build_privacy_page.py"
       - "docs/release/privacy-policy.md"
+      - "app/project.yml"
+      - "app/Revive/Onboarding/InfoPages.swift"
       - "app/ReviveKit/scripts/make_fixtures.py"
       - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
       - "ios-prototype/Tests/Fixtures/**"
+      - "ios-prototype/Sources/**"
+      - "scripts/check-m1-rules.sh"
+      - "scripts/check_evidence.py"
+      - "evidence/**"
       - ".github/workflows/client-ci.yml"
   pull_request:
     paths:
       - "client/**"
       - "scripts/build_privacy_page.py"
       - "docs/release/privacy-policy.md"
+      - "app/project.yml"
+      - "app/Revive/Onboarding/InfoPages.swift"
       - "app/ReviveKit/scripts/make_fixtures.py"
       - "app/ReviveKit/Tests/CardProtocolTests/Fixtures/**"
       - "ios-prototype/Tests/Fixtures/**"
+      - "ios-prototype/Sources/**"
+      - "scripts/check-m1-rules.sh"
+      - "scripts/check_evidence.py"
+      - "evidence/**"
       - ".github/workflows/client-ci.yml"
 
-# A newer push to the same PR or branch cancels the run it supersedes: macOS minutes are
-# scarce, and only the latest commit's result counts.
+# A newer push to the same PR or branch cancels the run it supersedes: only the latest
+# commit's result counts.
 concurrency:
   group: client-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -33,6 +45,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
+      # CLAUDE.md rule 1 covers the client and the prototype too (scripts/check-m1-rules.sh).
+      - name: M1 static rules
+        run: scripts/check-m1-rules.sh
+
+      # CLAUDE.md rule 4: no raw sn, full btaddr or bondId in evidence (ADR-006).
+      - name: Evidence redaction
+        run: python3 scripts/check_evidence.py
 
       - uses: actions/setup-python@v5
         with:

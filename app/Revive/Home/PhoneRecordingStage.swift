@@ -41,7 +41,7 @@ struct PhoneRecordingStage: View {
                 .padding(.top, 20)
                 .padding(.horizontal, 24)
                 // A call or another app paused the recording (X18); otherwise where it is kept.
-                Text(recorder.interruptionNotice ?? "用手机的麦克风录音，录音只保存在这部手机上")
+                Text(recorder.interruptionNotice ?? "用手机的麦克风录音，保存到本机录音库")
                     .font(.subheadline)
                     .foregroundStyle(Theme.onDark.opacity(recorder.interruptionNotice == nil ? 0.65 : 0.95))
                     .multilineTextAlignment(.center)

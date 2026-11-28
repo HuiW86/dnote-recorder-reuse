@@ -3,6 +3,7 @@ import Library
 import Player
 import SwiftUI
 import Transcription
+import Assistant
 
 /// One recording on the Mac: playback, its transcript and its summary (ADR-011 step one).
 /// Transcribing uses 本机转写 or the user's service; summaries the user's service (X11). The
@@ -10,6 +11,7 @@ import Transcription
 struct RecordingPane: View {
     @State private var model: RecordingDetailModel
     @State private var renaming = false
+    @State private var asking = false
     @State private var newTitle = ""
 
     init(recordingId: UUID, library: RecordingLibrary, player: RecordingPlayer, env: MacEnvironment) {
@@ -56,6 +58,12 @@ struct RecordingPane: View {
                 } label: { Label("重命名", systemImage: "pencil") }
             }
             ToolbarItem { exportMenu }
+        }
+        .sheet(item: $model.assistantOutput) { output in
+            AssistantOutputSheet(output: output)
+        }
+        .sheet(isPresented: $asking) {
+            AskSheet { model.ask($0) }
         }
         .alert("重命名", isPresented: $renaming) {
             TextField("录音名称", text: $newTitle)
@@ -118,7 +126,7 @@ struct RecordingPane: View {
     @ViewBuilder private var actions: some View {
         let showsTranscribe = model.canTranscribe || model.isTranscribing
         let showsSummarize = model.canSummarize || model.isSummarizing
-        if showsTranscribe || showsSummarize {
+        if showsTranscribe || showsSummarize || model.canRewrite {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 12) {
                     if showsTranscribe {
@@ -143,6 +151,21 @@ struct RecordingPane: View {
                 }
                 if showsSummarize {
                     Text("生成纪要时，文字稿会发给你在设置里填的 AI 服务。").font(.caption).foregroundStyle(.secondary)
+                }
+                if model.canRewrite {
+                    HStack(spacing: 12) {
+                        Menu("改写") {
+                            ForEach(RewriteStyle.allCases) { style in
+                                Button(style.name) { model.rewrite(style) }
+                            }
+                        }
+                        .fixedSize()
+                        .disabled(model.isAsking)
+                        Button("问一问") { asking = true }
+                            .disabled(model.isAsking)
+                    }
+                    Text("改写和问一问时，这条录音的文字稿和纪要会发给你在设置里填的 AI 服务。")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
         } else if let hint = model.summaryHint {

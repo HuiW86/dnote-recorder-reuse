@@ -17,7 +17,6 @@ enum DNote {
 enum Cmd {
     static let queryDeviceInfo: UInt8 = 0x80
     static let queryFileList: UInt8 = 0x90
-    static let deleteFile: UInt8 = 0x91
     static let stopRecording: UInt8 = 0x50
     static let queryRecStatus: UInt8 = 0x56
     static let requestFileData: UInt8 = 0x70

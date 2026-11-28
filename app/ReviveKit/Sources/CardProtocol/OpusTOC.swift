@@ -34,11 +34,6 @@ public struct OpusTOC: Equatable, Sendable {
         frameCountCode = Int(byte & 0x03)
     }
 
-    /// One mono 20 ms frame per packet: what `OggOpus.splitFrames` and `OggOpus.wrap` assume.
-    public var isCardFormat: Bool {
-        frameMicroseconds == 20000 && frameCountCode == 0 && !isStereo
-    }
-
     /// How often each TOC byte occurs across `frames`.
     public static func counts(in frames: [Data]) -> [UInt8: Int] {
         var counts: [UInt8: Int] = [:]

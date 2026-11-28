@@ -6,7 +6,7 @@ import Player
 
 /// The system speech recognizer, forced to stay on the device: the audio never leaves the
 /// phone (features.md X9). Does not tell speakers apart. How well it does on long Chinese
-/// recordings is not measured yet (#67), so the app keeps this behind a switch.
+/// recordings is not measured yet (#67); since product-spec.md §7.3b it is the first way to try.
 public final class OnDeviceTranscriber: SpeechTranscribing {
     public static let engineName = "on-device"
 
@@ -15,6 +15,15 @@ public final class OnDeviceTranscriber: SpeechTranscribing {
     public init(library: RecordingLibrary) {
         self.library = library
     }
+
+    /// This phone can recognize `language` without the network (§7.3b: the first 转成文字 uses
+    /// the phone when it can). Asks no permission; that comes with the first transcription.
+    public static func isSupported(language: String = "zh-CN") -> Bool {
+        SFSpeechRecognizer(locale: Locale(identifier: language))?.supportsOnDeviceRecognition ?? false
+    }
+
+    /// Speech recognition was allowed already: transcribing asks nothing (录完自动整理).
+    public static var isAuthorized: Bool { SFSpeechRecognizer.authorizationStatus() == .authorized }
 
     public func transcribe(_ recording: Recording, language: String) async throws -> [TranscriptSegment] {
         let status = await withCheckedContinuation { (continuation: CheckedContinuation<SFSpeechRecognizerAuthorizationStatus, Never>) in

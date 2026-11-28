@@ -65,8 +65,7 @@ class Cmd:
     QUERY_FILE_LIST        = 0x90  # -> 逐条 JSON {index,name,size,end}
     DELETE_FILE            = 0x91  # payload: JSON {name}
     QUERY_FILE_SIZE        = 0x92  # payload: JSON {name}
-    RESTORE_FACTORY        = 0x93
-    FORMAT_DISK            = 0x94
+    # 恢复出厂、格式化两个命令字故意不定义：会清空录音，CLAUDE.md 硬规则 1（PROTOCOL.md 有记录）
     SHUTDOWN               = 0x95
     # 录音
     STOP_RECORDING         = 0x50
@@ -83,9 +82,7 @@ class Cmd:
     QUERY_BOND             = 0xA1  # -> {isBonded, bondId}
     SET_CHACHA20_KEY       = 0xA2  # payload: [enable]+32B key
     QUERY_CHACHA20         = 0xA3
-    # 固件 (L3, 暂不使用)
-    FW_START               = 0xB0
-    FW_DATA                = 0xB1
+    # 固件升级的两个命令字故意不定义：可能变砖，CLAUDE.md 硬规则 1（PROTOCOL.md 有记录）
 
 
 class FileStatus:

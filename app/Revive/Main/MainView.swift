@@ -299,7 +299,11 @@ struct RouteDestination: View {
         case .assistant: AssistantSettingsView(preferences: env.preferences)
         case .corrections: CorrectionsView(env: env)
         case .account:
-            if let session = env.account { AccountView(session: session) }
+            if let session = env.account {
+                AccountView(session: session) { account, deleted in
+                    AccountAI.leave(account, deleted: deleted, preferences: env.preferences, library: env.library)
+                }
+            }
         case .tags: TagsView(env: env)
         case .tag(let name): TagRecordingsView(env: env, tag: name, model: model, path: $path)
         case .about: AboutView()
