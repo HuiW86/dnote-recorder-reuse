@@ -1,4 +1,5 @@
 import Account
+import AIRoute
 import AppModel
 import CardLink
 import CardService
@@ -26,9 +27,22 @@ final class AppEnvironment {
     /// so a build without one shows no account anywhere. Never needed by the card (CLAUDE.md rule 3).
     let account: AccountSession? = AccountService.session()
 
-    /// The transcriber the recording page and 录完自动整理 use (`TranscriberChoice`).
-    func transcriber(library: RecordingLibrary) -> (any SpeechTranscribing)? {
-        TranscriberChoice.current(preferences: preferences, library: library, assistant: assistantConfig)
+    /// The three AI paths for the recording page (product-spec.md §7.3b).
+    func aiPaths(library: RecordingLibrary) -> AIPaths {
+        AIPaths.app(preferences: preferences, library: library, assistant: assistantConfig, account: account)
+    }
+
+    /// 录完自动整理's transcriber: the default way when it can be used now without asking
+    /// (`AIRoute.automatic`). The phone only once speech recognition was allowed, so no prompt
+    /// appears without a tap; the 闻笺 account is left for the page.
+    func automaticTranscriber(library: RecordingLibrary) -> (any SpeechTranscribing)? {
+        let situation = AccountAI.situation(
+            for: .transcribe, preferences: preferences,
+            onDeviceSupported: OnDeviceTranscriber.isSupported() && OnDeviceTranscriber.isAuthorized,
+            ownTranscription: TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistantConfig) != nil,
+            ownService: assistantConfig.current() != nil, accountSignedIn: nil, hasTranscript: false)
+        guard let path = AIRoute.automatic(.transcribe, in: situation) else { return nil }
+        return aiPaths(library: library).transcriber(path)
     }
 
     /// 录完自动整理 (features.md X22); nil without a library.
@@ -94,9 +108,13 @@ final class AppEnvironment {
         player = library.map { RecordingPlayer(library: $0) }
         phoneRecorder = library.map { PhoneRecorder(library: $0) }
         RecordingExporter.cleanUp()
+        // §7.3b: a phone that had the app before keeps the ways it used, once.
+        preferences.adoptEarlierAIDefaults(
+            ownTranscription: TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistantConfig) != nil,
+            ownService: assistantConfig.current() != nil)
         if let library {
             let processor = AutoProcessor(library: library, preferences: preferences,
-                                          transcriberSource: { [unowned self] in self.transcriber(library: library) },
+                                          transcriberSource: { [unowned self] in self.automaticTranscriber(library: library) },
                                           assistant: assistantConfig, diagnostics: diagnostics)
             processor.start()
             autoProcessor = processor
