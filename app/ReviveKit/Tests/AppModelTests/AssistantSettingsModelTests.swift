@@ -157,7 +157,7 @@ struct AssistantSettingsModelTests {
         moved.test()
         await waitUntil("tested b") { !moved.isTesting }
         #expect(moved.testResult == "连接成功。点「保存」后改用这个服务")
-        #expect(prefs.assistantBaseURL == "https://a.invalid/v1" && true)
+        #expect(prefs.assistantBaseURL == "https://a.invalid/v1")
         #expect(try keys.read() == "sk-a")
 
         let upload = AssistantSettingsModel(preferences: prefs, keyStore: keys, client: client)
