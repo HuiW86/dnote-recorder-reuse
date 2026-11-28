@@ -124,6 +124,10 @@ struct AssistantSettingsModelTests {
         moved.model = "m3"
         moved.saveOnLeave()
         #expect(prefs.assistantModel == "m3")
+        // Same address, another key (another account): only 保存.
+        moved.apiKey = "sk-team"
+        moved.saveOnLeave()
+        #expect(try keys.read() == "sk-b")
 
         // Two pages open; one clears; the other, untouched or edited, does not write it back.
         let stale = AssistantSettingsModel(preferences: prefs, keyStore: keys)

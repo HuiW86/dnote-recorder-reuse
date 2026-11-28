@@ -149,16 +149,17 @@ public final class AssistantSettingsModel {
         persist()
     }
 
-    /// Kept without 保存 only when it changes neither where things go nor what goes: moving to
-    /// another address redirects transcripts, audio and 录完自动整理, and filling in a
-    /// transcription model starts uploading audio ("留空则不会上传任何音频"). Those take 保存.
+    /// Kept without 保存 only when it changes neither who receives the text nor what is sent.
+    /// The recipient is the address and the key (one address can hold several accounts); audio
+    /// starts going out when a transcription model is filled in ("留空则不会上传任何音频").
+    /// A first service counts as a new recipient while 录完自动整理 would use it at once.
     private var mayKeepWithoutAsking: Bool {
         let form = self.form
-        let movesToAnotherService = !opened.baseURL.isEmpty && form.baseURL != opened.baseURL
-        // With 录完自动整理 on, a first service would start receiving new recordings' text at once.
-        let startsAutoSending = opened.baseURL.isEmpty && !form.baseURL.isEmpty && preferences.autoProcessEnabled
+        let first = opened.baseURL.isEmpty && opened.apiKey.isEmpty
+        let changesRecipient = form.baseURL != opened.baseURL || form.apiKey != opened.apiKey
+        let recipientNeedsSave = changesRecipient && (!first || preferences.autoProcessEnabled)
         let startsUploadingAudio = opened.transcriptionModel.isEmpty && !form.transcriptionModel.isEmpty
-        return !movesToAnotherService && !startsAutoSending && !startsUploadingAudio && stored == opened
+        return !recipientNeedsSave && !startsUploadingAudio && stored == opened
     }
 
     /// The form names another service than the stored one; only 保存 switches to it.
