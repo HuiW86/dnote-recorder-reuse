@@ -71,7 +71,10 @@ targets:
   ReviveMac:
     type: application
     platform: macOS
-    sources: [ReviveMac]
+    # Motion.swift is the one motion language for both apps (docs/design-spec.md §2.3).
+    sources:
+      - ReviveMac
+      - Revive/Common/Motion.swift
     dependencies:
       - package: ReviveKit
         product: ReviveKit

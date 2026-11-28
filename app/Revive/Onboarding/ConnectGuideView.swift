@@ -59,7 +59,7 @@ private struct CardSketch: View {
         }
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) { lit = false }
+            withMotion(Motion.blink) { lit = false }
         }
     }
 }

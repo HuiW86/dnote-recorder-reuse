@@ -71,6 +71,12 @@ private struct DeviceContent: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // Connecting, the settings arriving, 降噪 revealing its level, a value being sent: each
+        // grows or fades in place. Toggles animate themselves.
+        .motion(Motion.standard, value: model.isConnected)
+        .motion(Motion.standard, value: model.switches)
+        .motion(Motion.standard, value: model.switchesFailed)
+        .motion(Motion.tap, value: model.pending)
         .task(id: model.isConnected) { await model.load() }
         .toast($model.toast)
         .alert("名称", isPresented: $renaming) {
@@ -117,7 +123,10 @@ private struct DeviceContent: View {
             }
             .foregroundStyle(Theme.ink)
             if let battery = model.battery {
-                LabeledContent("电量", value: "\(battery)%")
+                LabeledContent("电量") {
+                    Text("\(battery)%").motionNumber(Double(battery))
+                }
+                .motion(Motion.standard, value: battery)
             }
             if let free = model.freeSpaceMb {
                 LabeledContent("存储", value: "剩余 \(Self.gigabytes(free))")

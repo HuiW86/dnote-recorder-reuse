@@ -92,6 +92,10 @@ struct AssistantSettingsView: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // 测试连接's spinner and its result line, and 清除这个服务 appearing once saved.
+        .motion(Motion.standard, value: model.isTesting)
+        .motion(Motion.standard, value: model.testResult)
+        .motion(Motion.standard, value: model.hasSavedService)
         .navigationTitle("AI 服务")
         .navigationBarTitleDisplayMode(.inline)
         .toast($model.toast)

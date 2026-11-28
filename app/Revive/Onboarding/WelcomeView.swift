@@ -85,12 +85,13 @@ struct WelcomeView: View {
                 } label: {
                     Group {
                         if model.phase == .requesting {
-                            ProgressView()
+                            ProgressView().motionTransition(.fade)
                         } else {
-                            Text("继续")
+                            Text("继续").motionTransition(.fade)
                         }
                     }
                     .frame(maxWidth: .infinity)
+                    .motion(Motion.standard, value: model.phase == .requesting)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)

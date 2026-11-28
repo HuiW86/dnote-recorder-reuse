@@ -84,12 +84,15 @@ struct RecordingPane: View {
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .background(.regularMaterial, in: Capsule())
                     .padding(.bottom, 20)
+                    .motionTransition(.bottom)
+                    .id(toast.id)
                     .task(id: toast.id) {
                         try? await Task.sleep(for: .seconds(3))
                         if model.toast?.id == toast.id { model.toast = nil }
                     }
             }
         }
+        .motion(Motion.overlay, value: model.toast?.id)
         .onDisappear { model.leave() }
     }
 

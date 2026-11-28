@@ -100,7 +100,8 @@ private struct MainContent: View {
                     .accessibilityHidden(!selected)
                 }
             }
-            BottomBar(tab: $tab, model: model, phone: env.phoneRecorder) { recordKeyTapped() }
+            BottomBar(tab: $tab, paths: $paths, model: model, phone: env.phoneRecorder,
+                      startingPhone: startingPhone) { recordKeyTapped() }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .overlay(alignment: .top) {
@@ -111,10 +112,12 @@ private struct MainContent: View {
                     .shadow(color: Theme.shadow, radius: 12, y: 4)
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .motionTransition(.top)
             }
         }
-        .animation(.default, value: model.justRecorded)
+        .motion(Motion.overlay, value: model.justRecorded)
+        // Closing the recording page brings 留着 / 不要 in too, not only a new recording.
+        .motion(Motion.overlay, value: showsStage)
         .toast($model.toast) { model.undoDelete() }
         .fullScreenCover(isPresented: $showsStage) {
             RecordingStage(model: model) { showsStage = false }
@@ -360,9 +363,12 @@ struct RouteDestination: View {
 /// (#89). While recording, the key shows the recorded time and opens the recording page.
 private struct BottomBar: View {
     @Binding var tab: MainTab
+    @Binding var paths: [MainTab: [Route]]
     let model: HomeModel
     /// A phone recording shows its time on the key too (features.md X18).
     let phone: PhoneRecorder?
+    /// The phone recorder is asking for the microphone or checking space.
+    let startingPhone: Bool
     let recordTapped: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -384,7 +390,8 @@ private struct BottomBar: View {
 
     private func item(_ value: MainTab) -> some View {
         let selected = tab == value
-        return Button { tab = value } label: {
+        // Tapping the tab already shown goes back to its first page, as the system tab bar does.
+        return Button { if selected { paths[value] = [] } else { tab = value } } label: {
             VStack(spacing: 3) {
                 Image(systemName: value.symbol)
                     .font(.system(size: 20, weight: selected ? .semibold : .regular))
@@ -419,8 +426,18 @@ private struct BottomBar: View {
         return model.recordedSeconds(at: date)
     }
 
+    /// What the key shows; a change between them is animated.
+    private enum KeyState { case ready, busy, recording }
+
+    private var keyState: KeyState {
+        if isRecording { return .recording }
+        // Starting on the phone, or storing one that stopped: the key is working, not ready.
+        if startingPhone || phone?.isSaving == true { return .busy }
+        return model.pendingCommand == .start || model.status == .connecting ? .busy : .ready
+    }
+
     private var recordKey: some View {
-        let busy = model.pendingCommand == .start || model.status == .connecting
+        let busy = keyState == .busy
         return Button(action: recordTapped) {
             ZStack {
                 Circle()
@@ -437,16 +454,23 @@ private struct BottomBar: View {
                             .padding(.horizontal, 6)
                     }
                     .frame(width: 60, height: 60)
+                    .motionTransition(.pop)
                 } else if busy {
                     ProgressView().tint(Theme.onDark)
+                        .motionTransition(.fade)
                 } else {
+                    // The dot grows back out of the time when a recording ends, and shrinks
+                    // into it when one starts: the same key, now in another state.
                     Circle().fill(Theme.onDark).frame(width: 20, height: 20)
+                        .motionTransition(.pop)
                 }
             }
+            .motion(Motion.standard, value: keyState)
+            .motion(Motion.standard, value: isPaused)
             // A little higher than the tabs beside it, so it reads as the one action.
             .offset(y: -8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .disabled(model.pendingCommand != nil && !phoneRecording)
         .accessibilityLabel(isRecording ? "正在录音，回到录音画面" : "开始录音")
     }

@@ -757,7 +757,7 @@ struct RecordingLibraryTests {
                                           createdAt: Date()))
         #expect(try lib.digest().untranscribedCount == 2)
 
-        try lib.setTodoDone(recordingId: new, index: 0, done: true)
+        try lib.setTodoDone(recordingId: new, index: 0, text: "d", done: true)
         #expect(try lib.recordingIdsWithOpenTodos() == [old])
         #expect(!(try lib.recentSummaries().map(\.recording.id).contains(none)))
     }
@@ -875,11 +875,14 @@ struct RecordingLibraryTests {
         #expect(try lib.searchRecordings("分工").map(\.id) == [id])
         #expect(try lib.searchRecordings("那就下周三").map(\.id) == [id])
 
-        let ticked = try #require(try lib.setTodoDone(recordingId: id, index: 0, done: true))
+        // A tick names the todo it means: another one at that place now is left alone.
+        #expect(try lib.setTodoDone(recordingId: id, index: 0, text: "小李发通知", done: true) == nil)
+        #expect(try lib.summary(recordingId: id)?.todos.map(\.done) == [false, true])
+        let ticked = try #require(try lib.setTodoDone(recordingId: id, index: 0, text: "老王周二前测完", done: true))
         #expect(ticked.todos.map(\.done) == [true, true])
         #expect(try lib.summary(recordingId: id)?.todos.map(\.done) == [true, true])
-        #expect(try lib.setTodoDone(recordingId: id, index: 5, done: true) == nil)
-        #expect(try lib.setTodoDone(recordingId: UUID(), index: 0, done: true) == nil)
+        #expect(try lib.setTodoDone(recordingId: id, index: 5, text: "老王周二前测完", done: true) == nil)
+        #expect(try lib.setTodoDone(recordingId: UUID(), index: 0, text: "老王周二前测完", done: true) == nil)
 
         var second = first
         second.title = "重新生成"

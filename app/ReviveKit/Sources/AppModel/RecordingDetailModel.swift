@@ -612,11 +612,17 @@ public final class RecordingDetailModel {
         }
     }
 
-    /// Ticks or unticks a to-do of the summary.
+    /// Ticks or unticks a to-do of the summary shown. A summary made again meanwhile (录完自动整理)
+    /// is shown instead, with nothing ticked.
     public func setTodo(_ index: Int, done: Bool) {
+        guard let todos = summary?.todos, todos.indices.contains(index) else { return }
         do {
-            if let updated = try library.setTodoDone(recordingId: recordingId, index: index, done: done) {
+            if let updated = try library.setTodoDone(recordingId: recordingId, index: index,
+                                                     text: todos[index].text, done: done) {
                 summary = updated
+            } else {
+                reloadSummary()
+                toast = Toast(OverviewModel.summaryChangedText)
             }
         } catch {
             toast = Toast("保存失败，请重试")

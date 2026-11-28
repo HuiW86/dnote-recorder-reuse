@@ -20,6 +20,10 @@ struct LinkImportSheet: View {
             }
             .listStyle(.insetGrouped)
             .paperBackground()
+            // Reading → choosing → downloading → saving: each step replaces the last in place.
+            // Keyed on the step, not on the bytes received, so the list is not re-animated on
+            // every progress tick; the bar itself glides.
+            .motion(Motion.standard, value: step)
             .navigationTitle("从链接导入")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -47,6 +51,19 @@ struct LinkImportSheet: View {
             dismiss()
         }
         .onDisappear { model.cancel() }
+    }
+
+    /// Which step the import is at, without its progress.
+    private var step: Int {
+        switch model.phase {
+        case .idle: 0
+        case .resolving: 1
+        case .choosing: 2
+        case .downloading: 3
+        case .saving: 4
+        case .done: 5
+        case .failed: 6
+        }
     }
 
     private var linkSection: some View {
@@ -114,10 +131,12 @@ struct LinkImportSheet: View {
                     Text(episode.title).font(.body.weight(.medium)).foregroundStyle(Theme.ink).lineLimit(2)
                     if let fraction = model.progressFraction {
                         ProgressView(value: fraction)
+                            .motion(Motion.standard, value: fraction)
                     } else {
                         ProgressView().frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Text(model.progressText.map { "正在下载 \($0)" } ?? "正在下载…")
+                        .monospacedDigit()
                         .font(.footnote).foregroundStyle(Theme.inkMuted)
                 }
                 .accessibilityElement(children: .combine)

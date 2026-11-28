@@ -304,17 +304,30 @@ private struct RecordingDetailContent: View {
             }
             .listStyle(.plain)
             .paperBackground()
+            // Work that finishes by itself while the page is open: the spinner row gives way to
+            // the text, the summary or the button, and the rows below move down to make room.
+            // List animates only the rows on screen, so a long transcript costs no more. The
+            // pane picker is not here: switching panes is instant, like any segmented control.
+            .motion(Motion.standard, value: model.isTranscribing)
+            .motion(Motion.standard, value: model.isSummarizing)
+            .motion(Motion.standard, value: model.isPolishing)
+            .motion(Motion.standard, value: model.isAsking)
+            .motion(Motion.standard, value: model.isListingWords)
+            .motion(Motion.standard, value: model.summary)
+            .motion(Motion.standard, value: model.loopingIndex)
+            .motion(Motion.standard, value: model.marks.count)
             .onChange(of: playingLine) { _, line in
                 // Follow the line being played; with Reduce Motion on, the page does not move (#89).
                 guard let line, !reduceMotion, currentPane == .transcript else { return }
-                withAnimation { proxy.scrollTo(TranscriptLineID(index: line), anchor: .center) }
+                withMotion(Motion.follow) { proxy.scrollTo(TranscriptLineID(index: line), anchor: .center) }
             }
         }
         .task(id: currentPane) {
             guard currentPane == .transcript else { return }
             while !Task.isCancelled {
                 let line = model.currentSegmentIndex
-                if line != playingLine { playingLine = line }
+                // The highlight hands over from one line to the next instead of blinking.
+                if line != playingLine { withMotion(Motion.tap) { playingLine = line } }
                 try? await Task.sleep(for: .milliseconds(250))
             }
         }
@@ -332,13 +345,17 @@ private struct RecordingDetailContent: View {
     /// Title, then when, how long, the scene, and the star.
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
+            // A new title (重命名, 让 AI 重新起标题, 撤销) cross-fades in place.
             Text(model.title)
                 .font(.title2.bold())
                 .foregroundStyle(Theme.ink)
+                .contentTransition(.opacity)
             if let folder = model.folderName {
                 Label(folder, systemImage: "folder")
                     .font(.subheadline)
                     .foregroundStyle(Theme.inkMuted)
+                    .contentTransition(.opacity)
+                    .motionTransition(.fade)
             }
             HStack(spacing: 6) {
                 Text(headerLine)
@@ -350,9 +367,13 @@ private struct RecordingDetailContent: View {
                         .font(.subheadline)
                         .foregroundStyle(Theme.accent)
                         .accessibilityLabel("已标星")
+                        .motionTransition(.pop)
                 }
             }
         }
+        .motion(Motion.tap, value: model.isStarred)
+        .motion(Motion.standard, value: model.title)
+        .motion(Motion.standard, value: model.folderName)
     }
 
     private var headerLine: String {
@@ -489,9 +510,10 @@ extension RecordingDetailContent {
                     }
                 }
                 ForEach(Array(summary.todos.enumerated()), id: \.offset) { index, todo in
-                    Button { model.setTodo(index, done: !todo.done) } label: {
+                    Button { withMotion(Motion.tap) { model.setTodo(index, done: !todo.done) } } label: {
                         Label(todo.text, systemImage: todo.done ? "checkmark.square.fill" : "square")
                             .foregroundStyle(Theme.ink)
+                            .motionSymbolReplace()
                     }
                     .accessibilityAddTraits(todo.done ? .isSelected : [])
                 }
@@ -711,6 +733,9 @@ private struct PlayerCard: View {
     let model: RecordingDetailModel
     /// Position while the user drags the scrubber; nil otherwise.
     @State private var scrubbing: Double?
+    /// Taps on the 15 s keys, to turn their arrows once per tap.
+    @State private var backSkips = 0
+    @State private var forwardSkips = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -738,8 +763,13 @@ private struct PlayerCard: View {
                 }
             }
             HStack(spacing: 40) {
-                Button { model.skip(by: -15) } label: {
+                Button {
+                    backSkips += 1
+                    model.skip(by: -15)
+                } label: {
+                    // The arrow turns the way the time jumps.
                     Image(systemName: "gobackward.15").font(.title2)
+                        .motionNod(value: backSkips, down: true)
                         .foregroundStyle(Theme.ink)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
@@ -748,18 +778,25 @@ private struct PlayerCard: View {
                 Button { model.togglePlay() } label: {
                     Group {
                         if model.isPreparing {
-                            ProgressView()
+                            ProgressView().motionTransition(.fade)
                         } else {
+                            // Play and pause are one key: the glyph morphs, the key stays put.
                             Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .font(.system(size: 48))
                                 .foregroundStyle(Theme.accent)
+                                .motionSymbolReplace()
+                                .motionTransition(.fade)
                         }
                     }
                     .frame(width: 56, height: 56)
                 }
                 .accessibilityLabel(model.isPlaying ? "暂停" : "播放")
-                Button { model.skip(by: 15) } label: {
+                Button {
+                    forwardSkips += 1
+                    model.skip(by: 15)
+                } label: {
                     Image(systemName: "goforward.15").font(.title2)
+                        .motionNod(value: forwardSkips, down: true)
                         .foregroundStyle(Theme.ink)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
@@ -769,6 +806,7 @@ private struct PlayerCard: View {
                     // One line at any text size: "1.25×" wrapped and made the player taller (#89).
                     Text(model.speedText)
                         .font(.footnote.weight(.semibold).monospacedDigit())
+                        .motionNumber()
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                         .foregroundStyle(Theme.ink)
@@ -778,15 +816,19 @@ private struct PlayerCard: View {
                 }
                 .accessibilityLabel("播放速度 \(model.speedText)")
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .frame(maxWidth: .infinity)
+            .motion(Motion.tap, value: model.isPlaying)
+            .motion(Motion.tap, value: model.speedText)
             if model.isPreparing {
                 Text("正在准备播放")
                     .font(.caption)
                     .foregroundStyle(Theme.inkMuted)
                     .frame(maxWidth: .infinity)
+                    .motionTransition(.fade)
             }
         }
+        .motion(Motion.standard, value: model.isPreparing)
         .padding(16)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
@@ -862,6 +904,8 @@ private struct WordListSheet: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Theme.paper)
+            // A higher level takes the easier words out; the ones left close up.
+            .motion(Motion.standard, value: minimum)
             .navigationTitle("生词")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -914,6 +958,10 @@ private struct AssistantOutputSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
+                // The first words replace the spinner with a fade; the reply then grows as it
+                // arrives, without animating each piece (that would shimmer and cost frames).
+                .motion(Motion.standard, value: output.text.isEmpty)
+                .motion(Motion.standard, value: output.isCutOff)
             }
             .background(Theme.paper)
             .navigationTitle(output.title)

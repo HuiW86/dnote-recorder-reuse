@@ -20,6 +20,7 @@ struct RecordingStage: View {
                     .font(.system(size: 44))
                     .foregroundStyle(paused ? Theme.onDark.opacity(0.5) : Theme.record)
                     .symbolEffect(.variableColor.iterative, isActive: !paused && !reduceMotion)
+                    .motionSymbolReplace()
                     .accessibilityHidden(true)
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(clock(at: context.date))
@@ -39,16 +40,19 @@ struct RecordingStage: View {
                 Spacer(minLength: 16)
                 HStack(spacing: 36) {
                     markControl(disabled: paused)
-                    if paused {
-                        control("继续", symbol: "play.fill", command: .resume, filled: false) { model.resume() }
-                    } else {
-                        control("暂停", symbol: "pause.fill", command: .pause, filled: false) { model.pause() }
+                    // One key that turns from 暂停 into 继续, so its icon morphs in place.
+                    control(paused ? "继续" : "暂停", symbol: paused ? "play.fill" : "pause.fill",
+                            command: paused ? .resume : .pause, filled: false) {
+                        if paused { model.resume() } else { model.pause() }
                     }
                     control("停止", symbol: "stop.fill", command: .stop, filled: true) { model.stopRecording() }
                 }
                 .padding(.bottom, 32)
             }
         }
+        // Pausing dims the page and swaps its icons together, in one move.
+        .motion(Motion.standard, value: paused)
+        .motion(Motion.tap, value: model.pendingCommand)
         .toast($model.toast)
         .preferredColorScheme(.dark)
     }
@@ -100,16 +104,20 @@ struct RecordingStage: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle().fill(Theme.onDark.opacity(0.14))
+                    // Each mark set nods the bookmark once: the tap was taken.
                     Image(systemName: "bookmark.fill").font(.title2).foregroundStyle(Theme.onDark)
+                        .motionNod(value: count)
                 }
                 .frame(width: 66, height: 66)
                 Text(title)
                     .font(.footnote)
                     .monospacedDigit()
+                    .motionNumber(Double(count))
                     .foregroundStyle(Theme.onDark.opacity(0.8))
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
+        .motion(Motion.tap, value: count)
         .disabled(disabled)
         .opacity(disabled ? 0.4 : 1)
         .sensoryFeedback(.impact, trigger: count)
@@ -125,17 +133,21 @@ struct RecordingStage: View {
                     Circle().fill(filled ? Theme.record : Theme.onDark.opacity(0.14))
                     if running {
                         ProgressView().tint(Theme.onDark)
+                            .motionTransition(.fade)
                     } else {
                         Image(systemName: symbol).font(.title2).foregroundStyle(Theme.onDark)
+                            .motionSymbolReplace()
+                            .motionTransition(.fade)
                     }
                 }
                 .frame(width: 66, height: 66)
                 Text(title)
                     .font(.footnote)
                     .foregroundStyle(Theme.onDark.opacity(0.8))
+                    .contentTransition(.opacity)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .disabled(model.pendingCommand != nil)
         .accessibilityLabel(title)
     }

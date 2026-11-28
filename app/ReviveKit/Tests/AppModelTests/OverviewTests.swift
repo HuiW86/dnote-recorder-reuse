@@ -79,7 +79,8 @@ struct OverviewModelTests {
         #expect(model.untranscribedText == "还有 1 条没转成文字")
         #expect(model.digest.recentSummaries.map(\.recording.id) == [id])
 
-        model.complete(model.visibleTodos[0])
+        // True: the box on 总览 stays ticked until the row leaves.
+        #expect(model.complete(model.visibleTodos[0]))
         await waitUntil("ticked") { model.digest.openTodos.count == 6 }
         #expect(model.toast?.text == "已完成")
         #expect(model.visibleTodos.first?.text == "事项 2")
@@ -106,6 +107,14 @@ struct OverviewModelTests {
         other.undoComplete()
         #expect(other.toast?.text == "纪要已经变了，没有撤销")
         #expect(try library.summary(recordingId: id)?.todos.first?.done == true)
+        // A row read before the summary was made again: ticking it changes nothing and says so.
+        let stale = OpenTodo(recording: try #require(try library.recording(id: id)), index: 0, text: "事项 1")
+        try library.saveSummary(Summary(recordingId: id, scene: "meeting", title: "T", summary: "S", sections: [],
+                                        todos: [SummaryTodo(text: "新事项")], tags: [],
+                                        people: [], model: "m", createdAt: start.addingTimeInterval(120)))
+        #expect(!other.complete(stale))
+        #expect(other.toast?.text == OverviewModel.summaryChangedText)
+        #expect(try library.summary(recordingId: id)?.todos == [SummaryTodo(text: "新事项")])
         other.stop()
 
         try library.saveTranscript(Transcript(recordingId: id, engine: "t", language: "zh-CN", segments: [],

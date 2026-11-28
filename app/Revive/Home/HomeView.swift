@@ -117,7 +117,8 @@ struct RecordingsView: View {
                 doneCollapsed = false
                 guard case .done = model.syncCard else { return }
                 try? await Task.sleep(for: .seconds(3))
-                withAnimation { doneCollapsed = true }
+                // The card folds into the check beside the title: the same news, kept small.
+                withMotion(Motion.standard) { doneCollapsed = true }
             }
     }
 
@@ -137,6 +138,7 @@ struct RecordingsView: View {
                 }
                 if let card = model.syncCard, !(isDone(card) && doneCollapsed) {
                     SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
+                        .motionTransition(.fade)
                 }
             }
             .listRowSeparator(.hidden)
@@ -203,6 +205,11 @@ struct RecordingsView: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // What changes by itself at the top of the list: the sync card growing, shrinking and
+        // going, the recording card and the Bluetooth banner. Not the filters (see the chips).
+        .motion(Motion.standard, value: model.syncCard)
+        .motion(Motion.standard, value: model.status == .recording || model.status == .paused)
+        .motion(Motion.standard, value: model.session.bluetoothProblem)
     }
 
     private var header: some View {
@@ -211,10 +218,12 @@ struct RecordingsView: View {
                 Text("录音 (\(model.recordings.count))")
                     .font(.largeTitle.bold())
                     .foregroundStyle(Theme.ink)
+                    .motionNumber(Double(model.recordings.count))
                 if let card = model.syncCard, isDone(card), doneCollapsed {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Theme.ok)
                         .accessibilityLabel("全部录音已存入手机")
+                        .motionTransition(.pop)
                 }
             }
             .accessibilityAddTraits(.isHeader)
@@ -241,8 +250,11 @@ struct RecordingsView: View {
                             .frame(minHeight: 36)
                             .background(selected ? Theme.accent : Theme.surface, in: Capsule())
                             .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                            // Only the chip animates: the list below changes at once, as a
+                            // long list re-laid out under an animation would stutter.
+                            .motion(Motion.tap, value: selected)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
                 // Sources (features.md D1c), only when the list has more than one.
@@ -256,8 +268,11 @@ struct RecordingsView: View {
                             .frame(minHeight: 36)
                             .background(selected ? Theme.accent : Theme.surface, in: Capsule())
                             .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                            // Only the chip animates: the list below changes at once, as a
+                            // long list re-laid out under an animation would stutter.
+                            .motion(Motion.tap, value: selected)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
                 // Folders (features.md D1c): tap to show only that folder; hold to rename or delete.
@@ -271,8 +286,11 @@ struct RecordingsView: View {
                             .frame(minHeight: 36)
                             .background(selected ? Theme.accent : Theme.surface, in: Capsule())
                             .overlay(Capsule().strokeBorder(selected ? Color.clear : Theme.line))
+                            // Only the chip animates: the list below changes at once, as a
+                            // long list re-laid out under an animation would stutter.
+                            .motion(Motion.tap, value: selected)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                     .contextMenu {
                         Button("重命名", systemImage: "pencil") {
@@ -328,6 +346,7 @@ private struct RecordingRow: View {
                     .font(.subheadline)
                     .foregroundStyle(Theme.accent)
                     .accessibilityHidden(true)
+                    .motionTransition(.pop)
             }
             if markCount > 0 {
                 Label("\(markCount)", systemImage: "bookmark")
@@ -336,6 +355,7 @@ private struct RecordingRow: View {
             }
         }
         .padding(.vertical, 2)
+        .motion(Motion.tap, value: recording.isStarred)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
     }

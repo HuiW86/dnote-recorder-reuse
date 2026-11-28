@@ -164,6 +164,16 @@ struct RecordingDetailModelTests {
         #expect(model.summary?.todos.first?.done == true)
         let reloaded = RecordingDetailModel(recordingId: f.recording.id, library: f.library, player: f.player)
         #expect(reloaded.summary?.todos.first?.done == true)
+
+        // Made again elsewhere (录完自动整理) while this page still shows the old one: the tick is
+        // not moved onto the new todo at that place; the page shows the new summary instead.
+        var again = try #require(try f.library.summary(recordingId: f.recording.id))
+        again.todos = [SummaryTodo(text: "订会议室")]
+        try f.library.saveSummary(again)
+        model.setTodo(0, done: false)
+        #expect(try f.library.summary(recordingId: f.recording.id)?.todos == [SummaryTodo(text: "订会议室")])
+        #expect(model.summary?.todos.map(\.text) == ["订会议室"])
+        #expect(model.toast?.text == OverviewModel.summaryChangedText)
     }
 
     @Test func missingAudioIsShownNotPlayed() async throws {

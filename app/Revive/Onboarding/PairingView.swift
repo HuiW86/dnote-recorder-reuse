@@ -39,6 +39,7 @@ struct PairingView: View {
 private struct PairingContent: View {
     @Bindable var model: PairingModel
     let onFinished: () -> Void
+    @State private var pairedShown = false
 
     var body: some View {
         Group {
@@ -47,13 +48,18 @@ private struct PairingContent: View {
                     .paperPage()
             } else {
                 switch model.phase {
-                case .scanning: scanList
-                case .notFound: notFound.paperPage()
-                case .working, .failed: PairingStepsView(model: model).paperPage()
-                case .done: done
+                case .scanning: scanList.motionTransition(.fade)
+                case .notFound: notFound.paperPage().motionTransition(.fade)
+                case .working, .failed: PairingStepsView(model: model).paperPage().motionTransition(.fade)
+                case .done: done.motionTransition(.fade)
                 }
             }
         }
+        // One page whose content changes step by step: cross-fade between them, and let a
+        // step's circle turn into its check. The phase carries no scan results, so a card
+        // found while scanning does not restart the page's fade.
+        .motion(Motion.standard, value: model.phase)
+        .motion(Motion.standard, value: model.bluetoothProblem)
         // Both buttons answer; the setter must not, or a dismissal ordered before the button
         // action would decline a confirmed re-bind.
         .alert("此卡已被其他设备绑定", isPresented: Binding(get: { model.rebindPending }, set: { _ in })) {
@@ -84,6 +90,8 @@ private struct PairingContent: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // A card found joins the list instead of appearing in it.
+        .motion(Motion.standard, value: model.candidates.map(\.id))
     }
 
     private var notFound: some View {
@@ -103,6 +111,9 @@ private struct PairingContent: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(Theme.ok)
+                    // The one moment that is a finish line: the check nods once when it lands.
+                    .motionNod(value: pairedShown)
+                    .onAppear { pairedShown = true }
                     .accessibilityHidden(true)
                 Text("配对完成").font(.title2.bold()).foregroundStyle(Theme.ink)
                 if let name = model.selected?.displayName {
@@ -219,13 +230,13 @@ private struct StepRow: View {
         HStack(spacing: 12) {
             Group {
                 switch state {
-                case .pending: Image(systemName: "circle").foregroundStyle(Theme.inkMuted)
-                case .active: ProgressView()
-                case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok)
-                case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                case .pending: Image(systemName: "circle").foregroundStyle(Theme.inkMuted).motionTransition(.fade)
+                case .active: ProgressView().motionTransition(.fade)
+                case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok).motionTransition(.pop)
+                case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(.red).motionTransition(.pop)
                 }
             }
-            .frame(width: 24)
+            .frame(width: 24, height: 24)
             Text(title).foregroundStyle(state == .pending ? Theme.inkMuted : Theme.ink)
         }
         .accessibilityElement(children: .combine)

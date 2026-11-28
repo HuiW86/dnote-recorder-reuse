@@ -57,14 +57,26 @@ public final class OverviewModel {
         "来自「\(RecordingText.title(todo.recording))」"
     }
 
-    /// Ticks a todo from 总览; it leaves the list with the next change.
-    public func complete(_ todo: OpenTodo) {
+    /// The todo's summary was made again after the list was read; nothing was ticked.
+    public static let summaryChangedText = "纪要刚更新过，没有勾上，请再看一下"
+
+    /// Ticks a todo from 总览; it leaves the list with the next change. False when it was not
+    /// saved, so the box can show it is still open: a failed write, or a summary made again since
+    /// the list was read (the tick is never moved onto another todo).
+    @discardableResult
+    public func complete(_ todo: OpenTodo) -> Bool {
         do {
-            let summary = try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: true)
-            lastCompleted = summary.map { (todo, $0.createdAt) }
+            guard let summary = try library.setTodoDone(recordingId: todo.recording.id, index: todo.index,
+                                                         text: todo.text, done: true) else {
+                toast = Toast(Self.summaryChangedText)
+                return false
+            }
+            lastCompleted = (todo, summary.createdAt)
             toast = Toast("已完成", action: "撤销")
+            return true
         } catch {
             toast = Toast("保存失败，请重试")
+            return false
         }
     }
 
@@ -82,7 +94,7 @@ public final class OverviewModel {
                 toast = Toast("纪要已经变了，没有撤销")
                 return
             }
-            try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: false)
+            try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, text: todo.text, done: false)
         } catch {
             toast = Toast("恢复失败，请重试")
         }

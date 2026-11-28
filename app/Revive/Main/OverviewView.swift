@@ -28,6 +28,7 @@ struct OverviewView: View {
                 }
                 if let card = model.syncCard, !isDone(card) {
                     SyncStatusCard(card: card, diagnostics: model.session.diagnostics) { model.retrySync() }
+                        .motionTransition(.fade)
                 }
             }
             .listRowSeparator(.hidden)
@@ -100,6 +101,13 @@ struct OverviewView: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // A ticked todo leaves (and comes back on 撤销), the sync card and banners come and go,
+        // new recordings arrive: each slides into place instead of jumping.
+        .motion(Motion.standard, value: overview.visibleTodos.map(\.id))
+        .motion(Motion.standard, value: model.syncCard)
+        .motion(Motion.standard, value: model.session.bluetoothProblem)
+        .motion(Motion.standard, value: hasAttention)
+        .motion(Motion.standard, value: model.recordings.prefix(recentCount).map(\.id))
         .navigationBarTitleDisplayMode(.inline)
         // As on 录音: pulling down syncs, or connects again after 断开连接.
         .refreshable { await model.refresh() }
@@ -125,14 +133,25 @@ struct OverviewView: View {
 private struct TodoRow: View {
     let todo: OpenTodo
     let source: String
-    let complete: () -> Void
+    /// False when the tick could not be saved.
+    let complete: () -> Bool
+    /// Ticked and saved, waiting for the row to leave; a second tap meanwhile does nothing. The
+    /// row leaves with `Motion.standard` showing its tick, so the save need not wait for it.
+    @State private var ticked = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Button(action: complete) {
-                Image(systemName: "square")
+            Button {
+                guard !ticked else { return }
+                withMotion(Motion.tap) { ticked = true }
+                // Saved at once, against the todo this row shows. Not saved (a failed write, or
+                // the summary made again): the box empties again under the toast.
+                if !complete() { withMotion(Motion.tap) { ticked = false } }
+            } label: {
+                Image(systemName: ticked ? "checkmark.square.fill" : "square")
                     .font(.title3)
                     .foregroundStyle(Theme.accent)
+                    .motionSymbolReplace()
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
@@ -141,7 +160,8 @@ private struct TodoRow: View {
             .accessibilityLabel("完成：\(todo.text)")
             NavigationLink(value: Route.recordingSummary(todo.recording.id)) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(todo.text).foregroundStyle(Theme.ink)
+                    Text(todo.text).foregroundStyle(ticked ? Theme.inkMuted : Theme.ink)
+                        .strikethrough(ticked, color: Theme.inkMuted)
                     Text(source).font(.caption).foregroundStyle(Theme.inkMuted)
                 }
             }

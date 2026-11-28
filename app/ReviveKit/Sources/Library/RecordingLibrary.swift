@@ -779,13 +779,15 @@ public final class RecordingLibrary: Sendable {
         try database.writer.read { try Summary.fetchOne($0, key: recordingId) }
     }
 
-    /// Ticks or unticks the todo at `index`. Returns the stored summary, nil when there is no
-    /// summary or no todo at that index.
+    /// Ticks or unticks the todo at `index`, only while that todo still reads `text`: a summary
+    /// made again since the caller read it has other todos at those places, and a tick meant for
+    /// one must never land on another. Returns the stored summary; nil when there is no summary,
+    /// no todo at that index, or a different one there now.
     @discardableResult
-    public func setTodoDone(recordingId: UUID, index: Int, done: Bool) throws -> Summary? {
+    public func setTodoDone(recordingId: UUID, index: Int, text: String, done: Bool) throws -> Summary? {
         try database.writer.write { db in
             guard var stored = try Summary.fetchOne(db, key: recordingId),
-                  stored.todos.indices.contains(index) else { return nil }
+                  stored.todos.indices.contains(index), stored.todos[index].text == text else { return nil }
             stored.todos[index].done = done
             try stored.update(db)
             return stored
