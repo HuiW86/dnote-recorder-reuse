@@ -118,9 +118,12 @@ extension AccountSession {
     /// Sends only the text (product-spec.md §7.3b: 已有文字稿时，纪要只发文字), summarizes it and
     /// returns the summary. Uses the server recording kept for `local`, with or without audio;
     /// makes a text-only one when there is none, or when the server no longer has it.
+    /// `fromServer`: the local transcript came from this account's transcription; the server's
+    /// own copy (with speakers, end times and speaker names) is kept and summarized as it is,
+    /// never replaced by the app's shorter copy. Edits made on the phone are then not sent.
     public func summarizeText(local: UUID, _ details: RecordingDetails, lines: [TranscriptLine], engine: String,
                               language: String, templateId: String?, profession: String,
-                              ids: any ServerRecordingIds,
+                              ids: any ServerRecordingIds, fromServer: Bool = false,
                               sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) })
         async throws -> RemoteSummary {
         guard let account = user?.id else { throw AccountError.signedOut }
@@ -134,14 +137,18 @@ extension AccountSession {
         }
         var server: UUID
         var known = false
+        var serverTranscript = false
         if let kept = try await ids.serverId(local: local, account: account) {
             server = kept.id
             known = true
+            serverTranscript = fromServer && kept.hasAudio
         } else {
             server = try await create("text-\(local.uuidString.lowercased())")
         }
         do {
-            _ = try await putTranscript(recordingId: server, engine: engine, language: language, lines: lines)
+            if !serverTranscript {
+                _ = try await putTranscript(recordingId: server, engine: engine, language: language, lines: lines)
+            }
         } catch let error as AccountError where known && error.code == "recording_not_found" {
             try await ids.forget(local: local, account: account)
             server = try await create(UUID().uuidString)

@@ -22,6 +22,8 @@ public final class Preferences {
         static let autoProcessSince = "revive.autoProcessSince"
         static let defaultTranscriptionPath = "revive.ai.defaultTranscription"
         static let defaultSummaryPath = "revive.ai.defaultSummary"
+        static let aiConsentsAccount = "revive.ai.consentsAccount"
+        static let autoTranscriptionSkipped = "revive.ai.autoTranscriptionSkipped"
         static let earlierAIDefaultsAdopted = "revive.ai.earlierDefaultsAdopted"
         static func consent(_ consent: AIConsent) -> String { "revive.ai.consent.\(consent.rawValue)" }
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
@@ -210,6 +212,19 @@ public final class Preferences {
         }
     }
 
+    /// An earlier phone's 录完自动整理 had no way to transcribe and skipped that step; it keeps
+    /// skipping until the user chooses a 默认转写方式 (then `defaultTranscriptionPath` is set).
+    public var autoTranscriptionSkippedBefore: Bool { defaults.bool(forKey: Key.autoTranscriptionSkipped) }
+
+    /// The consents belong to the account signed in when they were given: for any other account,
+    /// or none (a sign-in that ran out without 退出登录), they are forgotten.
+    public func keepAIConsents(for account: UUID?) {
+        let current = account?.uuidString
+        guard defaults.string(forKey: Key.aiConsentsAccount) != current else { return }
+        forgetAIConsents()
+        defaults.set(current, forKey: Key.aiConsentsAccount)
+    }
+
     /// Once, on a phone that had the app before §7.3b: keeps the way it transcribed and
     /// summarized (the old 本机转写（试验） switch, the user's service) as the defaults, so nothing
     /// changes under the user. A new phone keeps no default and follows §7.3b.
@@ -218,6 +233,10 @@ public final class Preferences {
         defaults.set(true, forKey: Key.earlierAIDefaultsAdopted)
         let earlier = AIRoute.earlierDefaults(onDeviceSwitch: onDeviceTranscriptEnabled,
                                               ownTranscription: ownTranscription, ownService: ownService)
+        // 录完自动整理 was on and could not transcribe: it skipped that step (see below).
+        if autoProcessEnabled, earlier.transcribe == nil {
+            defaults.set(true, forKey: Key.autoTranscriptionSkipped)
+        }
         if defaultTranscriptionPath == nil, let path = earlier.transcribe { defaultTranscriptionPath = path }
         if defaultSummaryPath == nil, let path = earlier.summarize { defaultSummaryPath = path }
     }

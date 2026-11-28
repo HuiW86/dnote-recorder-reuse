@@ -80,7 +80,7 @@ public enum AccountAI {
         let remote = try await session.summarizeText(
             local: recording.id, details, lines: lines, engine: TranscriptLine.serverEngine(transcript.engine),
             language: TranscriptLine.serverLanguage(transcript.language), templateId: scene, profession: profession,
-            ids: LibraryServerIds(library: library))
+            ids: LibraryServerIds(library: library), fromServer: transcript.engine == AccountTranscriber.engineName)
         return summary(remote, recordingId: recording.id)
     }
 

@@ -36,6 +36,22 @@ struct AIPathTests {
         #expect(preferences.defaultTranscriptionPath == .account)
     }
 
+    /// §7.3b: a consent holds for the sign-in it was given in; another account, or a sign-in
+    /// that ran out without 退出登录, asks again.
+    @Test func consentsBelongToOneAccount() {
+        let preferences = preferences()
+        let a = UUID(), b = UUID()
+        preferences.keepAIConsents(for: a)
+        preferences.grant(.uploadAudio)
+        preferences.keepAIConsents(for: a)
+        #expect(preferences.aiConsents == [.uploadAudio])
+        preferences.keepAIConsents(for: b)
+        #expect(preferences.aiConsents.isEmpty)
+        preferences.grant(.sendText)
+        preferences.keepAIConsents(for: nil)
+        #expect(preferences.aiConsents.isEmpty)
+    }
+
     @Test func anEarlierPhoneKeepsItsWaysOnce() {
         let earlier = preferences()
         earlier.adoptEarlierAIDefaults(ownTranscription: true, ownService: true)
@@ -45,6 +61,14 @@ struct AIPathTests {
         switchOn.onDeviceTranscriptEnabled = true
         switchOn.adoptEarlierAIDefaults(ownTranscription: true, ownService: false)
         #expect(switchOn.defaultTranscriptionPath == .onDevice && switchOn.defaultSummaryPath == nil)
+
+        #expect(!earlier.autoTranscriptionSkippedBefore)
+
+        // 录完自动整理 on with no way to transcribe: it keeps skipping transcription.
+        let skipping = preferences()
+        skipping.autoProcessEnabled = true
+        skipping.adoptEarlierAIDefaults(ownTranscription: false, ownService: true)
+        #expect(skipping.autoTranscriptionSkippedBefore && skipping.defaultTranscriptionPath == nil)
 
         // A new phone keeps no default, and setting up a service later does not make one.
         let new = preferences()

@@ -49,9 +49,9 @@ public enum AIPathProblem: Equatable, Sendable {
 
     public var reason: String {
         switch self {
-        case .unsupported: "这台手机不能离线识别这条录音的语言"
-        case .notConfigured: "还没有设置你的 AI 服务"
-        case .signedOut: "还没有登录闻笺账号"
+        case .unsupported: "这部手机不支持离线识别这种语言"
+        case .notConfigured: "还没设置你的 AI 服务"
+        case .signedOut: "还没登录闻笺账号"
         case .offline: "现在没有网络"
         }
     }
@@ -82,9 +82,9 @@ public enum AIConsent: String, CaseIterable, Codable, Sendable {
     public var message: String {
         switch self {
         case .uploadAudio:
-            "录音会发到闻笺的服务器。服务器保留录音、文字稿和纪要，可以在闻笺账号里删除；注销账号会全部删除。"
-        case .sendText: "将文字稿发送到闻笺服务生成纪要。录音不会上传。"
-        case .autoProcess: "开启后，符合条件的新录音会自动上传到闻笺并整理。"
+            "录音会上传到闻笺服务器。服务器会保留录音、文字稿和纪要，可在闻笺账号里删除；注销账号会全部删除。"
+        case .sendText: "只发送文字稿到闻笺服务器生成纪要，录音不会上传。"
+        case .autoProcess: "开启后，新存入的录音会按默认方式自动整理；用到闻笺账号时，录音或文字稿会发到闻笺服务器，不再逐条确认。"
         }
     }
 

@@ -1,4 +1,5 @@
 import Account
+import AIRoute
 import AppModel
 import SwiftUI
 
@@ -12,6 +13,8 @@ struct SettingsView: View {
     @State private var notificationsRefused = false
     /// "未登录" or the signed-in account, for the 账号 row.
     @State private var accountName = "未登录"
+    /// 录完自动整理 would use the 闻笺 account: confirm before turning it on (§7.3b).
+    @State private var confirmingAutoProcess = false
 
     var body: some View {
         List {
@@ -64,15 +67,24 @@ struct SettingsView: View {
             }
             .surfaceRows()
             Section {
-                Toggle("本机转写（试验）", isOn: $preferences.onDeviceTranscriptEnabled)
+                // §7.3b: replaces 本机转写（试验）. Lists only the ways this phone has.
+                Picker("默认转写方式", selection: transcriptionPathBinding) {
+                    ForEach(transcriptionPaths) { Text($0.title).tag($0) }
+                }
+                Picker("默认纪要方式", selection: $preferences.defaultSummaryPath) {
+                    Text("第一次用时选").tag(AIPath?.none)
+                    ForEach(summaryPaths) { Text($0.title).tag(AIPath?.some($0)) }
+                }
             } footer: {
-                Text("打开后，录音详情里可以把录音转成文字。识别在这部手机上完成，不联网；第一次使用时系统会询问语音识别权限。准确度还没有充分验证。")
+                Text(account != nil
+                     ? "「本机」离线完成，不联网；「你的 AI 服务」和「闻笺账号」会把录音或文字稿发给对应服务。单条录音可在详情页右上角「⋯」里单独换方式。"
+                     : "「本机」离线完成，不联网；「你的 AI 服务」会把录音或文字稿发给你设置的服务。单条录音可在详情页右上角「⋯」里单独换方式。")
             }
             .surfaceRows()
             Section {
-                Toggle("录完自动整理", isOn: $preferences.autoProcessEnabled)
+                Toggle("录完自动整理", isOn: autoProcessBinding)
             } footer: {
-                Text("打开后，之后存进手机的每条录音会自动转成文字，再整理成纪要，不用一条条去点。转文字用上面的本机转写，或你在「AI 服务」里填的转写模型；整理纪要用你的 AI 服务，录音的文字稿会发给它。哪一样没设置，那一步就跳过。打开之前已有的录音不会自动处理；只在闻笺运行时进行。")
+                Text("仅处理开启后新存入的录音，按上面的默认方式自动转文字并生成纪要（未选默认纪要方式或暂不可用时跳过）。只在闻笺运行时进行。")
             }
             .surfaceRows()
             Section {
@@ -104,12 +116,56 @@ struct SettingsView: View {
             notificationsRefused = true
         }
         .navigationTitle("设置")
+        .confirmationDialog("开启录完自动整理？", isPresented: $confirmingAutoProcess,
+                            titleVisibility: .visible) {
+            Button(AIConsent.autoProcess.button) {
+                preferences.grant(.autoProcess)
+                preferences.autoProcessEnabled = true
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text(AIConsent.autoProcess.message)
+        }
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 extension SettingsView {
     /// Turning the switch on asks for the system permission first; a refusal turns it back off.
+    /// This phone, the user's service once it has a transcription model, the account in a build
+    /// with a server (§7.3b).
+    private var transcriptionPaths: [AIPath] {
+        var paths: [AIPath] = [.onDevice]
+        if !preferences.assistantTranscriptionModel.trimmingCharacters(in: .whitespaces).isEmpty,
+           !preferences.assistantBaseURL.isEmpty { paths.append(.ownService) }
+        if account != nil { paths.append(.account) }
+        return paths
+    }
+
+    private var summaryPaths: [AIPath] {
+        var paths: [AIPath] = [.ownService]
+        if account != nil { paths.append(.account) }
+        return paths
+    }
+
+    /// Never chosen reads as 本机: that is what 转成文字 does then (§7.3b).
+    private var transcriptionPathBinding: Binding<AIPath> {
+        Binding(get: { preferences.defaultTranscriptionPath ?? .onDevice },
+                set: { preferences.defaultTranscriptionPath = $0 })
+    }
+
+    private var autoProcessBinding: Binding<Bool> {
+        Binding(get: { preferences.autoProcessEnabled }, set: { on in
+            if on, AIRoute.autoProcessNeedsConsent(transcribeDefault: preferences.defaultTranscriptionPath,
+                                                   summarizeDefault: preferences.defaultSummaryPath,
+                                                   consents: preferences.aiConsents) {
+                confirmingAutoProcess = true
+            } else {
+                preferences.autoProcessEnabled = on
+            }
+        })
+    }
+
     private var notificationsBinding: Binding<Bool> {
         Binding(get: { preferences.syncNotificationsEnabled }, set: { on in
             guard on else {

@@ -147,6 +147,22 @@ struct AccountWorkTests {
         #expect(await ids.current()?.hasAudio == true)
     }
 
+    /// A transcript the account made stays the server's: no PUT replaces it (its speakers and
+    /// end times would be lost); the summary is made from it.
+    @Test func theAccountsOwnTranscriptIsNotReplaced() async throws {
+        let stub = StubTransport([
+            .json(202, task("summarize", "queued")),
+            .json(200, task("summarize", "succeeded")),
+            .json(200, summaries(serverA)),
+        ])
+        let session = try await signedIn(stub)
+        let ids = Ids(ServerRecordingId(id: UUID(uuidString: serverA)!, hasAudio: true))
+        _ = try await session.summarizeText(local: local, details, lines: lines, engine: "account", language: "zh-CN",
+                                            templateId: nil, profession: "", ids: ids, fromServer: true) { _ in }
+        #expect(!stub.requests.contains { $0.httpMethod == "PUT" })
+        #expect(stub.requests.first.map(route) == "POST /v1/recordings/\(serverA)/summaries")
+    }
+
     /// The server no longer has the kept recording (deleted there): forget it and make a new one
     /// with a fresh key, so the old answer is not replayed.
     @Test func aRecordingTheServerLostIsMadeAgain() async throws {
