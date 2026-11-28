@@ -25,7 +25,7 @@
 | 构建 | 怎么装 | 用在哪里 | 为什么 |
 |---|---|---|---|
 | **A：DEBUG** | Mac 上 Xcode 直接装到 iPhone | 所有要「协议日志」的项（下表标 📜） | 收发帧日志 `card-debug.log` 和调试页只在 DEBUG 构建里（`app/Revive/Debug/`，`#if DEBUG`）；TestFlight 构建只有诊断文件 |
-| **B：TestFlight 0.1.0 (7)** | 归档上传，TestFlight 安装 | T-M1-56 升级、通知、先不连卡、外部测试者看到的样子 | 升级要从上一个 TestFlight 构建覆盖安装；审核员拿到的也是它 |
+| **B：TestFlight 0.1.0（构建号比 App Store Connect 上已有的大，下一个是 110）** | 归档上传，TestFlight 安装 | T-M1-56 升级、通知、先不连卡、外部测试者看到的样子 | 升级要从上一个 TestFlight 构建覆盖安装；审核员拿到的也是它 |
 
 两个构建 Bundle ID 相同，同一部手机上会互相覆盖。建议：先用 B 做升级（§2 第一轮），再换 A 做要日志的项，最后删掉 App 用 B 做先不连卡。
 
@@ -50,6 +50,29 @@
 Claude 的会话跑在云端容器里，碰不到你的 Mac、iPhone 和卡。想让 §1.2 那些在 Mac 上的事不用你动手，有两种办法：在 Mac 的 Claude 桌面 App 里打开 Remote Control 并加上本仓库的文件夹（设置 › Claude Code › Remote Control），之后会话可以请求使用这个文件夹；或者直接在 Mac 上开一个 Claude Code 会话做这些事。
 
 ---
+
+## 已有结果（TestFlight 108 → 109 这一轮，PR #138）
+
+下面是这一轮已经做完或做了一部分的项，证据在各自的 `evidence/` 目录；后面各节里同名的项照常保留，补齐后再划掉。
+
+| 项 | 定义 | 证据 | 结论 |
+|---|---|---|---|
+| T-M1-51 后台、锁屏按键录音后自动同步，部分通过 | 同上 | [v42-card-button-sync](../evidence/v42-card-button-sync/README.md) | 锁屏 3/3，前台和后台各 1/3，五次均在 2.9 秒内开始同步 |
+| T-M1-53 ≥ 30 分钟长录音，不通过 | 同上 | [v42-long-card-recording](../evidence/v42-long-card-recording/README.md) | DEBUG 109 / v1.50：31 分 21 秒录音完整同步；15.7 KB/s，低于 19.2 KB/s 通过线 |
+| T-M1-54 暂停与继续，部分通过 | 同上 | [v42-long-card-recording](../evidence/v42-long-card-recording/README.md) | 卡端状态和音频接合处样本连续；待补已知语音听辨 |
+| ✅ T-M1-56 从上一个 TestFlight 构建升级 | 同上 | [v42-t-m1-56](../evidence/v42-t-m1-56/README.md) | iPhone 16 / iOS 27.0，108 原位升级至 109，数据与 v1.50 卡配对保留；升级后的 `v16` 表可写可读 |
+| ✅ T-M1-57 设置项用 `0x81` 读回 | 同上 | [v42-t-m1-57](../evidence/v42-t-m1-57/README.md) | DEBUG 109，v1.50 卡的 7 项设置切换及恢复共 14 次写入，全部读回一致 |
+| T-M15-58 v1.50 录音的 TOC 统计 | `test-spec.md` §3.6.2，[v66-opus-toc](../evidence/v66-opus-toc/README.md) | 单卡 48 段备份和一条 31 分 21 秒 App 启动样本全部匹配；仍缺场景明确的样本和 #8 的其他卡 |
+
+- T-M15-51 部分通过：M4A 在「文件」中播放、拖动和重新导入均有证据，微信端待测。[v70-m4a-export](../evidence/v70-m4a-export/README.md)
+- T-M15-53 部分通过：App 发起时，`0x51`、卡端清单和 App 存入的文件名一致。见 [v42-long-card-recording](../evidence/v42-long-card-recording/README.md)。
+- T-M15-57 部分通过：无卡 P05、P06 两种外观及浅色模式下的深底 P13 已核对，整套 §9 界面走查待做。[v70-device-appearance](../evidence/v70-device-appearance/README.md)
+- ✅ 手机录音标重点（T-M4-19）的真机部分已通过：独立 DEBUG 109，约 10 秒和 40 秒标记、连点去重、筛选和定位回放均通过。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md#手机录音的操作子项)
+- 手机录音被关掉（T-M4-18）部分通过：独立 DEBUG 109 强制退出后恢复一条 101.245 秒录音，重点保留且可完整解码；仍缺 30 分钟以上手机录音的常规保存。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md#手机录音的操作子项)
+- 先不连卡（T-M15-60）部分通过：独立 DEBUG 109 的空白容器证实蓝牙只在 P01 点「继续」后询问，手机录音和音频导入可用。本机转写失败；正式 TestFlight 干净安装、`.txt` 导入、配对解绑、连续录屏待验收。[v70-cardless-first-use](../evidence/v70-cardless-first-use/README.md)
+- T-M5-60 部分通过：DEBUG 109 真机从公开网页导入小宇宙、Apple 播客单集和 NASA RSS，RSS 音频播放到尾；待复测原生分享与本机转写。见 [v72-link-import-device](../evidence/v72-link-import-device/README.md#t-m5-60-小宇宙apple-播客与-rss)
+- ✅ T-M5-61 关掉「无线数据」时的提示：国行 iPhone 16 的独立 DEBUG 109 立即给出正确设置路径，重新允许 Wi-Fi 后同一链接成功入库。[v72-link-import-device](../evidence/v72-link-import-device/README.md#t-m5-61-关闭无线数据)
+- T-M5-62 部分通过：取消和切后台均未留半截条目，下拉不能关页；后台返回后显示通用链接错误，待确认失败原因。见 [v72-link-import-device](../evidence/v72-link-import-device/README.md#t-m5-62-下载中取消和离开)
 
 ## 1. 方向一：Claude 独立完成
 
@@ -82,7 +105,7 @@ Mac 版走查的内容（T-M5-01、02，ADR-011）：在 Mac 上打开 `ReviveMa
 
 | 项 | 你做 | Claude 做 |
 |---|---|---|
-| T-M1-56 从上一个 TestFlight 构建升级 | 在装着旧 TestFlight 构建、库里有星标、文件夹、纪要、文字稿的手机上，直接从 TestFlight 升到 (7)；打开后逐项看还在不在，「导出诊断信息」 | 核对诊断里的迁移（已到 `v16`）、对照 `test-spec.md` 判定 |
+| T-M1-56 从上一个 TestFlight 构建升级 | 在装着旧 TestFlight 构建、库里有星标、文件夹、纪要、文字稿的手机上，直接从 TestFlight 升到下一个构建（110）；打开后逐项看还在不在，「导出诊断信息」 | 核对诊断里的迁移（已到 `v16`）、对照 `test-spec.md` 判定 |
 
 ### 第二轮：M1 验收（#42，外部测试前必须过；构建 A）
 

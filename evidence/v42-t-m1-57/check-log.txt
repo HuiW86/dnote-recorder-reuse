@@ -1,0 +1,18 @@
+## card-debug.log
+- commands sent: 81×14, 83×2, 84×2, 85×2, 8B×2, 8C×2, 8D×2, 8F×2
+- downloads: none
+- setting vad=1: read back ✓ (line 4)
+- setting vad=0: read back ✓ (line 8)
+- setting led=0: read back ✓ (line 12)
+- setting led=1: read back ✓ (line 16)
+- setting motor=0: read back ✓ (line 20)
+- setting motor=1: read back ✓ (line 24)
+- setting autoff=1800: read back ✓ (line 28)
+- setting autoff=600: read back ✓ (line 32)
+- setting nn=5: read back ✓ (line 36)
+- setting nn=4: read back ✓ (line 40)
+- setting gain=5: read back ✓ (line 44)
+- setting gain=4: read back ✓ (line 48)
+- setting nc=0: read back ✓ (line 52)
+- setting nc=1: read back ✓ (line 56)
+- result: pass

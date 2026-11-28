@@ -1,0 +1,19 @@
+light
+paper #F5F1E6 pixels 8600 area (4, 120, 24, 550)
+surface #FFFFFF pixels 475 area (620, 1015, 650, 1038)
+ink #292420 pixels 100 area (30, 140, 395, 190)
+inkMuted #625B51 pixels 39 area (30, 195, 460, 225)
+ink/paper: 13.61:1
+ink/surface: 15.36:1
+inkMuted/paper: 5.94:1
+inkMuted/surface: 6.70:1
+dark
+paper #15110E pixels 8600 area (4, 120, 24, 550)
+surface #221E1B pixels 690 area (620, 1015, 650, 1038)
+ink #F5F1E8 pixels 62 area (30, 140, 395, 190)
+inkMuted #A7A29C pixels 10 area (30, 195, 460, 225)
+ink/paper: 16.66:1
+ink/surface: 14.67:1
+inkMuted/paper: 7.41:1
+inkMuted/surface: 6.53:1
+light theme recording stage pixel (10, 102) #15110E

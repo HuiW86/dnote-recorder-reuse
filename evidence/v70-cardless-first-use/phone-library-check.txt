@@ -1,0 +1,6 @@
+Xcode DEBUG 109, independent app identity com.huiw86.revive.acceptance
+SQLite integrity_check: ok
+phone 2026-11-26 15:13:03.094 duration_ms 71921 marks_ms [33734, 46663] audio_sha256 cd145066523a476d96fbdaa28e9cd0d516defc89fff7a20888c09d08e5109148 decode exit 0
+import 2026-11-26 15:21:42.623 duration_ms 3536960 marks_ms [] audio_sha256 abb0903681dcf631c9c8a3a3ba31f2c617b463950f3f44f01ea6971be357d784 decode exit 0
+phone 2026-11-26 15:27:06.264 duration_ms 101245 marks_ms [53730] audio_sha256 85dc2ac7d086982722f027a3dcd12c453f9057d90767537c41e26cdb599ce01f decode exit 0
+phone 2026-11-26 15:35:14.331 duration_ms 62238 marks_ms [9259, 39311] audio_sha256 27c62e76314596fd2f8fd6c56a11e8734c3b243bb18d281097112c40399babd6 decode exit 0

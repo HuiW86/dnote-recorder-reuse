@@ -1,0 +1,3 @@
+2026-11-26T15:25:20Z com.huiw86.revive.acceptance
+Button	转成文字
+StaticText	转写失败，请重试

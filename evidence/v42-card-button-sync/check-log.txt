@@ -1,0 +1,34 @@
+## foreground.log
+- commands sent: 56×1, 70×1, 90×1, A1×1
+- download 20261126223106.opus from 0: 240060 B, eof, 14.3 s, 16.4 KB/s [fg]
+- recording stopped [fg] → download 20261126223106.opus after 2.0 s
+- recording started as 20261126223106.opus [fg] → downloaded under that name ✓
+- result: pass
+
+## background.log
+- commands sent: 56×1, 70×1, 90×1, A1×1
+- download 20261126223516.opus from 0: 76060 B, eof, 10.6 s, 7.0 KB/s [bg]
+- recording stopped [bg] → download 20261126223516.opus after 2.2 s
+- recording started as 20261126223516.opus [bg] → downloaded under that name ✓
+- result: pass
+
+## locked.log
+- commands sent: 56×1, 70×1, 90×1, A1×1
+- download 20261126225555.opus from 0: 72060 B, eof, 9.6 s, 7.3 KB/s [lock]
+- recording stopped [lock] → download 20261126225555.opus after 2.5 s
+- recording started as 20261126225555.opus [lock] → downloaded under that name ✓
+- result: pass
+
+## locked-2.log
+- commands sent: 56×1, 70×1, 90×1, A1×1
+- download 20261126225928.opus from 0: 72060 B, eof, 9.9 s, 7.1 KB/s [lock]
+- recording stopped [lock] → download 20261126225928.opus after 2.1 s
+- recording started as 20261126225928.opus [bg] → downloaded under that name ✓
+- result: pass
+
+## locked-3.log
+- commands sent: 56×1, 70×1, 90×1, A1×1
+- download 20261126230036.opus from 0: 106060 B, eof, 14.9 s, 7.0 KB/s [lock]
+- recording stopped [lock] → download 20261126230036.opus after 2.8 s
+- recording started as 20261126230036.opus [lock] → downloaded under that name ✓
+- result: pass
