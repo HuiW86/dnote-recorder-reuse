@@ -156,27 +156,6 @@ async def test_idempotency_keys_replay_the_first_answer_per_caller(h):
     assert too_long.status_code == 400
 
 
-async def test_an_answer_never_recorded_is_abandoned_after_five_minutes(h):
-    tokens = await h.sms_login()
-    key = {"Idempotency-Key": "fb-crash"}
-    first = await h.http.post("/v1/feedback", headers=bearer(tokens) | key, json={"content": "崩溃前"})
-    assert first.status_code == 201
-    # As if the server died after the insert and before recording the answer.
-    async with h.run.engine.begin() as connection:
-        await connection.execute(text("UPDATE idempotency_records SET status_code = NULL, body = NULL"))
-    waiting = await h.http.post("/v1/feedback", headers=bearer(tokens) | key, json={"content": "崩溃前"})
-    assert waiting.status_code == 409 and waiting.json()["error"]["code"] == "idempotency_in_progress"
-    h.clock.advance(minutes=5, seconds=1)
-    # A different request with the key is still refused, not run.
-    other = await h.http.post("/v1/feedback", headers=bearer(tokens) | key, json={"content": "别的"})
-    assert other.status_code == 422
-    retried = await h.http.post("/v1/feedback", headers=bearer(tokens) | key, json={"content": "崩溃前"})
-    assert retried.status_code == 201 and "idempotent-replayed" not in retried.headers
-    again = await h.http.post("/v1/feedback", headers=bearer(tokens) | key, json={"content": "崩溃前"})
-    assert again.json() == retried.json() and again.headers.get("idempotent-replayed") == "true"
-    assert await h.count("feedback") == 2
-
-
 async def test_stored_replies_are_encrypted(h):
     tokens = await h.sms_login()
     reply = await h.http.post(

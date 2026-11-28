@@ -3,6 +3,7 @@ summarize task."""
 
 import importlib.util
 import json
+import uuid
 from dataclasses import dataclass, field
 
 import pytest
@@ -11,7 +12,7 @@ from sqlalchemy import text
 from test_recordings import meta, uploaded
 from test_transcripts import ScriptedTranscriber, task_of
 
-from revive_api import summaries, tasks
+from revive_api import summaries, tasks, usage
 from revive_api.asr import Segment, TranscriptResult
 from revive_api.llm import ChatModelError, ChatReply
 from revive_api.worker import HANDLERS
@@ -332,3 +333,18 @@ async def test_a_summary_from_the_apps_own_transcript(h, model):
     assert queued.status_code == 202, queued.text
     assert await tasks.run_one(h.run, HANDLERS)
     assert "大家好，开始开会。\n先说回款。" in model.calls[0]["user"]
+
+
+async def test_unbilled_tokens_are_kept_after_the_account_is_gone(h):
+    # The account was deleted while the model ran: the cost stays, without a user.
+    tokens = await h.sms_login()
+    me = (await h.http.get("/v1/me", headers=bearer(tokens))).json()
+    await usage.record_unbilled(h.run, uuid.UUID(me["id"]), 30)
+    await usage.record_unbilled(h.run, uuid.uuid4(), 50)
+    async with h.run.engine.connect() as connection:
+        rows = (
+            await connection.execute(
+                text("SELECT user_id::text, amount FROM usage_records WHERE kind = 'llm_unbilled' ORDER BY amount")
+            )
+        ).all()
+    assert [tuple(r) for r in rows] == [(me["id"], 30), (None, 50)]

@@ -32,9 +32,6 @@ class Settings(BaseSettings):
     code_resend_seconds: int = 60
     code_daily_limit: int = 10
     idempotency_ttl_hours: int = 24
-    # A first request whose answer was never recorded (the server died mid-request) is taken as
-    # abandoned after this long, and a retry of the same request runs again (idempotency.py).
-    idempotency_abandoned_seconds: int = 5 * 60
 
     # Recording audio (prd.md §7.2). Until there is a COS account, `storage.LocalStore` keeps
     # files in `storage_dir` and serves them at `public_base_url`/dev-storage (not in prod).

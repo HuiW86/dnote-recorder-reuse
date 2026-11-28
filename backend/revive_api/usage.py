@@ -117,6 +117,12 @@ async def record_unbilled(run: Runtime, user_id, tokens: int) -> None:
         return
     try:
         async with run.sessions() as db, db.begin():
-            db.add(UsageRecord(user_id=user_id, kind=LLM_UNBILLED, amount=tokens, occurred_at=run.clock.now()))
+            # The account may have been deleted while the model ran (DELETE /v1/me): the cost is
+            # kept without a user, as deleting an account does with earlier usage. FOR KEY SHARE
+            # makes a deletion in progress wait for this row, which it then sets to NULL.
+            owner = None
+            if user_id is not None:
+                owner = await db.scalar(select(User.id).where(User.id == user_id).with_for_update(key_share=True))
+            db.add(UsageRecord(user_id=owner, kind=LLM_UNBILLED, amount=tokens, occurred_at=run.clock.now()))
     except Exception:
         log.exception("could not record %d unbilled tokens", tokens)

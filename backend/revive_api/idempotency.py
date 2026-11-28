@@ -4,10 +4,8 @@ replayed to repeats, so a request retried after a dropped connection is not appl
 Keys are per caller: the user of a valid access token (expired or not, so a key survives the
 token being renewed), else a hash of whatever Authorization was sent, else "anonymous". The same key with a different
 request is refused; a repeat while the first is still running is told to retry. Server errors
-and errors marked retryable are not kept, so the retry runs again. A first request that never
-recorded an answer (its server died) counts as abandoned after `idempotency_abandoned_seconds`,
-and a repeat of the same request then runs it again instead of being told to retry for the rest
-of the 24 hours. Stored bodies are encrypted: a refresh response holds tokens."""
+and errors marked retryable are not kept, so the retry runs again. Stored bodies are
+encrypted: a refresh response holds tokens."""
 
 import hashlib
 import json
@@ -71,21 +69,6 @@ class IdempotencyMiddleware:
                 .on_conflict_do_nothing(constraint="idempotency_scope_key")
                 .returning(IdempotencyRecord.id)
             )
-            if not inserted:
-                # Take over a first attempt that died before recording its answer.
-                inserted = await db.scalar(
-                    update(IdempotencyRecord)
-                    .where(
-                        IdempotencyRecord.scope == caller,
-                        IdempotencyRecord.key == key,
-                        IdempotencyRecord.request_hash == request_hash,
-                        IdempotencyRecord.status_code.is_(None),
-                        IdempotencyRecord.created_at
-                        < now - timedelta(seconds=run.settings.idempotency_abandoned_seconds),
-                    )
-                    .values(created_at=now)
-                    .returning(IdempotencyRecord.id)
-                )
             existing = (
                 None
                 if inserted
