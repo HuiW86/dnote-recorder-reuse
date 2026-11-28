@@ -50,7 +50,7 @@ private struct DeviceContent: View {
                     .surfaceRows()
             }
             if isTab, !model.isConnected, env.phoneRecorder != nil {
-                Label("录音卡不在身边也能录：点下方中间的红色按钮，用这部手机的麦克风录。", systemImage: "mic")
+                Label("录音卡不在身边也能录：点下方红色按钮，选「用这部手机录」。", systemImage: "mic")
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink)
                     .surfaceRows()
@@ -60,7 +60,10 @@ private struct DeviceContent: View {
                 settings
             } else {
                 Section {
-                    Text("连接后可修改设置").foregroundStyle(Theme.inkMuted)
+                    Text(model.canReconnect
+                         ? "已断开连接。点下方「重新连接」，连上后可修改设置。"
+                         : "未连接录音卡。按住卡上的录音键，白灯闪烁后松手，连上后可修改设置。")
+                        .foregroundStyle(Theme.inkMuted)
                 }
                 .surfaceRows()
             }
@@ -129,13 +132,16 @@ private struct DeviceContent: View {
         if let s = model.switches {
             Section("录音设置") {
                 toggle("降噪", .noiseCancel, s.noiseCancel) { .noiseCancel($0) }
-                NavigationLink {
-                    LevelPicker(title: "降噪等级", note: "等级越高，环境噪声压得越低，人声也可能变闷。",
-                                value: s.noiseLevel) { model.set(.noiseLevel($0)) }
-                } label: {
-                    row("降噪等级", .noiseLevel) { Text("\(s.noiseLevel)").foregroundStyle(Theme.inkMuted) }
+                // The level does nothing while 降噪 is off.
+                if s.noiseCancel {
+                    NavigationLink {
+                        LevelPicker(title: "降噪等级", note: "等级越高，环境噪声压得越低，人声也可能变闷。",
+                                    value: s.noiseLevel) { model.set(.noiseLevel($0)) }
+                    } label: {
+                        row("降噪等级", .noiseLevel) { Text("\(s.noiseLevel)").foregroundStyle(Theme.inkMuted) }
+                    }
+                    .disabled(model.pending.contains(.noiseLevel))
                 }
-                .disabled(model.pending.contains(.noiseLevel))
                 NavigationLink {
                     LevelPicker(title: "麦克风增益", note: "增益越高，录音音量越大，也更容易录进杂音。",
                                 value: s.gain) { model.set(.gain($0)) }
@@ -189,13 +195,25 @@ private struct DeviceContent: View {
         Section {
             if model.isConnected {
                 Button("断开连接") { model.disconnect() }
+            } else if model.canReconnect {
+                Button("重新连接") { model.reconnect() }
             }
             Button("解绑此卡", role: .destructive) { confirmingUnpair = true }
-                .disabled(model.unpairBlockedReason != nil || model.unpairing)
+                .disabled(model.unpairBlockedReason != nil || model.unpairing || phoneRecording)
         } footer: {
-            if let reason = model.unpairBlockedReason { Text(reason) }
+            if let reason = model.unpairBlockedReason {
+                Text(reason)
+            } else if phoneRecording {
+                // Unpairing the last card leaves the tabs, and the way back to 停止.
+                Text("正在用这部手机录音，录完再解绑。")
+            }
         }
         .surfaceRows()
+    }
+
+    private var phoneRecording: Bool {
+        guard let phone = env.phoneRecorder else { return false }
+        return phone.state != .idle || phone.isSaving
     }
 
     // MARK: Rows
@@ -269,7 +287,9 @@ private struct LevelPicker: View {
                         dismiss()
                     } label: {
                         HStack {
-                            Text("\(level)").foregroundStyle(Theme.ink)
+                            Text(level == CardSetting.levelRange.lowerBound ? "\(level)（最弱）"
+                                 : level == CardSetting.levelRange.upperBound ? "\(level)（最强）" : "\(level)")
+                                .foregroundStyle(Theme.ink)
                             Spacer()
                             if level == value { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
                         }

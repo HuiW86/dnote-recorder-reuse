@@ -77,6 +77,8 @@ private struct MainContent: View {
     @State private var phoneConsent = false
     /// The record key was tapped while the card cannot record.
     @State private var offersPhone = false
+    /// A phone recording is starting (microphone permission, storage check): a second tap waits.
+    @State private var startingPhone = false
 
     var body: some View {
         // The bar sits below the pages, not over them. A safe-area inset on the outside does not
@@ -98,7 +100,7 @@ private struct MainContent: View {
                     .accessibilityHidden(!selected)
                 }
             }
-            BottomBar(tab: $tab, model: model) { recordKeyTapped() }
+            BottomBar(tab: $tab, model: model, phone: env.phoneRecorder) { recordKeyTapped() }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .overlay(alignment: .top) {
@@ -119,7 +121,7 @@ private struct MainContent: View {
         }
         .fullScreenCover(isPresented: $showsPhoneStage) {
             if let recorder = env.phoneRecorder {
-                PhoneRecordingStage(recorder: recorder) {
+                PhoneRecordingStage(recorder: recorder, collapse: { showsPhoneStage = false }) {
                     showsPhoneStage = false
                     if let toast = recorder.toast { model.toast = toast }
                 }
@@ -140,7 +142,7 @@ private struct MainContent: View {
         .sheet(isPresented: $showsSwitcher, onDismiss: { model.start() }) {
             DeviceSwitcherSheet(model: model, env: env)
         }
-        .confirmationDialog(model.status == .noDevice ? "还没有录音卡" : "录音卡还没连上",
+        .confirmationDialog(offerTitle,
                             isPresented: $offersPhone, titleVisibility: .visible) {
             if env.phoneRecorder != nil {
                 Button("用这部手机录") { startPhoneRecording() }
@@ -148,12 +150,19 @@ private struct MainContent: View {
             if model.status == .noDevice {
                 Button("添加录音卡") { addCard() }
             }
+            if model.session.bluetoothProblem == .bluetoothUnauthorized {
+                Button("去设置允许蓝牙") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+            }
             Button("取消", role: .cancel) {}
         } message: {
             switch model.status {
-            case .noDevice: Text("可以先用这部手机录。有录音卡时，点「添加录音卡」。")
-            case .connecting: Text("正在连接录音卡，稍等一下再试。")
-            default: Text("按住卡上的录音键，白灯闪烁后松手，连上后就能从这里开始录音。")
+            case .noDevice: Text("有录音卡时，点「添加录音卡」开始连接。")
+            case .connecting: Text("稍等片刻，或先用这部手机录。")
+            case .bluetoothUnavailable:
+                Text((model.session.bluetoothProblem?.userText ?? "暂时连不上录音卡") + "。\n也可以先用这部手机录。")
+            default: Text("按住卡上的录音键，白灯闪烁后松手即可连接。也可以先用这部手机录。")
             }
         }
         .alert(model.prompt?.title ?? "", isPresented: promptBinding, presenting: model.prompt) { prompt in
@@ -203,6 +212,12 @@ private struct MainContent: View {
             tab = .recordings
             paths[.recordings] = [.recording(id)]
         }
+        // A collapsed phone recording that stopped on its own (out of space) still says so.
+        .onChange(of: env.phoneRecorder?.isSaving) { wasSaving, saving in
+            guard wasSaving == true, saving == false, !showsPhoneStage,
+                  let toast = env.phoneRecorder?.toast else { return }
+            model.toast = toast
+        }
         .task {
             // A phone recording cut off last time (the app was killed while recording) is
             // stored now, and the user is told (features.md X18).
@@ -221,7 +236,11 @@ private struct MainContent: View {
     @ViewBuilder private func root(_ item: MainTab) -> some View {
         switch item {
         case .overview:
-            OverviewView(model: model, overview: overview, env: env)
+            OverviewView(model: model, overview: overview, env: env) {
+                model.showOnly(.untranscribed)
+                paths[.recordings] = []
+                tab = .recordings
+            }
         case .recordings:
             RecordingsView(model: model, env: env, showsSwitcher: $showsSwitcher, showsStage: $showsStage,
                            openCard: { tab = .card })
@@ -238,11 +257,19 @@ private struct MainContent: View {
 
     /// The record key: start on the card, go back to the recording page, or offer the phone.
     private func recordKeyTapped() {
+        if let phone = env.phoneRecorder, phone.state != .idle || phone.isSaving {
+            showsPhoneStage = true
+            return
+        }
         switch model.status {
         case .recording, .paused:
             showsStage = true
         case .idle:
             model.startTapped()
+        case _ where model.currentDevice == nil && env.phoneRecorder != nil:
+            // No card to ask about (Bluetooth off or not): the key records on the phone, as the
+            // empty pages say.
+            startPhoneRecording()
         default:
             offersPhone = true
         }
@@ -266,12 +293,26 @@ private struct MainContent: View {
             phoneConsent = true
             return
         }
+        guard !startingPhone else { return }
+        startingPhone = true
+        // An old recording still playing would be heard by the microphone (X18).
+        env.player?.stop()
         Task {
+            defer { startingPhone = false }
             if await recorder.start() {
                 showsPhoneStage = true
             } else if let toast = recorder.toast {
                 model.toast = toast
             }
+        }
+    }
+
+    private var offerTitle: String {
+        switch model.status {
+        case .noDevice: "还没有录音卡"
+        case .connecting: "正在连接录音卡"
+        case .bluetoothUnavailable: "蓝牙不可用"
+        default: "录音卡还没连上"
         }
     }
 
@@ -320,6 +361,8 @@ struct RouteDestination: View {
 private struct BottomBar: View {
     @Binding var tab: MainTab
     let model: HomeModel
+    /// A phone recording shows its time on the key too (features.md X18).
+    let phone: PhoneRecorder?
     let recordTapped: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -367,7 +410,14 @@ private struct BottomBar: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private var isRecording: Bool { model.status == .recording || model.status == .paused }
+    private var phoneRecording: Bool { phone.map { $0.state != .idle } ?? false }
+    private var isRecording: Bool { phoneRecording || model.status == .recording || model.status == .paused }
+    private var isPaused: Bool { phoneRecording ? phone?.state == .paused : model.status == .paused }
+
+    private func seconds(at date: Date) -> Int? {
+        if phoneRecording, let phone { return Int(phone.elapsed) }
+        return model.recordedSeconds(at: date)
+    }
 
     private var recordKey: some View {
         let busy = model.pendingCommand == .start || model.status == .connecting
@@ -379,11 +429,11 @@ private struct BottomBar: View {
                     .shadow(color: Theme.shadow, radius: 8, y: 4)
                 if isRecording {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text(model.recordedSeconds(at: context.date).map { RecordingText.clock(seconds: $0) } ?? "")
+                        Text(seconds(at: context.date).map { RecordingText.clock(seconds: $0) } ?? "")
                             .font(.caption2.weight(.bold).monospacedDigit())
                             .minimumScaleFactor(0.6)
                             .lineLimit(1)
-                            .foregroundStyle(Theme.onDark.opacity(model.status == .paused ? 0.6 : 1))
+                            .foregroundStyle(Theme.onDark.opacity(isPaused ? 0.6 : 1))
                             .padding(.horizontal, 6)
                     }
                     .frame(width: 60, height: 60)
@@ -397,7 +447,7 @@ private struct BottomBar: View {
             .offset(y: -8)
         }
         .buttonStyle(.plain)
-        .disabled(model.pendingCommand != nil)
+        .disabled(model.pendingCommand != nil && !phoneRecording)
         .accessibilityLabel(isRecording ? "正在录音，回到录音画面" : "开始录音")
     }
 }

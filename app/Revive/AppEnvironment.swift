@@ -108,8 +108,15 @@ final class AppEnvironment {
            purged > 0 {
             diagnostics.add("app", "purged \(purged) recording(s) from trash")
         }
-        player = library.map { RecordingPlayer(library: $0) }
-        phoneRecorder = library.map { PhoneRecorder(library: $0) }
+        let player = library.map { RecordingPlayer(library: $0) }
+        let phoneRecorder = library.map { PhoneRecorder(library: $0) }
+        // The phone recording page can be collapsed (X18): playing then would take the microphone's
+        // audio session away from the recording.
+        if let player, let phoneRecorder {
+            player.microphoneInUse = { [weak phoneRecorder] in (phoneRecorder?.state ?? .idle) != .idle }
+        }
+        self.player = player
+        self.phoneRecorder = phoneRecorder
         RecordingExporter.cleanUp()
         // §7.3b: a phone that had the app before keeps the ways it used, once.
         preferences.adoptEarlierAIDefaults(

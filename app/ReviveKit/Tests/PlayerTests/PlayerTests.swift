@@ -74,6 +74,30 @@ struct PlayerTests {
         #expect(player.currentTime < 0.05)
     }
 
+    /// X18: while the phone records, playing would take its audio session; the player refuses.
+    @Test func refusesWhileTheMicrophoneIsInUse() async throws {
+        let f = try Fixture()
+        let player = RecordingPlayer(library: f.library)
+        var recording = true
+        player.microphoneInUse = { recording }
+        await #expect(throws: PlayerError.microphoneBusy) { try await player.play(f.recording) }
+        #expect(player.state == .idle)
+        recording = false
+        try await player.play(f.recording)
+        player.volume = 0
+        #expect(player.state == .playing)
+        player.stop()
+
+        // A phone recording that starts while the file loads: refused, and nothing left loaded.
+        var checks = 0
+        player.microphoneInUse = {
+            checks += 1
+            return checks > 1
+        }
+        await #expect(throws: PlayerError.microphoneBusy) { try await player.play(f.recording) }
+        #expect(player.state == .idle && player.recordingId == nil)
+    }
+
     @Test func missingAudioIsReported() async throws {
         let f = try Fixture()
         f.library.store.removeAudio(f.recording.audioPath)

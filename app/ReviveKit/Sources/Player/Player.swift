@@ -14,6 +14,9 @@ public enum PlayerError: Error, Equatable, Sendable {
     case audioMissing
     /// The system player could not open the file.
     case cannotOpen
+    /// A phone recording is running: playing would switch the shared audio session to
+    /// output only and the recording would stop hearing anything (features.md X18).
+    case microphoneBusy
 }
 
 @MainActor
@@ -38,6 +41,8 @@ public final class RecordingPlayer: NSObject {
     /// Turned off by tests and the debug screen to exercise the decode fallback on systems that
     /// open OGG directly. Takes effect on the next load (a different recording, or after `stop`).
     @ObservationIgnored public var opensOggDirectly = true
+    /// True while something records with the microphone (the phone recorder); `play` refuses then.
+    @ObservationIgnored public var microphoneInUse: @MainActor () -> Bool = { false }
 
     public init(library: RecordingLibrary) {
         self.library = library
@@ -49,8 +54,15 @@ public final class RecordingPlayer: NSObject {
     /// The first play may decode the file off the main thread (see the file header). Throws
     /// `CancellationError` if `stop` or another `play` comes in while that decode is running.
     public func play(_ recording: Recording) async throws {
+        guard !microphoneInUse() else { throw PlayerError.microphoneBusy }
         if recordingId != recording.id || player == nil {
             try await load(recording)
+        }
+        // Again after a decode that may have taken seconds: a phone recording may have started.
+        // Unload too, so the page does not take a half-loaded player for one it can seek.
+        guard !microphoneInUse() else {
+            stop()
+            throw PlayerError.microphoneBusy
         }
         try activateSession()
         player?.play()

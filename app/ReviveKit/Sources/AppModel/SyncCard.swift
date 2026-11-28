@@ -111,7 +111,8 @@ public enum SyncCard: Equatable, Sendable {
         switch self {
         case .syncing: "同步完成前，卡上的录音不会被删除"
         case .phoneStorageFull: "清理空间后下拉重试"
-        case .cardSpaceLow: "可在设备页开启「同步后删除」"
+        // Not 「同步后删除」: release builds do not show that switch yet (DeviceView).
+        case .cardSpaceLow: "已同步的录音都已保存在手机里"
         default: nil
         }
     }

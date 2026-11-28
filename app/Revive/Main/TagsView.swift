@@ -29,12 +29,14 @@ private struct TagList: View {
     @Bindable var model: TagsModel
     @State private var renaming: String?
     @State private var newName = ""
+    /// Asks first, as the tag's own page does: it changes every summary that has it.
+    @State private var deleting: String?
 
     var body: some View {
         List {
             if model.tags.isEmpty {
                 ContentUnavailableView("还没有标签", systemImage: "tag",
-                                       description: Text("生成纪要时，AI 服务会给录音加上主题标签。"))
+                                       description: Text("给录音生成纪要后，会自动加上主题标签。"))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             } else {
@@ -49,16 +51,16 @@ private struct TagList: View {
                         }
                         .accessibilityLabel("标签 \(tag.name)，\(tag.count) 条录音")
                         .swipeActions {
-                            Button("删除") { model.delete(tag.name) }.tint(.red)
+                            Button("删除") { deleting = tag.name }.tint(.red)
                             Button("重命名") { startRename(tag.name) }
                         }
                         .contextMenu {
                             Button("重命名", systemImage: "pencil") { startRename(tag.name) }
-                            Button("删除标签", systemImage: "trash", role: .destructive) { model.delete(tag.name) }
+                            Button("删除标签", systemImage: "trash", role: .destructive) { deleting = tag.name }
                         }
                     }
                 } footer: {
-                    Text("改成已有的名字会把两个标签合并。以后生成的纪要也会按你的修改处理；删除标签不会删除录音。")
+                    Text("左滑或长按可重命名、删除；修改后对新生成的纪要同样生效。")
                 }
                 .surfaceRows()
             }
@@ -72,6 +74,13 @@ private struct TagList: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("改成已有的名字会合并两个标签。")
+        }
+        .confirmationDialog(deleting.map { "删除标签「\($0)」？" } ?? "",
+                            isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+                            titleVisibility: .visible, presenting: deleting) { tag in
+            Button("删除标签", role: .destructive) { model.delete(tag) }
+        } message: { _ in
+            Text("录音和纪要都会保留，之后新生成的纪要也不会再加这个标签。")
         }
     }
 
@@ -151,7 +160,7 @@ struct TagRecordingsView: View {
                 if !path.isEmpty { path.removeLast() }
             }
         } message: {
-            Text("只从纪要里去掉这个标签，录音和纪要都还在。以后生成的纪要也不会再加它。")
+            Text("录音和纪要都会保留，之后新生成的纪要也不会再加这个标签。")
         }
         .onAppear {
             if tags == nil, let library = env.library { tags = TagsModel(library: library) }

@@ -404,6 +404,10 @@ struct RecordingLibraryTests {
         #expect(mine.titleSource == .user && mine.hasCustomTitle)
         #expect(try lib.applyAITitle(id: id, "别的")?.title == "我的标题")
         #expect(try lib.applyAITitle(id: id, "换一个", replacingUserTitle: true)?.title == "换一个")
+        // 撤销 after 让 AI 重新起标题: the user's title comes back as the user's.
+        let undone = try #require(try lib.restoreTitle(id: id, "我的标题", source: .user))
+        #expect(undone.title == "我的标题" && undone.titleSource == .user)
+        #expect(try lib.applyAITitle(id: id, "别的")?.title == "我的标题")
         let cleared = try #require(try lib.renameRecording(id: id, to: ""))
         #expect(cleared.titleSource == nil && !cleared.hasCustomTitle && !cleared.hasAITitle)
 

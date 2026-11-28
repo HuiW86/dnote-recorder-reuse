@@ -34,7 +34,13 @@ public final class AssistantSettingsModel {
         transcriptionModel = preferences.assistantTranscriptionModel
         profession = preferences.assistantProfession
         apiKey = (try? keyStore.read()) ?? ""
+        opened = stored
     }
+
+    /// The settings as stored when the page opened, or when this page last saved or cleared them.
+    /// Observed: 保存 and 清除 follow it.
+    private var opened = Stored(baseURL: "", model: "", apiKey: "", transcriptionModel: "",
+                                                    profession: "")
 
     /// The transcription model the chosen provider suggests, if it transcribes at all.
     public var suggestedTranscriptionModel: String? {
@@ -69,18 +75,95 @@ public final class AssistantSettingsModel {
 
     /// Stores address and model in Preferences and the key in the Keychain; an empty key is removed.
     public func save() {
-        let current = config
-        preferences.assistantBaseURL = current.baseURL
-        preferences.assistantModel = current.model
-        preferences.assistantTranscriptionModel = transcriptionModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        preferences.assistantProfession = current.profession
-        do {
-            try keyStore.save(current.apiKey)
+        // Only the job changed: write only the job, so a service another page saved meanwhile
+        // is not overwritten with this page's old (maybe empty) one.
+        if form.sameService(as: opened) {
+            preferences.assistantProfession = form.profession
+            opened.profession = form.profession
             toast = Toast("已保存")
-        } catch {
+            return
+        }
+        if persist() {
+            toast = Toast("已保存")
+        } else {
             toast = Toast("密钥保存失败，请重试")
         }
     }
+
+    /// The key first: if the Keychain refuses it, nothing changes, so a new address never pairs
+    /// with the old key.
+    @discardableResult private func persist() -> Bool {
+        let form = self.form
+        do {
+            try keyStore.save(form.apiKey)
+        } catch {
+            return false
+        }
+        preferences.assistantBaseURL = form.baseURL
+        preferences.assistantModel = form.model
+        preferences.assistantTranscriptionModel = form.transcriptionModel
+        preferences.assistantProfession = form.profession
+        opened = form
+        return true
+    }
+
+    /// What the service settings hold, or what the form says, in stored (trimmed) form.
+    private struct Stored: Equatable {
+        var baseURL, model, apiKey, transcriptionModel, profession: String
+
+        func sameService(as other: Stored) -> Bool {
+            baseURL == other.baseURL && model == other.model && apiKey == other.apiKey
+                && transcriptionModel == other.transcriptionModel
+        }
+    }
+
+    private var form: Stored {
+        let current = config
+        return Stored(baseURL: current.baseURL, model: current.model, apiKey: current.apiKey,
+                      transcriptionModel: transcriptionModel.trimmingCharacters(in: .whitespacesAndNewlines),
+                      profession: current.profession)
+    }
+
+    /// As stored now; another page may have changed it since this one opened.
+    private var stored: Stored {
+        Stored(baseURL: preferences.assistantBaseURL, model: preferences.assistantModel,
+               apiKey: (try? keyStore.read()) ?? "", transcriptionModel: preferences.assistantTranscriptionModel,
+               profession: preferences.assistantProfession)
+    }
+
+    /// A service is stored on this phone: 「清除这个服务」 has something to clear.
+    public var hasSavedService: Bool { !opened.baseURL.isEmpty || !opened.apiKey.isEmpty }
+
+    /// The user edited the form since it was opened or last saved.
+    public var hasUnsavedChanges: Bool { form != opened }
+
+    /// Saving makes sense: something changed, and the service is complete or untouched (only the
+    /// job changed, which works without a service).
+    public var canSave: Bool { hasUnsavedChanges && (isConfigured || form.sameService(as: opened)) }
+
+    /// Leaving the page keeps what can be kept, so a filled-in form is never lost to a missed 保存.
+    /// It never stores a key for an address it was not typed for, and never overwrites what
+    /// another page saved or cleared meanwhile.
+    public func saveOnLeave() {
+        guard canSave, mayKeepWithoutAsking else { return }
+        persist()
+    }
+
+    /// Kept without 保存 only when it changes neither who receives the text nor what is sent.
+    /// The recipient is the address and the key (one address can hold several accounts); audio
+    /// starts going out when a transcription model is filled in ("留空则不会上传任何音频").
+    /// A first service counts as a new recipient while 录完自动整理 would use it at once.
+    private var mayKeepWithoutAsking: Bool {
+        let form = self.form
+        let first = opened.baseURL.isEmpty && opened.apiKey.isEmpty
+        let changesRecipient = form.baseURL != opened.baseURL || form.apiKey != opened.apiKey
+        let recipientNeedsSave = changesRecipient && (!first || preferences.autoProcessEnabled)
+        let startsUploadingAudio = opened.transcriptionModel.isEmpty && !form.transcriptionModel.isEmpty
+        return !recipientNeedsSave && !startsUploadingAudio && stored == opened
+    }
+
+    /// The form names another service than the stored one; only 保存 switches to it.
+    public var switchesService: Bool { !opened.baseURL.isEmpty && form.baseURL != opened.baseURL }
 
     /// Removes the service: the app goes back to working without AI.
     public func clear() {
@@ -94,6 +177,7 @@ public final class AssistantSettingsModel {
         preferences.assistantTranscriptionModel = ""
         // The job is about the user, not the service: it stays.
         try? keyStore.delete()
+        opened = stored
         toast = Toast("已清除")
     }
 
@@ -107,14 +191,27 @@ public final class AssistantSettingsModel {
         }
         isTesting = true
         testResult = nil
+        let tested = form
         Task {
             defer { isTesting = false }
             do {
                 _ = try await client.complete(current, system: "只回复两个字：可用", user: "测试", json: false)
-                testResult = "可以连接"
+                // The form changed while the test ran (edited, cleared): the result is not about it.
+                guard form == tested else { return }
+                if mayKeepWithoutAsking, persist() {
+                    testResult = "连接成功，已保存"
+                } else if switchesService {
+                    testResult = "连接成功。点「保存」后改用这个服务"
+                } else if hasUnsavedChanges {
+                    testResult = "连接成功。点「保存」后生效"
+                } else {
+                    testResult = "连接成功"
+                }
             } catch let error as AssistantError {
+                guard form == tested else { return }
                 testResult = Self.text(for: error)
             } catch {
+                guard form == tested else { return }
                 testResult = "连接失败：\(error.localizedDescription)"
             }
         }

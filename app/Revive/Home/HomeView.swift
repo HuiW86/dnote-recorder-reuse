@@ -38,13 +38,14 @@ struct RecordingsView: View {
     @Binding var showsStage: Bool
     /// The card name on the chip opens the 录音卡 tab.
     let openCard: () -> Void
-    @State private var pendingDelete: Recording?
     /// Files picker for importing audio (features.md E2).
     @State private var importing = false
     /// 从链接导入 (features.md X12).
     @State private var importingLink = false
     @State private var folderBeingRenamed: Folder?
     @State private var folderName = ""
+    /// Deleting a folder cannot be undone: it asks first.
+    @State private var folderBeingDeleted: Folder?
     /// The "全部完成" card folds into a check mark next to the title after 3 s.
     @State private var doneCollapsed = false
 
@@ -95,11 +96,13 @@ struct RecordingsView: View {
                     model.toast = Toast(title.isEmpty ? "已导入" : "已导入「\(title)」")
                 }
             }
-            .confirmationDialog("删除这条录音？", isPresented: deleteBinding, titleVisibility: .visible,
-                                presenting: pendingDelete) { recording in
-                Button("删除录音", role: .destructive) { model.delete(recording.id) }
+            .confirmationDialog(folderBeingDeleted.map { "删除文件夹「\($0.name)」？" } ?? "",
+                                isPresented: Binding(get: { folderBeingDeleted != nil },
+                                                     set: { if !$0 { folderBeingDeleted = nil } }),
+                                titleVisibility: .visible, presenting: folderBeingDeleted) { folder in
+                Button("删除文件夹", role: .destructive) { model.deleteFolder(folder) }
             } message: { _ in
-                Text("录音会移到「最近删除」，保留 7 天。录音卡不受影响。")
+                Text("里面的录音不会删除，仍可在「全部」里看到。")
             }
             .alert("重命名文件夹", isPresented: Binding(get: { folderBeingRenamed != nil },
                                                      set: { if !$0 { folderBeingRenamed = nil } })) {
@@ -154,16 +157,20 @@ struct RecordingsView: View {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
                                            description: Text(model.currentDevice == nil
-                                                             ? "点下方中间的红色按钮用这部手机录，或点右上角导入音频和文字"
-                                                             : "按卡上的录音键，或点下方中间的红色按钮"))
+                                                             ? "点下方红色按钮用手机录，或点右上角导入音频和文字"
+                                                             : "按卡上的录音键，或点下方红色按钮开始录音"))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 }
             } else {
                 if model.filteredRecordings.isEmpty {
-                    ContentUnavailableView("没有符合条件的录音", systemImage: "line.3.horizontal.decrease.circle")
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                    ContentUnavailableView {
+                        Label("没有符合条件的录音", systemImage: "line.3.horizontal.decrease.circle")
+                    } actions: {
+                        Button("显示全部录音") { model.showAll() }
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
                 // One card per day, with the day's count and length (design-spec.md §3, #89).
                 ForEach(model.days) { day in
@@ -174,9 +181,8 @@ struct RecordingsView: View {
                                              markCount: model.markCount(for: recording))
                             }
                             .swipeActions {
-                                // No destructive role: it animates the row away before the user confirms.
-                                Button("删除") { pendingDelete = recording }
-                                    .tint(.red)
+                                // Straight to 最近删除; the toast offers "撤销" (the same as P06).
+                                Button("删除", role: .destructive) { model.delete(recording.id) }
                             }
                             .swipeActions(edge: .leading) {
                                 Button(recording.isStarred ? "取消星标" : "标星") { model.toggleStar(recording.id) }
@@ -226,11 +232,7 @@ struct RecordingsView: View {
                     let selected = model.filter == filter
                         && (filter != .all || (model.folderFilter == nil && model.sourceFilter == nil))
                     Button {
-                        model.filter = filter
-                        if filter == .all {
-                            model.folderFilter = nil
-                            model.sourceFilter = nil
-                        }
+                        if filter == .all { model.showAll() } else { model.filter = filter }
                     } label: {
                         Text(filter.title)
                             .font(.subheadline.weight(selected ? .semibold : .regular))
@@ -277,7 +279,7 @@ struct RecordingsView: View {
                             folderBeingRenamed = folder
                             folderName = folder.name
                         }
-                        Button("删除文件夹", systemImage: "trash", role: .destructive) { model.deleteFolder(folder) }
+                        Button("删除文件夹", systemImage: "trash", role: .destructive) { folderBeingDeleted = folder }
                     }
                 }
             }
@@ -296,9 +298,6 @@ struct RecordingsView: View {
         if case .done = card { true } else { false }
     }
 
-    private var deleteBinding: Binding<Bool> {
-        Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
-    }
 }
 
 private struct RecordingRow: View {
@@ -351,8 +350,8 @@ private struct RecordingRow: View {
     }
 }
 
-/// Banner for a Bluetooth problem; the list stays usable (product-spec.md §4.3 P05).
-private struct BluetoothBanner: View {
+/// Banner for a Bluetooth problem; the list stays usable (product-spec.md §4.3 P05). Also on 总览.
+struct BluetoothBanner: View {
     let problem: CardServiceError
 
     var body: some View {

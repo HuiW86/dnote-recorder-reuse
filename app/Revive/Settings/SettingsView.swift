@@ -66,21 +66,28 @@ struct SettingsView: View {
                 Text("在文字稿里长按一句改正听错的词，以后转写会自动改正。")
             }
             .surfaceRows()
-            Section {
-                // §7.3b: replaces 本机转写（试验）. Lists only the ways this phone has.
-                Picker("默认转写方式", selection: transcriptionPathBinding) {
-                    ForEach(transcriptionPaths) { Text($0.title).tag($0) }
-                }
-                Picker("默认纪要方式", selection: $preferences.defaultSummaryPath) {
-                    Text("第一次用时选").tag(AIPath?.none)
-                    ForEach(summaryPaths) { Text($0.title).tag(AIPath?.some($0)) }
-                }
-            } footer: {
+            // §7.3b: replaces 本机转写（试验）. Lists only the ways this phone has; a choice of one is
+            // no choice, so it is not shown.
+            if choosesTranscription || choosesSummary {
+                Section {
+                    if choosesTranscription {
+                        Picker("默认转写方式", selection: transcriptionPathBinding) {
+                            ForEach(transcriptionPaths) { Text($0.title).tag($0) }
+                        }
+                    }
+                    if choosesSummary {
+                        Picker("默认纪要方式", selection: $preferences.defaultSummaryPath) {
+                            Text("第一次用时选").tag(AIPath?.none)
+                            ForEach(summaryPaths) { Text($0.title).tag(AIPath?.some($0)) }
+                        }
+                    }
+                } footer: {
                 Text(account != nil
                      ? "「本机」离线完成，不联网；「你的 AI 服务」和「闻笺账号」会把录音或文字稿发给对应服务。单条录音可在详情页右上角「⋯」里单独换方式。"
                      : "「本机」离线完成，不联网；「你的 AI 服务」会把录音或文字稿发给你设置的服务。单条录音可在详情页右上角「⋯」里单独换方式。")
+                }
+                .surfaceRows()
             }
-            .surfaceRows()
             Section {
                 Toggle("录完自动整理", isOn: autoProcessBinding)
             } footer: {
@@ -140,6 +147,17 @@ extension SettingsView {
            !preferences.assistantBaseURL.isEmpty { paths.append(.ownService) }
         if account != nil { paths.append(.account) }
         return paths
+    }
+
+    /// More than one way, or a stored default that is no longer offered and must be changeable.
+    private var choosesTranscription: Bool {
+        transcriptionPaths.count > 1 || !transcriptionPaths.contains(preferences.defaultTranscriptionPath ?? .onDevice)
+    }
+
+    /// A way to summarize exists (the user's service is filled in, or the build has the account),
+    /// or a default was chosen that can still be put back to 第一次用时选.
+    private var choosesSummary: Bool {
+        !preferences.assistantBaseURL.isEmpty || account != nil || preferences.defaultSummaryPath != nil
     }
 
     private var summaryPaths: [AIPath] {
@@ -251,17 +269,17 @@ struct AboutView: View {
 
     /// The repository's NOTICE, as it applies to the app.
     static let beanpodLicense = """
-        录音场景分类，总结、改写、提问和跨录音提问的提示词，以及常见服务商地址列表，改编自         andyhuo520/beanpod（commit 0d00fab）。代码由本项目重写。
+        录音场景分类，总结、改写、提问和跨录音提问的提示词，以及常见服务商地址列表，改编自 andyhuo520/beanpod（commit 0d00fab）。代码由本项目重写。
 
         MIT License
 
         Copyright (c) 2026 berryxia
 
-        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and         associated documentation files (the "Software"), to deal in the Software without restriction, including         without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell         copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the         following conditions:
+        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-        The above copyright notice and this permission notice shall be included in all copies or substantial         portions of the Software.
+        The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT         LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO         EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER         IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR         THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         """
 }
 
