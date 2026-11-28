@@ -6,7 +6,7 @@ summary's title and summary, else the transcript. The new title is kept on the t
 
 from sqlalchemy import select
 
-from . import summaries
+from . import summaries, usage
 from .llm import ChatModelError
 from .models import Recording, Summary, Transcript, UsageRecord
 from .runtime import Runtime
@@ -40,18 +40,19 @@ async def retitle(run: Runtime, claimed: Claimed) -> None:
         reply = await run.chat.complete(summaries.RETITLE_PROMPT, summaries.retitle_message(material, current), True)
     except ChatModelError as error:
         raise TaskError(error.code, error.message, error.retryable) from error
+    tokens = reply.prompt_tokens + reply.completion_tokens
     try:
-        title = summaries.parse_title(reply.text)
-    except summaries.BadReply as error:
-        raise TaskError("bad_reply", f"AI 的回答格式不对（{error}）", retryable=True) from error
+        try:
+            title = summaries.parse_title(reply.text)
+        except summaries.BadReply as error:
+            raise TaskError("bad_reply", f"AI 的回答格式不对（{error}）", retryable=True) from error
 
-    async with finishing(run, claimed) as done:
-        done.db.add(
-            UsageRecord(
-                user_id=claimed.user_id,
-                kind="llm_tokens",
-                amount=reply.prompt_tokens + reply.completion_tokens,
-                occurred_at=run.clock.now(),
+        async with finishing(run, claimed) as done:
+            done.db.add(
+                UsageRecord(user_id=claimed.user_id, kind="llm_tokens", amount=tokens, occurred_at=run.clock.now())
             )
-        )
-        done.result = {"title": title, "model": reply.model}
+            done.result = {"title": title, "model": reply.model}
+    except Exception:
+        # Spent on an attempt that produced nothing: a cost, not billed to the user (usage.py).
+        await usage.record_unbilled(run, claimed.user_id, tokens)
+        raise

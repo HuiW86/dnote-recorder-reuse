@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Static checks for CLAUDE.md hard rules 1 and 3 (test-spec.md §3.5 gate 1).
 #   1. No irreversible device command literals (0x93 factory reset, 0x94 format,
-#      0xB0/0xB1 firmware upgrade) anywhere in app sources. Test code is exempt
-#      so it can assert the whitelist.
+#      0xB0/0xB1 firmware upgrade) in app, client or prototype sources. Test code is
+#      exempt so it can assert the whitelist.
 #   2. M1 modules in ReviveKit must not use networking APIs.
 #   3. SyncEngine knows devices only through DeviceSource (ADR-010): it must not import
 #      the D·NOTE modules, so a second device needs no change to the sync state machine.
@@ -13,8 +13,11 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 app="$root/app"
 fail=0
 
-forbidden=$(grep -rniE '0x(93|94|b0|b1)\b' "$app" \
-  --include='*.swift' --exclude-dir=Tests --exclude-dir=.build || true)
+# The Python client and the iOS prototype talk to real cards too: same rule, same exemption for tests.
+# client/check_log.py only reads exported logs to assert these were never sent, so it is exempt too.
+forbidden=$(grep -rniE '0x(93|94|b0|b1)\b' "$app" "$root/client" "$root/ios-prototype" \
+  --include='*.swift' --include='*.py' --exclude-dir=Tests --exclude-dir=tests --exclude-dir=.build \
+  --exclude-dir=.build-linux --exclude-dir=.venv --exclude=check_log.py || true)
 if [[ -n "$forbidden" ]]; then
   echo "FAIL: irreversible device command literal found (CLAUDE.md rule 1):"
   echo "$forbidden"

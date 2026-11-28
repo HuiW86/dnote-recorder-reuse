@@ -482,7 +482,7 @@ M2 起后端错误使用 §7.3 的统一结构，不和这张表混用。
 
 ## 7. 后端接口契约（M2～M4，模块级）
 
-技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-22，Proposed）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-22，Proposed）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）、第四片（AI 生成）已做，见 `backend/README.md`。
+技术栈：Python + FastAPI + PostgreSQL，任务队列放在 PostgreSQL 里（ADR-002）；腾讯云 COS 存音频（ADR-003）。具体库和版本见 ADR-012（2026-11-25 Accepted）：SQLAlchemy 2（异步，psycopg 3）+ Alembic、Pydantic v2、argon2-cffi、PyJWT；任务队列自己写，一张 `tasks` 表（ADR-013，2026-11-25 Accepted）。代码在 `backend/`，第一片（账号、设备登记、意见反馈）、第二片（录音与上传）、第三片（任务队列与转写骨架）、第四片（AI 生成）、第五片（用量与额度）、第六片（换角度重起标题）已做，见 `backend/README.md`。
 
 ### 7.1 通用约定
 
@@ -550,7 +550,7 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | `summaries` | id、recording_id、scene（用的模板，即场景代号）、content（JSONB：title、summary、sections、todos、tags、people、outline、quotes，和 App 的纪要同样的栏目，一次生成全部）、model、created_at；每次生成一行 | M2 |
 | `templates` | 暂不建表：内置模板就是 10 种场景，在代码里（`summaries.SCENES`，和 App 的 `RecordingScene` 一致）；有用户自定义模板时再建 | M2 |
 | `tasks` | 队列和业务状态是同一张表（ADR-013）：id、user_id、recording_id、kind（`transcribe`、`summarize`、`retitle`）、params（JSONB）、status、attempts、max_attempts、run_after、lease_until、error_code、error_message、result（JSONB，没有自己的表的任务把小结果放这里，如 retitle 的新标题）、created_at、updated_at、started_at、finished_at | M2 |
-| `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens）、amount、occurred_at | M2 |
+| `usage_records` | id、user_id（注销后置空，记录保留）、kind（asr_seconds、llm_tokens；llm_unbilled 是没产出结果的尝试花掉的 token，比如读不出来要重试的回答，只用于看成本，不计入用户额度）、amount、occurred_at | M2 |
 | `feedback` | id、user_id、content、app_version、created_at | M2 |
 | `idempotency_records` | id、scope（调用方）、key、request_hash、status_code（处理中为空）、content_type、body（加密）、created_at；24 小时后清掉 | M2 |
 | `notes` | id、recording_id、offset_ms、text、image_keys、version、updated_at、deleted | M4 |
@@ -566,6 +566,6 @@ App 先轮询 `GET /tasks/{id}`（间隔 2 s 起，指数退避到 30 s）；推
 | 项 | 类型 | 何时解决 |
 |---|---|---|
 | App 本地数据库库选型（候选 GRDB） | 待决定 | M1 开工时，写 ADR |
-| 后端具体库与版本 | ADR-012 已提出（Proposed），等确认 | 2026-11-22 |
-| 任务队列用库还是自己写 | ADR-013 已提出（Proposed）：自己写，一张 `tasks` 表；等确认 | 2026-11-22 |
+| 后端具体库与版本 | ADR-012 Accepted | 2026-11-25 |
+| 任务队列用库还是自己写 | ADR-013 Accepted：自己写，一张 `tasks` 表 | 2026-11-25 |
 | 任务完成是否用推送通知 | 待决定 | M2 |

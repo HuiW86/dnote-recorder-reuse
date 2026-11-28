@@ -59,7 +59,8 @@ async def change_password(body: PasswordChangeIn, user: CurrentUser, db: DB, run
 @router.delete("", status_code=204)
 async def delete_account(user: CurrentUser, db: DB, run: Run, background: BackgroundTasks) -> Response:
     """Deletes the account and, through ON DELETE CASCADE, every row it owns: tokens, devices,
-    feedback, recordings. Stored audio is queued for removal in the same transaction and removed
+    feedback, recordings with their tasks, transcripts and summaries (usage records are kept
+    without the user). Stored audio is queued for removal in the same transaction and removed
     right after the response (later by `maintenance` if storage is down)."""
     now = run.clock.now()
     queued = [

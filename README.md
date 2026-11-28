@@ -44,8 +44,8 @@ iOS、Mac、CLI/MCP 和后端的构建与验证方式见[首跑指南](docs/arch
 | `app/` | `Revive/` 是 iOS App，`ReviveMac/` 是原生 Mac App，`ReviveKit/` 是共享 Swift Package，包含本地 CLI/MCP 可执行程序 `revive` |
 | `backend/` | FastAPI 服务、后台任务进程与 PostgreSQL 迁移，见[后端接口与运行说明](backend/README.md) |
 | `client/` | Python 命令行客户端：协议库 + OGG 封装，真机验证用；`probe_*.py` 是真机探测脚本 |
-| `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用 |
-| `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查（CI 也跑） |
+| `ios-prototype/` | iOS 可行性原型（Swift），阶段 0 验证用，不再开发；保留是为了能复现 `evidence/v7-ios/`（硬规则 6） |
+| `scripts/` | `check-m1-rules.sh`：禁发命令字与 M1 模块不联网的静态检查；`check_evidence.py`：证据脱敏检查；`check-theme.sh`：界面颜色只取 Theme（两个 CI 都跑）；`shots.sh`：模拟器截图；`build_privacy_page.py`：生成公开隐私政策页 |
 | `design/` | App 图标原图 |
 | `evidence/` | 真机验证证据（按验证编号分目录） |
 | `HANDOFF.md` | 最近一次开发会话的交接：做完了什么、下一步、风险 |
@@ -55,6 +55,7 @@ iOS、Mac、CLI/MCP 和后端的构建与验证方式见[首跑指南](docs/arch
 | `docs/product-spec.md` | 页面清单、流程、界面状态与错误提示 |
 | `docs/test-spec.md` | 测试策略、用例、真机证据格式 |
 | `docs/adr/` | 选型决策记录 |
+| `docs/release/` | TestFlight 要填的内容、公开隐私政策草稿 |
 | `docs/PROTOCOL.md` | 完整 BLE 协议规格 |
 | `docs/official-app-analysis.md` | 官方 App 功能盘点 |
 | `docs/official-ui-walkthrough.md` | 官方 App 的页面走查 |

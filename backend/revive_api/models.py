@@ -255,7 +255,8 @@ class UsageRecord(Base):
 
     __tablename__ = "usage_records"
     __table_args__ = (
-        CheckConstraint("kind IN ('asr_seconds', 'llm_tokens')", name="usage_records_kind"),
+        # llm_unbilled: tokens of attempts that produced nothing; not counted against allowances.
+        CheckConstraint("kind IN ('asr_seconds', 'llm_tokens', 'llm_unbilled')", name="usage_records_kind"),
         Index("usage_records_user_time", "user_id", "occurred_at"),
     )
     id: Mapped[uuid.UUID] = _id()

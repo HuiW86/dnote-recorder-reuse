@@ -9,7 +9,7 @@
 从仓库根目录在 Mac 终端运行：
 
 ```bash
-bash scripts/shots.sh "$PWD/evidence/89-ui-step-two"
+bash scripts/shots.sh "$PWD/evidence/v89-ui-step-two"
 ```
 
 一次运行生成 14 张 PNG，浅色和深色各 7 张，均为 1206 × 2622。逐张核对了目标页面和外观。[页面结构规格](../../docs/design-spec.md#4-页面结构) · [第一步改版稿说明](https://github.com/HuiW86/dnote-recorder-reuse/pull/69)

@@ -445,14 +445,6 @@ public struct Folder: Codable, Equatable, Hashable, Sendable, Identifiable, Fetc
 /// States of prd.md §4.1.
 public enum SyncState: String, Codable, Sendable, CaseIterable {
     case discovered, downloading, stored, deletePending, deletedOnCard, failed
-
-    /// The file is safely in the library; never download it again.
-    public var isStoredOrLater: Bool {
-        switch self {
-        case .stored, .deletePending, .deletedOnCard: true
-        case .discovered, .downloading, .failed: false
-        }
-    }
 }
 
 /// One card file, keyed by (device, name, size) (prd.md §4.3).

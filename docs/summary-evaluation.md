@@ -52,7 +52,7 @@ python summary_generate.py --transcripts eval/refs --out eval/blind \
    - 输出：`eval/blind/o01.md`…，`key.csv`，`timing.csv`（每次生成的秒数），以及 `scores-template.csv`（每个输出、每个打分人一行，分数空着，填好就是第 2 步的 `scores.csv`）。
    - 失败的组合（例如服务商限流）会列出来，不进入这一套；目录里已有一套时拒绝写入，免得混在一起。
    - 提示词 A：在 App 里跑。把参考文字稿存成 `.txt` 导入（E2），生成纪要，导出 Markdown，按样本名存进一个目录（`eval/exports-a/m30.md`），用 `--existing A@模型名=目录` 放进同一套。`--existing` 的模型名要和 `--model` 里同一个模型的名字一致，汇总时才会归到一起。
-   - 提示词 B：beanpod 原版在它的仓库里（`0d00fab` 的 `Shared/Analyzer.swift` `analyze`），按 MIT 许可复制进 `client/prompts/b-beanpod.txt`，文件头写明出处（#68）。
+   - 提示词 B：beanpod 原版在它的仓库里（`0d00fab` 的 `Shared/Analyzer.swift` `analyze`），已按 MIT 许可复制进 `client/prompts/b-beanpod.txt`（2026-11-25），按默认取值展开：自动判断场景、职业「通用」、简体中文；文件头写明出处，`summary_generate.py` 读入时去掉开头的「# 」说明行，不发给模型（#68）。
    - 提示词 C：`client/prompts/c-plain-minutes.txt`，本项目写的，不分场景，字段用 App 的格式（`title`、`summary`、`sections`、`todos`），这样「能否解析」一栏三套可以比。
    - 参考文字稿会发给所选的服务；只用可以发给它们的材料。
 2. **打分**：每个输出最好由两个人分别打分，每人在 `scores.csv` 里写一行：

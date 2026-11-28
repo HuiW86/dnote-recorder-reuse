@@ -35,11 +35,11 @@ let package = Package(
         .target(name: "SyncEngine", dependencies: ["DeviceSource", "Library"]),
         // Playback and export of stored OGG files.
         .target(name: "Player", dependencies: ["Library"]),
-        // Screen state for the SwiftUI app (no views): one session over the device stack,
-        // onboarding, pairing, home and recording detail (product-spec.md). Tested against the fake card.
         // On-device speech recognition of stored recordings (features.md X9). Offline: no
         // networking, enforced by scripts/check-m1-rules.sh like the M1 modules.
         .target(name: "Transcription", dependencies: ["Library", "Player"]),
+        // Screen state for the SwiftUI app (no views): one session over the device stack,
+        // onboarding, pairing, home and recording detail (product-spec.md). Tested against the fake card.
         .target(name: "AppModel", dependencies: ["CardLink", "CardService", "Library", "SyncEngine", "Player",
                                                  "Transcription", "Assistant", "LinkImport", "Account", "AIRoute"]),
         // Summaries through a service the user configures (features.md X11, G1; ADR-009). The one
