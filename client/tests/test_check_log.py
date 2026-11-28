@@ -102,3 +102,20 @@ def test_a_case_with_nothing_to_judge_is_not_a_pass(tmp_path):
     log.write_text(LIST + DOWNLOAD, encoding="utf-8")
     assert L.main([str(log)]) == 0
     assert L.main(["--case", "T-M1-53", str(log)]) == 1
+
+
+def test_a_stop_without_its_sync_fails_t_m1_51():
+    later_stop = "2026-11-26 10:00:09.000 [lock] rx 55 len=0\n"
+    r = judge(LIST + DOWNLOAD + later_stop)
+    r.judge(["T-M1-51"])
+    assert any("no download after it" in f for f in r.failures)
+
+
+def test_a_long_transfer_that_did_not_complete_fails_t_m1_53():
+    big = 3_000_000
+    head = LIST.replace('"size":400', f'"size":{big}')
+    start = "2026-11-26 10:00:02.000 [fg] tx 70 len=49 {\"cmd\":1,\"name\":\"20261126095900.opus\",\"offset\":0}\n"
+    chunk = "2026-11-26 10:00:44.000 [fg] rx 70 len=205 status=0x00 offset=0 data=<1048576 B>\n"
+    r = judge(head + start + chunk)
+    r.judge(["T-M1-53"])
+    assert any("did not complete" in f for f in r.failures)

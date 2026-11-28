@@ -172,7 +172,10 @@ def check(frames: list[Frame], redaction=None) -> Report:
                 + (f", {seconds:.1f} s, {speed:.1f} KB/s" if speed else "") + f" [{state}]")
         if d.outcome == "eof" and size is not None and d.offset + d.received != size:
             r.failures.append(f"line {d.ended.line}: {d.name} ended at {d.offset + d.received} B, listed as {size} B")
-        if speed and d.received >= THROUGHPUT_MIN_BYTES:
+        if d.received >= THROUGHPUT_MIN_BYTES and not whole:
+            # A long recording that did not arrive whole is a T-M1-53 failure, whatever its speed.
+            r.over["T-M1-53"].append(f"{d.name}: {d.received} B arrived, the transfer did not complete")
+        if speed and d.received >= THROUGHPUT_MIN_BYTES and whole:
             text += f" ({speed / BASELINE_KBPS - 1:+.0%} vs {BASELINE_KBPS:g} KB/s)"
             r.measured["T-M1-53"] += 1
             if abs(speed - BASELINE_KBPS) / BASELINE_KBPS > 0.2:
@@ -208,7 +211,11 @@ def check(frames: list[Frame], redaction=None) -> Report:
         if f.direction == "rx" and f.cmd == 0x55:
             nxt = next((d for d in loads if d.started.time >= f.time), None)
             if nxt is None:
-                r.notes.append(f"line {f.line}: recording stopped [{f.state}], no download after it in this log")
+                why = f"line {f.line}: recording stopped [{f.state}], no download after it in this log"
+                r.notes.append(why)
+                # T-M1-51: every stop must be followed by its sync.
+                r.measured["T-M1-51"] += 1
+                r.over["T-M1-51"].append(why)
                 continue
             wait = (nxt.started.time - f.time).total_seconds()
             r.lines.append(f"recording stopped [{f.state}] → download {nxt.name} after {wait:.1f} s")
