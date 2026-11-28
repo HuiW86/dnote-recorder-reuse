@@ -97,10 +97,10 @@ struct AssistantSettingsView: View {
         .toast($model.toast)
         // A filled-in form is kept even without 保存; half a service is not stored.
         .onDisappear { model.saveOnLeave() }
-        .confirmationDialog("清除这个 AI 服务？", isPresented: $confirmingClear, titleVisibility: .visible) {
+        .confirmationDialog("清除 AI 服务？", isPresented: $confirmingClear, titleVisibility: .visible) {
             Button("清除", role: .destructive) { model.clear() }
         } message: {
-            Text("地址、模型和密钥会从这部手机上删除，要用时得重新填写密钥。已生成的文字稿和纪要都还在。")
+            Text("会移除已保存的地址、模型和密钥，下次使用需重新填写。已生成的文字稿和纪要会保留。")
         }
     }
 }

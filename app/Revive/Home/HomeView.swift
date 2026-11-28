@@ -102,7 +102,7 @@ struct RecordingsView: View {
                                 titleVisibility: .visible, presenting: folderBeingDeleted) { folder in
                 Button("删除文件夹", role: .destructive) { model.deleteFolder(folder) }
             } message: { _ in
-                Text("里面的录音不会删除，会回到「全部」里。")
+                Text("里面的录音不会删除，仍可在「全部」里看到。")
             }
             .alert("重命名文件夹", isPresented: Binding(get: { folderBeingRenamed != nil },
                                                      set: { if !$0 { folderBeingRenamed = nil } })) {
@@ -157,8 +157,8 @@ struct RecordingsView: View {
                 if showsEmptyState {
                     ContentUnavailableView("暂无录音", systemImage: "waveform",
                                            description: Text(model.currentDevice == nil
-                                                             ? "点下方中间的红色按钮用这部手机录，或点右上角导入音频和文字"
-                                                             : "按卡上的录音键，或点下方中间的红色按钮"))
+                                                             ? "点下方红色按钮用手机录，或点右上角导入音频和文字"
+                                                             : "按卡上的录音键，或点下方红色按钮开始录音"))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 }

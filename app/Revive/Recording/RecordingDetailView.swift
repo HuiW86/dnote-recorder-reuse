@@ -400,11 +400,11 @@ extension RecordingDetailContent {
     @ViewBuilder fileprivate var rewriteSection: some View {
         if !model.canRewrite {
             Section {
-                Text("转成文字、并在设置里填了 AI 服务后，可以把这条录音改写成别的样子，或者问它问题。")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.inkMuted)
                 // The missing step, one tap away.
                 if model.transcript == nil, model.summary == nil {
+                    Text("转成文字、再设置好 AI 服务后，可以把这条录音改写成文章、邮件等，或直接提问。")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkMuted)
                     if model.canTranscribe {
                         Button(model.isTranscribing ? "正在转文字…" : "转成文字") {
                             pane = .transcript
@@ -413,6 +413,9 @@ extension RecordingDetailContent {
                         .disabled(model.isTranscribing)
                     }
                 } else {
+                    Text("设置 AI 服务后，可以把这条录音改写成文章、邮件等，或直接提问。")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkMuted)
                     NavigationLink("设置 AI 服务", value: Route.assistant)
                 }
             }
@@ -448,7 +451,7 @@ extension RecordingDetailContent {
         } header: {
             Text("改写和提问")
         } footer: {
-            Text("会把纪要和文字稿发送给你在设置里填的 AI 服务；录音音频不会发送。回答只依据这条录音。")
+            Text("会发送这条录音的纪要和文字稿给你的 AI 服务，不传音频；回答仅基于这条录音。")
         }
         .listRowBackground(Color.clear)
     }
@@ -531,7 +534,7 @@ extension RecordingDetailContent {
             if model.isSummarizing {
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("正在用你的 AI 服务整理纪要").font(.subheadline).foregroundStyle(Theme.inkMuted)
+                    Text("正在整理纪要…").font(.subheadline).foregroundStyle(Theme.inkMuted)
                 }
             } else if model.canSummarize {
                 Button(model.summary == nil ? "生成纪要" : "重新生成纪要") { model.summarize() }

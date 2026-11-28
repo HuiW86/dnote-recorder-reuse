@@ -156,11 +156,11 @@ private struct MainContent: View {
             Button("取消", role: .cancel) {}
         } message: {
             switch model.status {
-            case .noDevice: Text("可以先用这部手机录。有录音卡时，点「添加录音卡」。")
-            case .connecting: Text("正在连接录音卡，稍等一下再试。")
+            case .noDevice: Text("有录音卡时，点「添加录音卡」开始连接。")
+            case .connecting: Text("稍等片刻，或先用这部手机录。")
             case .bluetoothUnavailable:
-                Text((model.session.bluetoothProblem?.userText ?? "蓝牙不可用，暂时连不上录音卡") + "\n也可以先用这部手机录。")
-            default: Text("按住卡上的录音键，白灯闪烁后松手，连上后就能从这里开始录音。")
+                Text((model.session.bluetoothProblem?.userText ?? "暂时连不上录音卡") + "。\n也可以先用这部手机录。")
+            default: Text("按住卡上的录音键，白灯闪烁后松手即可连接。也可以先用这部手机录。")
             }
         }
         .alert(model.prompt?.title ?? "", isPresented: promptBinding, presenting: model.prompt) { prompt in
@@ -302,6 +302,7 @@ private struct MainContent: View {
     private var offerTitle: String {
         switch model.status {
         case .noDevice: "还没有录音卡"
+        case .connecting: "正在连接录音卡"
         case .bluetoothUnavailable: "蓝牙不可用"
         default: "录音卡还没连上"
         }

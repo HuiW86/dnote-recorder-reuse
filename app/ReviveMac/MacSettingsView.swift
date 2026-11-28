@@ -91,10 +91,10 @@ private struct AssistantSettingsForm: View {
         .formStyle(.grouped)
         // As on the iPhone: a filled-in form is kept even without 保存.
         .onDisappear { model.saveOnLeave() }
-        .confirmationDialog("清除这个 AI 服务？", isPresented: $confirmingClear) {
+        .confirmationDialog("清除 AI 服务？", isPresented: $confirmingClear) {
             Button("清除", role: .destructive) { model.clear() }
         } message: {
-            Text("地址、模型和密钥会从这台 Mac 上删除，要用时得重新填写密钥。已生成的文字稿和纪要都还在。")
+            Text("会移除已保存的地址、模型和密钥，下次使用需重新填写。已生成的文字稿和纪要会保留。")
         }
     }
 }

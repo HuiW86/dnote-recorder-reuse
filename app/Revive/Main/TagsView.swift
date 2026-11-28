@@ -36,7 +36,7 @@ private struct TagList: View {
         List {
             if model.tags.isEmpty {
                 ContentUnavailableView("还没有标签", systemImage: "tag",
-                                       description: Text("生成纪要时，AI 服务会给录音加上主题标签。"))
+                                       description: Text("给录音生成纪要后，会自动加上主题标签。"))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             } else {
@@ -60,7 +60,7 @@ private struct TagList: View {
                         }
                     }
                 } footer: {
-                    Text("改成已有的名字会把两个标签合并。以后生成的纪要也会按你的修改处理；删除标签不会删除录音。")
+                    Text("左滑或长按可重命名、删除；修改后对新生成的纪要同样生效。")
                 }
                 .surfaceRows()
             }
@@ -80,7 +80,7 @@ private struct TagList: View {
                             titleVisibility: .visible, presenting: deleting) { tag in
             Button("删除标签", role: .destructive) { model.delete(tag) }
         } message: { _ in
-            Text("只从纪要里去掉这个标签，录音和纪要都还在。以后生成的纪要也不会再加它。")
+            Text("录音和纪要都会保留，之后新生成的纪要也不会再加这个标签。")
         }
     }
 
@@ -160,7 +160,7 @@ struct TagRecordingsView: View {
                 if !path.isEmpty { path.removeLast() }
             }
         } message: {
-            Text("只从纪要里去掉这个标签，录音和纪要都还在。以后生成的纪要也不会再加它。")
+            Text("录音和纪要都会保留，之后新生成的纪要也不会再加这个标签。")
         }
         .onAppear {
             if tags == nil, let library = env.library { tags = TagsModel(library: library) }

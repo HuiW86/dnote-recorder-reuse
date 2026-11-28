@@ -151,9 +151,9 @@ public final class AssistantSettingsModel {
                 _ = try await client.complete(current, system: "只回复两个字：可用", user: "测试", json: false)
                 // It works: keep it, unless the form was edited while the test ran.
                 if config == current, persist() {
-                    testResult = "可以连接，已保存"
+                    testResult = "连接成功，已保存"
                 } else {
-                    testResult = "可以连接"
+                    testResult = "连接成功"
                 }
             } catch let error as AssistantError {
                 testResult = Self.text(for: error)

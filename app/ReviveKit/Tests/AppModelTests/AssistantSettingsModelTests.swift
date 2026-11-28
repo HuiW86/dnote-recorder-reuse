@@ -89,7 +89,8 @@ struct AssistantSettingsModelTests {
         model.model = "m"
         model.apiKey = "sk"
         model.saveOnLeave()
-        #expect(prefs.assistantBaseURL == "https://example.invalid/v1" && (try keys.read()) == "sk")
+        #expect(prefs.assistantBaseURL == "https://example.invalid/v1")
+        #expect(try keys.read() == "sk")
         #expect(model.hasSavedService && !model.hasUnsavedChanges)
         model.clear()
         #expect(!model.hasSavedService)

@@ -246,8 +246,8 @@ public final class RecordingDetailModel {
     public var lineHint: String {
         var held: [String] = hasAudio ? ["单句循环", "修改"] : ["修改"]
         if canRewrite { held.append("解释") }
-        let hold = "长按一句可以" + held.joined(separator: "、")
-        return hasAudio ? "点一句从那里播放；\(hold)。" : "\(hold)。"
+        let actions = held.joined(separator: "、")
+        return hasAudio ? "点一句可从此处播放，长按可\(actions)。" : "长按句子可\(actions)。"
     }
 
     /// 「⋯ → 选择转写方式」, or 「用其他方式重新转写」 once there is a transcript (§7.3b).
@@ -513,7 +513,7 @@ public final class RecordingDetailModel {
         do {
             if let restored = try library.restoreTitle(id: recordingId, previous.title, source: previous.source) {
                 recording = restored
-                toast = Toast("已恢复「\(restored.title)」")
+                toast = Toast("已恢复「\(RecordingText.title(restored))」")
             }
         } catch {
             toast = Toast("恢复失败，请重试")

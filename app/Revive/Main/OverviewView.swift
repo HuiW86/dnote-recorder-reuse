@@ -50,7 +50,7 @@ struct OverviewView: View {
                     }
                     if needsAIService {
                         NavigationLink(value: Route.assistant) {
-                            Label("还没设置 AI 服务，生成不了纪要和待办", systemImage: "sparkles")
+                            Label("设置 AI 服务，开启纪要和待办", systemImage: "sparkles")
                                 .foregroundStyle(Theme.ink)
                         }
                     }
@@ -73,7 +73,9 @@ struct OverviewView: View {
 
             Section {
                 if model.recordings.isEmpty {
-                    Text("还没有录音。按卡上的录音键，或点下方中间的红色按钮开始录第一条。")
+                    Text(model.currentDevice == nil
+                         ? "还没有录音。点下方红色按钮用手机录，或到「录音」页右上角导入。"
+                         : "还没有录音。按卡上的录音键，或点下方红色按钮开始录音。")
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkMuted)
                 } else {

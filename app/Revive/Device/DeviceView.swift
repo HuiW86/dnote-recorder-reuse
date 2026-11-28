@@ -50,7 +50,7 @@ private struct DeviceContent: View {
                     .surfaceRows()
             }
             if isTab, !model.isConnected, env.phoneRecorder != nil {
-                Label("录音卡不在身边也能录：点下方中间的红色按钮，用这部手机的麦克风录。", systemImage: "mic")
+                Label("录音卡不在身边也能录：点下方红色按钮，选「用这部手机录」。", systemImage: "mic")
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink)
                     .surfaceRows()
@@ -61,8 +61,8 @@ private struct DeviceContent: View {
             } else {
                 Section {
                     Text(model.canReconnect
-                         ? "已断开。点下方「重新连接」，连上后可修改设置。"
-                         : "连上后可修改设置。卡没连上时，按住卡上的录音键，白灯闪烁后松手。")
+                         ? "已断开连接。点下方「重新连接」，连上后可修改设置。"
+                         : "未连接录音卡。按住卡上的录音键，白灯闪烁后松手，连上后可修改设置。")
                         .foregroundStyle(Theme.inkMuted)
                 }
                 .surfaceRows()

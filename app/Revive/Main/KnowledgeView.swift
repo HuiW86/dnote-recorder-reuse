@@ -57,7 +57,7 @@ struct KnowledgeView: View {
                 ContentUnavailableView {
                     Label("还没有整理好的纪要", systemImage: "books.vertical")
                 } description: {
-                    Text("在录音详情里点「转成文字」、再生成纪要后，会出现在这里。转文字默认在这部手机上离线完成；生成纪要要用 AI 服务。")
+                    Text("打开任意录音，转成文字并生成纪要后，就会汇总在这里。")
                 } actions: {
                     NavigationLink("设置 AI 服务", value: Route.assistant)
                 }
@@ -130,12 +130,12 @@ extension KnowledgeView {
                         Text(answer.question).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
                         // G3 "SSE 流式": the answer fills in as it arrives.
                         if answer.text.isEmpty, answer.isStreaming {
-                            Text("正在等你的 AI 服务回复").font(.subheadline).foregroundStyle(Theme.inkMuted)
+                            Text("正在生成回答…").font(.subheadline).foregroundStyle(Theme.inkMuted)
                         } else {
                             Text(RichText.attributed(answer.text)).foregroundStyle(Theme.ink).textSelection(.enabled)
                         }
                         if answer.isCutOff {
-                            Label("回答没有收完整，可以再问一次。", systemImage: "exclamationmark.triangle")
+                            Label("回答中断了，可以再问一次。", systemImage: "exclamationmark.triangle")
                                 .font(.footnote)
                                 .foregroundStyle(Theme.inkMuted)
                         }
@@ -154,7 +154,7 @@ extension KnowledgeView {
                 }
             } else {
                 NavigationLink(value: Route.assistant) {
-                    Label("填上你的 AI 服务后，可以问所有录音", systemImage: "sparkles")
+                    Label("设置 AI 服务，即可向所有录音提问", systemImage: "sparkles")
                         .foregroundStyle(Theme.ink)
                 }
             }
