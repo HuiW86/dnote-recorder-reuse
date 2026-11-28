@@ -387,7 +387,25 @@ def _save_copy(path, data, *, require_exclusive=True):
             os.fsync(existing.fileno())
 
 
+def _sync_path(folder):
+    """fsync `folder` and each parent up to the root, so new names in them survive a power cut."""
+    current = os.path.abspath(folder)
+    while True:
+        handle = os.open(current, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(handle)
+        finally:
+            os.close(handle)
+        parent = os.path.dirname(current)
+        if parent == current:
+            return
+        current = parent
+
+
 async def cmd_pull(args):
+    if args.delete and not hasattr(os, "O_DIRECTORY"):
+        # Windows cannot sync a folder entry, so deleting from the card is never confirmed safe.
+        raise SystemExit("这个系统不能确认备份已经写入磁盘，不支持 --delete；去掉它，录音会留在卡上。")
     addr = await _pick_device(args.address)
     os.makedirs(args.out, exist_ok=True)
     async with BleakClient(addr) as client:
@@ -434,12 +452,9 @@ async def cmd_pull(args):
             # 默认不删除设备上的文件; 仅当 --delete 时才删
             # Hard rule 2: both the exact card bytes and playable file are on disk.
             if args.delete:
-                if hasattr(os, "O_DIRECTORY"):
-                    directory = os.open(args.out, os.O_RDONLY | os.O_DIRECTORY)
-                    try:
-                        os.fsync(directory)
-                    finally:
-                        os.close(directory)
+                # The file names and every folder made for them must be on disk before the
+                # card's only copy goes.
+                _sync_path(args.out)
                 try:
                     ack = await s.request(P.frame_delete_file(name), P.Cmd.DELETE_FILE)
                 except asyncio.TimeoutError:

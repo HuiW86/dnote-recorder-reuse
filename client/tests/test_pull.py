@@ -254,3 +254,32 @@ def test_client_never_publishes_by_replacing():
                  for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
                  if re.search(r"\b(os\.replace|shutil\.move)\(", line)]
     assert not offenders, f"use dnote._save_copy instead of replacing files: {offenders}"
+
+
+def test_delete_waits_for_every_new_folder_on_disk(dnote, tmp_path, monkeypatch):
+    # A first pull into a new nested folder: the folder chain is synced before 0x91 goes.
+    if not hasattr(dnote.os, "O_DIRECTORY"):
+        pytest.skip("POSIX only")
+    out = tmp_path / "new" / "backup"
+    card = Card(40, [(0x20, 0, AUDIO)])
+    synced = []
+    real_fsync = dnote.os.fsync
+
+    def recording_fsync(handle):
+        synced.append((dnote.os.path.realpath(f"/proc/self/fd/{handle}"), bool(card.deleted)))
+        return real_fsync(handle)
+
+    monkeypatch.setattr(dnote.os, "fsync", recording_fsync)
+    pull(dnote, card, out, monkeypatch)
+    assert card.deleted
+    before_delete = {path for path, deleted in synced if not deleted}
+    for folder in (out, out.parent, tmp_path):
+        assert str(folder.resolve()) in before_delete
+
+
+def test_delete_is_refused_where_folders_cannot_be_synced(dnote, tmp_path, monkeypatch):
+    monkeypatch.delattr(dnote.os, "O_DIRECTORY", raising=False)
+    card = Card(40, [(0x20, 0, AUDIO)])
+    with pytest.raises(SystemExit, match="--delete"):
+        pull(dnote, card, tmp_path, monkeypatch)
+    assert not card.deleted and not list(tmp_path.iterdir())
