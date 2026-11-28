@@ -10,6 +10,8 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
     enum Answer {
         case json(Int, String)
         case empty(Int)
+        /// An empty answer with these headers (an object store's ETag).
+        case headers(Int, [String: String])
         case fail(URLError.Code)
     }
 
@@ -42,6 +44,8 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
             return (Data(text.utf8), HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
         case .empty(let status):
             return (Data(), HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
+        case .headers(let status, let fields):
+            return (Data(), HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: fields)!)
         case .fail(let code):
             throw URLError(code)
         }
@@ -198,6 +202,22 @@ struct AccountSessionTests {
         _ = try await session.reloadUser()
         #expect(stub.requests.map(\.url!.path) == ["/v1/me", "/v1/auth/refresh", "/v1/me"])
         #expect(stub.requests[0].value(forHTTPHeaderField: "Authorization") == "Bearer a1")
+        #expect(stub.requests[2].value(forHTTPHeaderField: "Authorization") == "Bearer a2")
+    }
+
+    /// The feedback retried after refreshing an expired token carries the same key; the server
+    /// keeps no answer for `token_expired`, so the retry runs (prd.md §7.1).
+    @Test func feedbackKeepsItsKeyAcrossARefresh() async throws {
+        let stub = StubTransport([
+            .json(401, error("token_expired", "登录已过期", retryable: true)), .json(200, tokens(2)),
+            .json(201, #"{"id":"6f1c2d3e-0000-4000-8000-000000000009"}"#),
+        ])
+        let session = try await signedIn(stub)
+        try await session.sendFeedback("好用", appVersion: "0.1.0 (110)", idempotencyKey: "fb-1")
+        #expect(stub.requests.map(\.url!.path) == ["/v1/feedback", "/v1/auth/refresh", "/v1/feedback"])
+        #expect(stub.body(0) == ["content": "好用", "app_version": "0.1.0 (110)"])
+        #expect(stub.requests[0].value(forHTTPHeaderField: "Idempotency-Key") == "fb-1")
+        #expect(stub.requests[2].value(forHTTPHeaderField: "Idempotency-Key") == "fb-1")
         #expect(stub.requests[2].value(forHTTPHeaderField: "Authorization") == "Bearer a2")
     }
 

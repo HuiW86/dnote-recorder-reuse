@@ -3,11 +3,11 @@ replayed to repeats, so a request retried after a dropped connection is not appl
 
 Keys are per caller: the user of a valid access token (expired or not, so a key survives the
 token being renewed), else a hash of whatever Authorization was sent, else "anonymous". The same key with a different
-request is refused; a repeat while the first is still running is told to retry. A first request
-that never recorded an answer (its server died) counts as abandoned after
-`idempotency_abandoned_seconds`, and a repeat of the same request then runs it again instead of
-being told to retry for the rest of the 24 hours. Stored bodies are encrypted: a refresh response
-holds tokens."""
+request is refused; a repeat while the first is still running is told to retry. Server errors
+and errors marked retryable are not kept, so the retry runs again. A first request that never
+recorded an answer (its server died) counts as abandoned after `idempotency_abandoned_seconds`,
+and a repeat of the same request then runs it again instead of being told to retry for the rest
+of the 24 hours. Stored bodies are encrypted: a refresh response holds tokens."""
 
 import hashlib
 import json
@@ -130,10 +130,10 @@ class IdempotencyMiddleware:
         try:
             await self.app(scope, replay_receive, capture)
         finally:
+            data = b"".join(chunks)
             async with run.sessions() as db, db.begin():
                 where = (IdempotencyRecord.scope == caller, IdempotencyRecord.key == key)
-                if status < 500:
-                    data = b"".join(chunks)
+                if status < 500 and not _retryable(data):
                     await db.execute(
                         update(IdempotencyRecord)
                         .where(*where)
@@ -144,8 +144,19 @@ class IdempotencyMiddleware:
                         )
                     )
                 else:
-                    # A server error is not an answer: let the retry run again.
+                    # A server error, or an error that says to retry (an expired access token, a
+                    # code asked for too soon), is not an answer: let the retry run again. Kept, a
+                    # request retried after refreshing the token would get the old 401 back.
                     await db.execute(delete(IdempotencyRecord).where(*where))
+
+
+def _retryable(body: bytes) -> bool:
+    """True for the error shape (errors.py) with `retryable` set."""
+    try:
+        error = json.loads(body).get("error")
+    except (ValueError, AttributeError):
+        return False
+    return isinstance(error, dict) and error.get("retryable") is True
 
 
 def _caller(run: Runtime, authorization: str | None) -> str:

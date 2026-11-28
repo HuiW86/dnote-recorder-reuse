@@ -201,6 +201,7 @@ private struct SignedInView: View {
                 if user.hasPassword {
                     Button("修改密码") { changingPassword = true }
                 }
+                NavigationLink("意见反馈") { FeedbackView(model: model) }
                 Button("退出登录") { Task { await model.signOut() } }
             }
             .surfaceRows()
@@ -268,6 +269,50 @@ private struct ChangePasswordSheet: View {
                         }
                     }
                     .disabled(current.isEmpty || new.count < AccountModel.passwordMinimum || model.isBusy)
+                }
+            }
+        }
+    }
+}
+
+/// P19 意见反馈 (features.md O1b): sent with the app version only, never recordings or logs.
+private struct FeedbackView: View {
+    @Bindable var model: AccountModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        List {
+            Section {
+                TextEditor(text: $model.feedbackText)
+                    .frame(minHeight: 180)
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(model.feedbackText.count) / \(AccountModel.feedbackLimit)")
+                    Text("会和 App 版本号一起发送，不含录音和日志。需要诊断信息时，请在设置里「导出诊断信息」后发给我们。")
+                }
+            }
+            .surfaceRows()
+
+            if let error = model.errorText {
+                Section {
+                    Text(error).foregroundStyle(Theme.accent)
+                }
+                .surfaceRows()
+            }
+        }
+        .listStyle(.insetGrouped)
+        .paperBackground()
+        .navigationTitle("意见反馈")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                if model.isBusy {
+                    ProgressView()
+                } else {
+                    Button("发送") {
+                        Task { if await model.sendFeedback(appVersion: AboutView.version) { dismiss() } }
+                    }
+                    .disabled(!model.canSendFeedback)
                 }
             }
         }

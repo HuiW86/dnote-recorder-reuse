@@ -1,4 +1,5 @@
-"""Server-side transcription (features.md F1, prd.md §7.2 转写) and the task it runs as (§7.4).
+"""Server-side transcription (features.md F1, prd.md §7.2 转写) and the task it runs as (§7.4); also the
+app's own transcript, put here so a summary can be written from text (product-spec.md §7.3b).
 
 `POST /recordings/{id}/transcribe` queues a task; the app polls `GET /tasks/{id}` (2 s, backing off
 to 30 s) and then reads `GET /recordings/{id}/transcript`."""
@@ -163,6 +164,65 @@ async def rename_speakers(
             names.pop(label, None)
     transcript.speakers = names
     transcript.updated_at = run.clock.now()
+    return TranscriptOut.of(transcript)
+
+
+class ClientSegmentIn(BaseModel):
+    start_ms: int = Field(ge=0)
+    end_ms: int = Field(ge=0)
+    speaker: str | None = Field(default=None, max_length=32)
+    text: str = Field(max_length=10_000)
+
+
+class ClientTranscriptIn(BaseModel):
+    language: str = Field(default="zh", pattern=r"^([a-z]{2}(-[A-Z]{2})?|auto)$")
+    # What made it on the phone: "on-device", "own-service". Stored as "app:<engine>".
+    engine: str = Field(pattern=r"^[a-z0-9-]{1,32}$")
+    segments: list[ClientSegmentIn] = Field(min_length=1, max_length=20_000)
+
+
+# Characters of text a client transcript may hold: about 40 hours of speech.
+CLIENT_TEXT_LIMIT = 2_000_000
+
+
+@router.put("/recordings/{recording_id}/transcript")
+async def put_transcript(
+    recording_id: uuid.UUID, body: ClientTranscriptIn, user: CurrentUser, db: DB, run: Run
+) -> TranscriptOut:
+    """The app's own transcript (made on the phone or by the user's own service), so a summary
+    can be written from text without uploading the audio (product-spec.md §7.3b). The recording
+    may have no audio. Replaces any transcript there; speaker names start over. 409
+    `transcription_running` while a server transcription is queued or running for it."""
+    recording = await db.scalar(
+        select(Recording)
+        .where(Recording.id == recording_id, Recording.user_id == user.id, Recording.deleted_at.is_(None))
+        .with_for_update()
+    )
+    if recording is None:
+        raise AppError(404, "recording_not_found", "账号里没有这条录音")
+    pending = await db.scalar(
+        select(Task.id).where(
+            Task.recording_id == recording.id, Task.kind == TRANSCRIBE, Task.status.in_([QUEUED, RUNNING])
+        )
+    )
+    if pending is not None:
+        raise AppError(409, "transcription_running", "服务器正在转写这条录音，请等它完成")
+    if any(s.end_ms < s.start_ms for s in body.segments):
+        raise AppError(422, "invalid_segment", "文字稿里有一句的结束时间早于开始时间")
+    if sum(len(s.text) for s in body.segments) > CLIENT_TEXT_LIMIT:
+        raise AppError(413, "transcript_too_large", "文字稿太长")
+    segments = [s.model_dump() for s in sorted(body.segments, key=lambda s: (s.start_ms, s.end_ms))]
+    now = run.clock.now()
+    transcript = await db.get(Transcript, recording.id, with_for_update=True)
+    if transcript is None:
+        transcript = Transcript(recording_id=recording.id, created_at=now)
+        db.add(transcript)
+    transcript.language = body.language
+    transcript.segments = segments
+    transcript.speakers = {}
+    transcript.asr_provider = f"app:{body.engine}"
+    transcript.updated_at = now
+    await db.flush()
     return TranscriptOut.of(transcript)
 
 

@@ -249,6 +249,54 @@ public final class AccountModel {
         return changed
     }
 
+    // MARK: 意见反馈 (product-spec.md P19)
+
+    /// What the user is writing; kept when sending fails.
+    public var feedbackText = ""
+    /// The key of a send whose answer never came, with the text it was for: sending the same
+    /// text again reuses it, so the server keeps one copy. Any answer, or other text, starts anew.
+    @ObservationIgnored private var unansweredFeedback: (text: String, key: String)?
+
+    /// The backend's limit.
+    public static let feedbackLimit = 5000
+
+    public var canSendFeedback: Bool {
+        let text = feedbackText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !text.isEmpty && text.count <= Self.feedbackLimit && !isBusy
+    }
+
+    /// True when the server has it; the text is then cleared.
+    @discardableResult
+    public func sendFeedback(appVersion: String) async -> Bool {
+        let text = feedbackText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            errorText = "请先写下想说的话"
+            return false
+        }
+        guard text.count <= Self.feedbackLimit else {
+            errorText = "最多 \(Self.feedbackLimit) 个字"
+            return false
+        }
+        let key = unansweredFeedback.flatMap { $0.text == text ? $0.key : nil } ?? UUID().uuidString
+        unansweredFeedback = (text, key)
+        var sent = false
+        await run {
+            do {
+                try await self.session.sendFeedback(text, appVersion: appVersion, idempotencyKey: key)
+            } catch let error as AccountError {
+                // Only a request that got no answer may be sent again under the same key.
+                if case .server = error { self.unansweredFeedback = nil }
+                if error == .signedOut { self.unansweredFeedback = nil }
+                throw error
+            }
+            self.unansweredFeedback = nil
+            self.feedbackText = ""
+            sent = true
+            self.notice = "已收到，谢谢你的反馈"
+        }
+        return sent
+    }
+
     // MARK: Plumbing
 
     private func adopt(_ tokens: AccountTokens) async throws {
@@ -265,6 +313,8 @@ public final class AccountModel {
     }
 
     private func clearForm() {
+        feedbackText = ""
+        unansweredFeedback = nil
         password = ""
         code = ""
         newPassword = ""

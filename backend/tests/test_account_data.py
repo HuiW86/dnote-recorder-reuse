@@ -192,3 +192,25 @@ async def test_error_shape_for_unknown_routes_and_health(h):
     assert missing.status_code == 404
     assert missing.json() == {"error": {"code": "not_found", "message": "接口不存在", "retryable": False}}
     assert (await h.http.get("/healthz")).json() == {"ok": True}
+
+
+async def test_a_retryable_error_is_not_kept_for_the_key(h):
+    """A write refused with a retryable error (here an expired access token) never ran: the app
+    refreshes and sends the same request with the same key, which must run, not replay the 401."""
+    tokens = await h.sms_login()
+    key = {"Idempotency-Key": "fb-expired"}
+    h.clock.advance(minutes=16)
+    expired = await h.http.post("/v1/feedback", headers=bearer(tokens) | key, json={"content": "好用"})
+    assert expired.status_code == 401 and expired.json()["error"]["code"] == "token_expired"
+    renewed = (await h.http.post("/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).json()
+    sent = await h.http.post("/v1/feedback", headers=bearer(renewed) | key, json={"content": "好用"})
+    assert sent.status_code == 201 and sent.headers.get("idempotent-replayed") is None
+    again = await h.http.post("/v1/feedback", headers=bearer(renewed) | key, json={"content": "好用"})
+    assert again.json() == sent.json() and again.headers.get("idempotent-replayed") == "true"
+    assert await h.count("feedback") == 1
+    # A final answer, even an error, is kept: the same refused request replays.
+    empty_key = {"Idempotency-Key": "fb-empty"}
+    empty = await h.http.post("/v1/feedback", headers=bearer(renewed) | empty_key, json={"content": ""})
+    replayed = await h.http.post("/v1/feedback", headers=bearer(renewed) | empty_key, json={"content": ""})
+    assert empty.status_code == replayed.status_code == 422
+    assert replayed.headers.get("idempotent-replayed") == "true"
