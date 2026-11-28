@@ -38,7 +38,8 @@ public final class AssistantSettingsModel {
     }
 
     /// The settings as stored when the page opened, or when this page last saved or cleared them.
-    @ObservationIgnored private var opened = Stored(baseURL: "", model: "", apiKey: "", transcriptionModel: "",
+    /// Observed: 保存 and 清除 follow it.
+    private var opened = Stored(baseURL: "", model: "", apiKey: "", transcriptionModel: "",
                                                     profession: "")
 
     /// The transcription model the chosen provider suggests, if it transcribes at all.
@@ -74,6 +75,14 @@ public final class AssistantSettingsModel {
 
     /// Stores address and model in Preferences and the key in the Keychain; an empty key is removed.
     public func save() {
+        // Only the job changed: write only the job, so a service another page saved meanwhile
+        // is not overwritten with this page's old (maybe empty) one.
+        if form.sameService(as: opened) {
+            preferences.assistantProfession = form.profession
+            opened.profession = form.profession
+            toast = Toast("已保存")
+            return
+        }
         if persist() {
             toast = Toast("已保存")
         } else {

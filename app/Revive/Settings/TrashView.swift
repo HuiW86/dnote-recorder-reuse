@@ -52,20 +52,22 @@ private struct TrashContent: View {
                             presenting: pendingDelete) { recording in
             Button("彻底删除", role: .destructive) { model.deleteForever(recording.id) }
         } message: { recording in
+            // "Card still has it" comes from the last sync and may be stale (the card can be
+            // emptied elsewhere), so it is never promised.
             Text(recording.source != .card ? "这是唯一一份，删除后无法恢复。"
                  : model.isLastCopy(recording) ? "录音卡上已没有原文件，删除后无法恢复。"
-                 : "删除后无法恢复，但录音卡上的原文件不受影响。")
+                 : "删除后无法恢复。上次同步时录音卡上还有原文件，如果之后删过，这就是唯一一份。")
         }
         .confirmationDialog("清空最近删除？", isPresented: $confirmingEmpty, titleVisibility: .visible) {
             Button("全部彻底删除", role: .destructive) { model.empty() }
         } message: {
-            // Says how many exist nowhere else, instead of promising the card has them.
+            // Only what is known: those known to be the only copy, never "the card still has the rest".
             let lastCopies = model.recordings.filter { model.isLastCopy($0) }.count
-            Text(lastCopies == 0
-                 ? "将彻底删除全部 \(model.recordings.count) 条录音，无法恢复；录音卡上的原文件不受影响。"
-                 : lastCopies == model.recordings.count
+            Text(lastCopies == model.recordings.count
                  ? "将彻底删除全部 \(model.recordings.count) 条录音，都只有这一份，无法恢复。"
-                 : "将彻底删除全部 \(model.recordings.count) 条录音，无法恢复；其中 \(lastCopies) 条只有这一份。")
+                 : lastCopies == 0
+                 ? "将彻底删除全部 \(model.recordings.count) 条录音，无法恢复。录音卡上的原文件按上次同步时还在，之后删过的就只有这一份。"
+                 : "将彻底删除全部 \(model.recordings.count) 条录音，无法恢复；其中至少 \(lastCopies) 条只有这一份。")
         }
         .toast($model.toast)
     }

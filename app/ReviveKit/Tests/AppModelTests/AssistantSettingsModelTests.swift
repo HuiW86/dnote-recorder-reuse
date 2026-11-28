@@ -134,6 +134,19 @@ struct AssistantSettingsModelTests {
         edited.saveOnLeave()
         #expect(prefs.assistantBaseURL.isEmpty)
         #expect(try keys.read() == nil)
+
+        // An empty page left open; another sets up a service; the old page saves only its job.
+        let old = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        let other = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        other.baseURL = "https://c.invalid/v1"
+        other.model = "m"
+        other.apiKey = "sk-c"
+        other.save()
+        old.profession = "老师"
+        old.save()
+        #expect(prefs.assistantProfession == "老师")
+        #expect(prefs.assistantBaseURL == "https://c.invalid/v1")
+        #expect(try keys.read() == "sk-c")
     }
 
     /// 测试连接: a first setup is kept; another address or a new transcription model (audio

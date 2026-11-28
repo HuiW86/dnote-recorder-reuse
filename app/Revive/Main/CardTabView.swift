@@ -20,7 +20,13 @@ struct CardTabView: View {
                 } description: {
                     Text("没有录音卡也能用：点底栏中间的红键用这部手机录，或者在「录音」里导入音频和文字。")
                 } actions: {
-                    if env.isCardless {
+                    // Adding the first card leaves the tabs for pairing, and with them the way back to a
+                    // collapsed phone recording and its 停止.
+                    if let phone = env.phoneRecorder, phone.state != .idle || phone.isSaving {
+                        Text("正在用这部手机录音，录完再添加录音卡。")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.inkMuted)
+                    } else if env.isCardless {
                         Button("添加录音卡") { env.addFirstCard() }
                             .buttonStyle(.borderedProminent)
                     } else {
