@@ -19,6 +19,12 @@ patterns=(
   '\.animation\('
   # Insertion and removal: go through .motionTransition.
   '\.transition\('
+  # Number rolls, icon morphs and nods: go through .motionNumber / .motionSymbolReplace /
+  # .motionNod, which fall back to a fade (or stillness) under Reduce Motion.
+  'contentTransition\([[:space:]]*\.(numericText|symbolEffect)'
+  'symbolEffect\([[:space:]]*\.bounce'
+  # The wrappers take a Motion token, never a curve written inline.
+  '(\.motion|withMotion)\([[:space:]]*[^M[:space:]]'
   # Curves written inline instead of a Motion token.
   'Animation\.(default|linear|easeIn|easeOut|easeInOut|spring|interactiveSpring|interpolatingSpring|bouncy|smooth|snappy)\b'
   '\.(easeIn|easeOut|easeInOut|interactiveSpring|interpolatingSpring)\('
@@ -31,7 +37,8 @@ hits=$(grep -rnE "$regex" "$views" "$root/app/ReviveMac" --include='*.swift' --e
 if [[ -n "$hits" ]]; then
   echo "FAIL: animation outside Motion.swift (docs/design-spec.md §2.3)."
   echo "Use a Motion token: withMotion(Motion.standard) { … }, .motion(Motion.tap, value: x),"
-  echo ".motionTransition(.fade | .top | .pop), or .buttonStyle(.pressable):"
+  echo ".motionTransition(.fade | .top | .pop), .motionNumber(x), .motionSymbolReplace(),"
+  echo ".motionNod(value: x), or .buttonStyle(.pressable):"
   echo "$hits"
   exit 1
 fi

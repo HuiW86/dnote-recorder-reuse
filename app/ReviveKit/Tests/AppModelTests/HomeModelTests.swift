@@ -547,7 +547,7 @@ struct HomeModelTests {
                                           model: "m", createdAt: Date()))
         model.filter = .withTodos
         #expect(model.filteredRecordings.map(\.id) == [marked.id])
-        try h.library.setTodoDone(recordingId: marked.id, index: 0, done: true)
+        try h.library.setTodoDone(recordingId: marked.id, index: 0, text: "a", done: true)
         #expect(model.filteredRecordings.isEmpty)
         model.filter = .all
         #expect(model.days.map { $0.recordings.count }.reduce(0, +) == 2)

@@ -513,7 +513,7 @@ extension RecordingDetailContent {
                     Button { withMotion(Motion.tap) { model.setTodo(index, done: !todo.done) } } label: {
                         Label(todo.text, systemImage: todo.done ? "checkmark.square.fill" : "square")
                             .foregroundStyle(Theme.ink)
-                            .contentTransition(.symbolEffect(.replace))
+                            .motionSymbolReplace()
                     }
                     .accessibilityAddTraits(todo.done ? .isSelected : [])
                 }
@@ -769,7 +769,7 @@ private struct PlayerCard: View {
                 } label: {
                     // The arrow turns the way the time jumps.
                     Image(systemName: "gobackward.15").font(.title2)
-                        .symbolEffect(.bounce.down, options: .speed(1.5), value: backSkips)
+                        .motionNod(value: backSkips, down: true)
                         .foregroundStyle(Theme.ink)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
@@ -784,7 +784,7 @@ private struct PlayerCard: View {
                             Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .font(.system(size: 48))
                                 .foregroundStyle(Theme.accent)
-                                .contentTransition(.symbolEffect(.replace))
+                                .motionSymbolReplace()
                                 .motionTransition(.fade)
                         }
                     }
@@ -796,7 +796,7 @@ private struct PlayerCard: View {
                     model.skip(by: 15)
                 } label: {
                     Image(systemName: "goforward.15").font(.title2)
-                        .symbolEffect(.bounce.down, options: .speed(1.5), value: forwardSkips)
+                        .motionNod(value: forwardSkips, down: true)
                         .foregroundStyle(Theme.ink)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
@@ -806,7 +806,7 @@ private struct PlayerCard: View {
                     // One line at any text size: "1.25×" wrapped and made the player taller (#89).
                     Text(model.speedText)
                         .font(.footnote.weight(.semibold).monospacedDigit())
-                        .contentTransition(.numericText())
+                        .motionNumber()
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                         .foregroundStyle(Theme.ink)

@@ -218,7 +218,7 @@ struct RecordingsView: View {
                 Text("录音 (\(model.recordings.count))")
                     .font(.largeTitle.bold())
                     .foregroundStyle(Theme.ink)
-                    .contentTransition(.numericText(value: Double(model.recordings.count)))
+                    .motionNumber(Double(model.recordings.count))
                 if let card = model.syncCard, isDone(card), doneCollapsed {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Theme.ok)

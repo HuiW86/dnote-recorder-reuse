@@ -112,7 +112,7 @@ private struct PairingContent: View {
                     .font(.system(size: 64))
                     .foregroundStyle(Theme.ok)
                     // The one moment that is a finish line: the check nods once when it lands.
-                    .symbolEffect(.bounce, value: pairedShown)
+                    .motionNod(value: pairedShown)
                     .onAppear { pairedShown = true }
                     .accessibilityHidden(true)
                 Text("配对完成").font(.title2.bold()).foregroundStyle(Theme.ink)

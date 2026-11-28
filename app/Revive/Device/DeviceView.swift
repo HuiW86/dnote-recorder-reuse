@@ -124,7 +124,7 @@ private struct DeviceContent: View {
             .foregroundStyle(Theme.ink)
             if let battery = model.battery {
                 LabeledContent("电量") {
-                    Text("\(battery)%").contentTransition(.numericText(value: Double(battery)))
+                    Text("\(battery)%").motionNumber(Double(battery))
                 }
                 .motion(Motion.standard, value: battery)
             }

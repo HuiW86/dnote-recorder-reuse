@@ -107,6 +107,14 @@ struct OverviewModelTests {
         other.undoComplete()
         #expect(other.toast?.text == "纪要已经变了，没有撤销")
         #expect(try library.summary(recordingId: id)?.todos.first?.done == true)
+        // A row read before the summary was made again: ticking it changes nothing and says so.
+        let stale = OpenTodo(recording: try #require(try library.recording(id: id)), index: 0, text: "事项 1")
+        try library.saveSummary(Summary(recordingId: id, scene: "meeting", title: "T", summary: "S", sections: [],
+                                        todos: [SummaryTodo(text: "新事项")], tags: [],
+                                        people: [], model: "m", createdAt: start.addingTimeInterval(120)))
+        #expect(!other.complete(stale))
+        #expect(other.toast?.text == OverviewModel.summaryChangedText)
+        #expect(try library.summary(recordingId: id)?.todos == [SummaryTodo(text: "新事项")])
         other.stop()
 
         try library.saveTranscript(Transcript(recordingId: id, engine: "t", language: "zh-CN", segments: [],

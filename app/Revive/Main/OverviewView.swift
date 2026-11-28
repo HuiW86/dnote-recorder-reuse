@@ -131,15 +131,12 @@ struct OverviewView: View {
 
 /// An open todo: the box ticks it; the text opens the recording's 纪要.
 private struct TodoRow: View {
-    /// How long the tick shows before the row leaves: long enough to see the box fill, short
-    /// enough that ticking several in a row never waits on the last.
-    static let tickHold: Duration = .milliseconds(260)
-
     let todo: OpenTodo
     let source: String
     /// False when the tick could not be saved.
     let complete: () -> Bool
-    /// Ticked, waiting for the row to leave; a second tap meanwhile does nothing.
+    /// Ticked and saved, waiting for the row to leave; a second tap meanwhile does nothing. The
+    /// row leaves with `Motion.standard` showing its tick, so the save need not wait for it.
     @State private var ticked = false
 
     var body: some View {
@@ -147,17 +144,14 @@ private struct TodoRow: View {
             Button {
                 guard !ticked else { return }
                 withMotion(Motion.tap) { ticked = true }
-                // Not tied to this view: leaving the page right after the tap still saves it.
-                Task { @MainActor in
-                    try? await Task.sleep(for: Self.tickHold)
-                    // Not saved: the box empties again under the "保存失败" toast.
-                    if !complete() { withMotion(Motion.tap) { ticked = false } }
-                }
+                // Saved at once, against the todo this row shows. Not saved (a failed write, or
+                // the summary made again): the box empties again under the toast.
+                if !complete() { withMotion(Motion.tap) { ticked = false } }
             } label: {
                 Image(systemName: ticked ? "checkmark.square.fill" : "square")
                     .font(.title3)
                     .foregroundStyle(Theme.accent)
-                    .contentTransition(.symbolEffect(.replace))
+                    .motionSymbolReplace()
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }

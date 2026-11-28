@@ -91,7 +91,7 @@ struct DeviceChip: View {
                     Text(" · ").foregroundStyle(Theme.inkMuted)
                     Text("\(battery)%")
                         .monospacedDigit()
-                        .contentTransition(.numericText(value: Double(battery)))
+                        .motionNumber(Double(battery))
                         // Low battery keeps the system warning red (design-spec.md §2.1).
                         .foregroundStyle(battery <= 20 ? Color.red : Theme.inkMuted)
                 }
@@ -125,7 +125,7 @@ struct RecordingStatusCard: View {
                 .font(.title2)
                 .foregroundStyle(paused ? Theme.inkMuted : Theme.record)
                 .symbolEffect(.variableColor.iterative, isActive: !paused && !reduceMotion)
-                .contentTransition(.symbolEffect(.replace))
+                .motionSymbolReplace()
             VStack(alignment: .leading, spacing: 2) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let layout = typeSize.isAccessibilitySize
@@ -219,7 +219,7 @@ struct SyncStatusCard: View {
                     Text(fraction, format: .percent.precision(.fractionLength(0)))
                         .font(.subheadline.monospacedDigit())
                         .foregroundStyle(Theme.inkMuted)
-                        .contentTransition(.numericText(value: fraction))
+                        .motionNumber(fraction)
                 }
                 switch card.action {
                 case .retry?:
@@ -295,7 +295,7 @@ struct ConsentSheet: View {
                 withMotion(Motion.tap) { agreed.toggle() }
             } label: {
                 Label("我已征得对方同意", systemImage: agreed ? "checkmark.square.fill" : "square")
-                    .contentTransition(.symbolEffect(.replace))
+                    .motionSymbolReplace()
             }
             .foregroundStyle(Theme.ink)
             .frame(minHeight: 44)

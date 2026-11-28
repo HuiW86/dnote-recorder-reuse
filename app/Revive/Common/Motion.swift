@@ -100,7 +100,62 @@ private struct MotionTransition: ViewModifier {
     }
 }
 
+/// A number that rolls to its new value; a cross-fade under Reduce Motion.
+private struct MotionNumber: ViewModifier {
+    let value: Double?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if reduceMotion {
+            content.contentTransition(.opacity)
+        } else if let value {
+            content.contentTransition(.numericText(value: value))
+        } else {
+            content.contentTransition(.numericText())
+        }
+    }
+}
+
+/// An SF Symbol that morphs into its next glyph; a cross-fade under Reduce Motion.
+private struct MotionSymbolReplace: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
+    }
+}
+
+/// An SF Symbol that nods once each time `value` changes; still under Reduce Motion.
+private struct MotionNod<Value: Equatable>: ViewModifier {
+    let value: Value
+    let down: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        // A value that never changes never triggers the effect.
+        let trigger: Value? = reduceMotion ? nil : value
+        let effect: BounceSymbolEffect = down ? .bounce.down : .bounce
+        content.symbolEffect(effect, options: .speed(down ? 1.5 : 1), value: trigger)
+    }
+}
+
 extension View {
+    /// `.contentTransition(.numericText)` for a count, a percentage or a speed.
+    func motionNumber(_ value: Double? = nil) -> some View {
+        modifier(MotionNumber(value: value))
+    }
+
+    /// `.contentTransition(.symbolEffect(.replace))` for one key that changes its icon.
+    func motionSymbolReplace() -> some View {
+        modifier(MotionSymbolReplace())
+    }
+
+    /// A single bounce of the symbol when `value` changes: the tap was taken (a mark set, a
+    /// 15 s skip, pairing done). `down` nods it downwards and quicker, for keys tapped in a row.
+    func motionNod<Value: Equatable>(value: Value, down: Bool = false) -> some View {
+        modifier(MotionNod(value: value, down: down))
+    }
+
     /// `.animation(_:value:)` through a Motion token, honouring Reduce Motion.
     func motion<Value: Equatable>(_ animation: Animation, value: Value) -> some View {
         modifier(MotionAnimation(animation: animation, value: value))

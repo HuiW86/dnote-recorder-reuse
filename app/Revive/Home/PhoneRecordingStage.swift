@@ -51,7 +51,7 @@ struct PhoneRecordingStage: View {
                     .font(.system(size: 44))
                     .foregroundStyle(paused ? Theme.onDark.opacity(0.5) : Theme.record)
                     .symbolEffect(.pulse, isActive: !paused && !reduceMotion)
-                    .contentTransition(.symbolEffect(.replace))
+                    .motionSymbolReplace()
                     .accessibilityHidden(true)
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     Text(RecordingText.clock(seconds: Int(recorder.elapsed)))
@@ -122,13 +122,13 @@ struct PhoneRecordingStage: View {
                     Circle().fill(Theme.onDark.opacity(0.14))
                     // Each mark set nods the bookmark once: the tap was taken.
                     Image(systemName: "bookmark.fill").font(.title2).foregroundStyle(Theme.onDark)
-                        .symbolEffect(.bounce, value: count)
+                        .motionNod(value: count)
                 }
                 .frame(width: 66, height: 66)
                 Text(title)
                     .font(.footnote)
                     .monospacedDigit()
-                    .contentTransition(.numericText(value: Double(count)))
+                    .motionNumber(Double(count))
                     .foregroundStyle(Theme.onDark.opacity(0.8))
             }
         }
@@ -146,7 +146,7 @@ struct PhoneRecordingStage: View {
                 ZStack {
                     Circle().fill(filled ? Theme.record : Theme.onDark.opacity(0.14))
                     Image(systemName: symbol).font(.title2).foregroundStyle(Theme.onDark)
-                        .contentTransition(.symbolEffect(.replace))
+                        .motionSymbolReplace()
                 }
                 .frame(width: 66, height: 66)
                 Text(title)
