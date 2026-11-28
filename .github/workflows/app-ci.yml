@@ -3,9 +3,9 @@ name: app-ci
 on:
   push:
     branches: [main]
-    paths: ["app/**", "scripts/check-m1-rules.sh", "scripts/check-theme.sh", ".github/workflows/app-ci.yml"]
+    paths: ["app/**", "scripts/check-m1-rules.sh", "scripts/check-theme.sh", "scripts/check-motion.sh", ".github/workflows/app-ci.yml"]
   pull_request:
-    paths: ["app/**", "scripts/check-m1-rules.sh", "scripts/check-theme.sh", ".github/workflows/app-ci.yml"]
+    paths: ["app/**", "scripts/check-m1-rules.sh", "scripts/check-theme.sh", "scripts/check-motion.sh", ".github/workflows/app-ci.yml"]
 
 # A newer push to the same PR or branch cancels the run it supersedes: macOS minutes are
 # scarce, and only the latest commit's result counts.
@@ -27,6 +27,10 @@ jobs:
       # design-spec.md §2: views take colours from Theme, not literals (#74).
       - name: Theme colours
         run: scripts/check-theme.sh
+
+      # design-spec.md §2.3: one motion language; views animate only through Motion.swift.
+      - name: Motion tokens
+        run: scripts/check-motion.sh
 
       - name: Toolchain
         run: xcodebuild -version && swift --version

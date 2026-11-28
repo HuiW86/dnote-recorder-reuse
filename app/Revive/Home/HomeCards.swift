@@ -22,6 +22,9 @@ struct DeviceChip: View {
                             .fill(isConnected ? Theme.ok : Theme.inkMuted)
                             .frame(width: 8, height: 8)
                             .accessibilityHidden(true)
+                            // Only the dot's colour moves: the chip sits in the toolbar, where a
+                            // width animation would jitter.
+                            .motion(Motion.standard, value: isConnected)
                     } else {
                         Image(systemName: "rectangle.portrait")
                             .imageScale(.small)
@@ -88,6 +91,7 @@ struct DeviceChip: View {
                     Text(" · ").foregroundStyle(Theme.inkMuted)
                     Text("\(battery)%")
                         .monospacedDigit()
+                        .contentTransition(.numericText(value: Double(battery)))
                         // Low battery keeps the system warning red (design-spec.md §2.1).
                         .foregroundStyle(battery <= 20 ? Color.red : Theme.inkMuted)
                 }
@@ -121,6 +125,7 @@ struct RecordingStatusCard: View {
                 .font(.title2)
                 .foregroundStyle(paused ? Theme.inkMuted : Theme.record)
                 .symbolEffect(.variableColor.iterative, isActive: !paused && !reduceMotion)
+                .contentTransition(.symbolEffect(.replace))
             VStack(alignment: .leading, spacing: 2) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let layout = typeSize.isAccessibilitySize
@@ -146,6 +151,7 @@ struct RecordingStatusCard: View {
         .foregroundStyle(Theme.ink)
         .background(paused ? Theme.surface : Theme.accentWash, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
+        .motion(Motion.standard, value: paused)
         .accessibilityElement(children: .combine)
     }
 }
@@ -163,7 +169,8 @@ struct KeepOrDiscardCard: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
-                Text("不要的话，同步到手机后会移到「最近删除」，并从录音卡上删除")
+                // The card leaves by itself after 10 s; this says what that means.
+                Text("不选就留着。不要的话，同步到手机后会移到「最近删除」，并从录音卡上删除")
                     .font(.caption)
                     .foregroundStyle(Theme.inkMuted)
             }
@@ -201,6 +208,7 @@ struct SyncStatusCard: View {
                 icon
                 VStack(alignment: .leading, spacing: 2) {
                     Text(card.title).font(expanded ? Font.subheadline.weight(.medium) : Font.footnote)
+                        .contentTransition(.opacity)
                     if case .done(let at) = card {
                         Text(RecordingText.dateTime(at))
                             .font(.caption).foregroundStyle(Theme.inkMuted)
@@ -211,6 +219,7 @@ struct SyncStatusCard: View {
                     Text(fraction, format: .percent.precision(.fractionLength(0)))
                         .font(.subheadline.monospacedDigit())
                         .foregroundStyle(Theme.inkMuted)
+                        .contentTransition(.numericText(value: fraction))
                 }
                 switch card.action {
                 case .retry?:
@@ -250,20 +259,24 @@ struct SyncStatusCard: View {
         }
     }
 
+    /// The spinner gives way to the outcome: the check (or the warning) grows where it spun.
     @ViewBuilder private var icon: some View {
-        switch card {
-        case .checking, .syncing:
-            ProgressView()
-        case .done:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok)
-        case .waitingForRecording:
-            Image(systemName: "clock").foregroundStyle(Theme.inkMuted)
-        case .disconnected:
-            Image(systemName: "bolt.horizontal.circle").foregroundStyle(Theme.inkMuted)
-        default:
-            // A sync problem is a warning: system orange, not the brand red (design-spec.md §2.1).
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        Group {
+            switch card {
+            case .checking, .syncing:
+                ProgressView().motionTransition(.fade)
+            case .done:
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok).motionTransition(.pop)
+            case .waitingForRecording:
+                Image(systemName: "clock").foregroundStyle(Theme.inkMuted).motionTransition(.fade)
+            case .disconnected:
+                Image(systemName: "bolt.horizontal.circle").foregroundStyle(Theme.inkMuted).motionTransition(.fade)
+            default:
+                // A sync problem is a warning: system orange, not the brand red (design-spec.md §2.1).
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange).motionTransition(.pop)
+            }
         }
+        .frame(minWidth: 20)
     }
 }
 
@@ -279,9 +292,10 @@ struct ConsentSheet: View {
             Text("请先征得对方同意再开始录音，并避免录制敏感信息。")
                 .foregroundStyle(Theme.inkMuted)
             Button {
-                agreed.toggle()
+                withMotion(Motion.tap) { agreed.toggle() }
             } label: {
                 Label("我已征得对方同意", systemImage: agreed ? "checkmark.square.fill" : "square")
+                    .contentTransition(.symbolEffect(.replace))
             }
             .foregroundStyle(Theme.ink)
             .frame(minHeight: 44)

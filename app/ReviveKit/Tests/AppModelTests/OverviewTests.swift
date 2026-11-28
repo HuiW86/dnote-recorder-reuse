@@ -79,7 +79,8 @@ struct OverviewModelTests {
         #expect(model.untranscribedText == "还有 1 条没转成文字")
         #expect(model.digest.recentSummaries.map(\.recording.id) == [id])
 
-        model.complete(model.visibleTodos[0])
+        // True: the box on 总览 stays ticked until the row leaves.
+        #expect(model.complete(model.visibleTodos[0]))
         await waitUntil("ticked") { model.digest.openTodos.count == 6 }
         #expect(model.toast?.text == "已完成")
         #expect(model.visibleTodos.first?.text == "事项 2")

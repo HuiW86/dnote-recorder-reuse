@@ -66,6 +66,9 @@ private struct SignInView: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // An error appearing or clearing, and the spinner beside the button, move in place.
+        .motion(Motion.standard, value: model.errorText)
+        .motion(Motion.standard, value: model.isBusy)
         .disabled(model.isBusy)
     }
 
@@ -86,6 +89,8 @@ private struct SignInView: View {
                     }
                     .disabled(!model.canSendPhoneCode)
                     .buttonStyle(.borderless)
+                    // The seconds tick in place instead of nudging the field beside them.
+                    .monospacedDigit()
                 }
             }
         } footer: {
@@ -225,6 +230,9 @@ private struct SignedInView: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // An error appearing or clearing, and the spinner beside the button, move in place.
+        .motion(Motion.standard, value: model.errorText)
+        .motion(Motion.standard, value: model.isBusy)
         .disabled(model.isBusy)
         .confirmationDialog("注销账号？", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("注销账号", role: .destructive) { Task { await model.deleteAccount() } }

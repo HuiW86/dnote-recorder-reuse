@@ -66,8 +66,11 @@ public final class PhoneRecorder: NSObject {
         observeSession()
     }
 
-    /// Seconds recorded so far, for the timer.
-    public var elapsed: TimeInterval { recorder?.currentTime ?? 0 }
+    /// Seconds recorded so far, for the timer. While saving, the length that was recorded: the
+    /// recorder is gone by then, and the page would otherwise drop to 00:00:00 under 正在保存.
+    public var elapsed: TimeInterval { recorder?.currentTime ?? (isSaving ? heldElapsed : 0) }
+    /// The length at 停止, shown while saving.
+    @ObservationIgnored private var heldElapsed: TimeInterval = 0
 
     /// 16 kHz mono 16-bit PCM: about 115 MB an hour while recording, AAC once stored.
     static var recordingSettings: [String: Any] {
@@ -220,6 +223,7 @@ public final class PhoneRecorder: NSObject {
         spaceWatch?.cancel()
         spaceWatch = nil
         let url = recorder.url
+        heldElapsed = recorder.currentTime
         recorder.stop()
         self.recorder = nil
         self.startedAt = nil

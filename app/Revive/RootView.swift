@@ -6,6 +6,10 @@ struct RootView: View {
     let env: AppEnvironment
     @Environment(\.scenePhase) private var scenePhase
 
+    private var showsTabs: Bool {
+        BluetoothStart.showsTabs(hasPairedCard: env.hasPairedDevice, usesWithoutCard: env.preferences.usesWithoutCard)
+    }
+
     var body: some View {
         Group {
             if let error = env.libraryError {
@@ -17,14 +21,16 @@ struct RootView: View {
                     ShareLink(item: error) { Text("导出诊断信息") }
                 }
                 .paperPage()
-            } else if BluetoothStart.showsTabs(hasPairedCard: env.hasPairedDevice,
-                                               usesWithoutCard: env.preferences.usesWithoutCard) {
+            } else if showsTabs {
                 // 先不连卡 (P01) opens the tabs without a card.
-                MainView(env: env)
+                MainView(env: env).motionTransition(.fade)
             } else {
-                OnboardingFlow(env: env)
+                OnboardingFlow(env: env).motionTransition(.fade)
             }
         }
+        // First use handing over to the tabs (paired, or 先不连卡), and back after the last card
+        // is unpaired: one cross-fade instead of a cut.
+        .motion(Motion.standard, value: showsTabs)
         .tint(Theme.accent)
         .preferredColorScheme(env.preferences.appearance.colorScheme)
         .onChange(of: scenePhase, initial: true) { _, phase in

@@ -78,10 +78,10 @@ private struct AssistantSettingsForm: View {
                     }
                 }
                 if let result = model.testResult {
-                    Text(result).font(.callout).foregroundStyle(.secondary)
+                    Text(result).font(.callout).foregroundStyle(.secondary).motionTransition(.fade)
                 }
                 if let toast = model.toast {
-                    Text(toast.text).font(.callout)
+                    Text(toast.text).font(.callout).motionTransition(.fade)
                 }
             } footer: {
                 Text("生成纪要时，录音的文字稿会发送给这个服务。服务怎样处理这些文字，以它自己的隐私政策为准。不填就不会发送任何内容。")
@@ -89,6 +89,10 @@ private struct AssistantSettingsForm: View {
             }
         }
         .formStyle(.grouped)
+        // 测试连接's result and the saved note appear in place, as on the iPhone.
+        .motion(Motion.standard, value: model.testResult)
+        .motion(Motion.standard, value: model.toast?.id)
+        .motion(Motion.standard, value: model.isTesting)
         // As on the iPhone: a filled-in form is kept even without 保存.
         .onDisappear { model.saveOnLeave() }
         .confirmationDialog("清除 AI 服务？", isPresented: $confirmingClear) {

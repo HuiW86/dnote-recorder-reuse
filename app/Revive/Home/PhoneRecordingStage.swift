@@ -35,6 +35,7 @@ struct PhoneRecordingStage: View {
                             .frame(width: 9, height: 9)
                             .accessibilityHidden(true)
                         Text(saving ? "正在保存 · 这部手机" : paused ? "已暂停 · 这部手机" : "录音中 · 这部手机")
+                            .contentTransition(.opacity)
                             .font(.callout.weight(.medium))
                             .foregroundStyle(Theme.onDark.opacity(0.9))
                     }
@@ -42,13 +43,15 @@ struct PhoneRecordingStage: View {
                     // Balances the collapse button so the title stays centred.
                     Color.clear.frame(width: 44, height: 44)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
+                // Same place as on the card's recording page, so the collapse key does not shift.
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
                 Spacer(minLength: 16)
                 Image(systemName: paused ? "pause.fill" : "mic.fill")
                     .font(.system(size: 44))
                     .foregroundStyle(paused ? Theme.onDark.opacity(0.5) : Theme.record)
                     .symbolEffect(.pulse, isActive: !paused && !reduceMotion)
+                    .contentTransition(.symbolEffect(.replace))
                     .accessibilityHidden(true)
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     Text(RecordingText.clock(seconds: Int(recorder.elapsed)))
@@ -60,7 +63,9 @@ struct PhoneRecordingStage: View {
                 .padding(.top, 20)
                 .padding(.horizontal, 24)
                 // A call or another app paused the recording (X18); otherwise where it is kept.
-                Text(recorder.interruptionNotice ?? "用手机录音，停止后会保存在这部手机里")
+                Text(saving ? "正在保存到这部手机，长录音要几秒钟"
+                     : recorder.interruptionNotice ?? "用手机录音，停止后会保存在这部手机里")
+                    .contentTransition(.opacity)
                     .font(.subheadline)
                     .foregroundStyle(Theme.onDark.opacity(recorder.interruptionNotice == nil ? 0.65 : 0.95))
                     .multilineTextAlignment(.center)
@@ -68,25 +73,34 @@ struct PhoneRecordingStage: View {
                     .padding(.top, 16)
                 Spacer(minLength: 16)
                 HStack(spacing: 36) {
-                    if !saving { markControl(disabled: paused) }
+                    if !saving { markControl(disabled: paused).motionTransition(.fade) }
                     if saving {
-                        // Converting to M4A; a long recording takes a few seconds (X18).
+                        // Converting to M4A; a long recording takes a few seconds (X18). The keys
+                        // fade out around it, so the spinner reads as what 停止 started.
                         ProgressView().tint(Theme.onDark).controlSize(.large).frame(height: 66)
-                    } else if paused {
-                        control("继续", symbol: "play.fill", filled: false) { recorder.resume() }
+                            .motionTransition(.fade)
                     } else {
-                        control("暂停", symbol: "pause.fill", filled: false) { recorder.pause() }
+                        // One key that turns from 暂停 into 继续, so its icon morphs in place.
+                        control(paused ? "继续" : "暂停", symbol: paused ? "play.fill" : "pause.fill", filled: false) {
+                            if paused { recorder.resume() } else { recorder.pause() }
+                        }
+                        .motionTransition(.fade)
                     }
                     if !saving {
                         control("停止", symbol: "stop.fill", filled: true) {
                             // The page closes once stored (below).
                             Task { await recorder.stop() }
                         }
+                        .motionTransition(.fade)
                     }
                 }
                 .padding(.bottom, 32)
             }
         }
+        // Pausing, an interruption and saving each dim or swap the page in one move.
+        .motion(Motion.standard, value: paused)
+        .motion(Motion.standard, value: saving)
+        .motion(Motion.standard, value: recorder.interruptionNotice)
         .preferredColorScheme(.dark)
         .interactiveDismissDisabled()
         // Stored, after 停止 or after running out of space: close, so the tabs show the toast.
@@ -106,15 +120,20 @@ struct PhoneRecordingStage: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle().fill(Theme.onDark.opacity(0.14))
+                    // Each mark set nods the bookmark once: the tap was taken.
                     Image(systemName: "bookmark.fill").font(.title2).foregroundStyle(Theme.onDark)
+                        .symbolEffect(.bounce, value: count)
                 }
                 .frame(width: 66, height: 66)
                 Text(title)
                     .font(.footnote)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(count)))
                     .foregroundStyle(Theme.onDark.opacity(0.8))
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
+        .motion(Motion.tap, value: count)
         .disabled(disabled)
         .opacity(disabled ? 0.4 : 1)
         .sensoryFeedback(.impact, trigger: count)
@@ -127,14 +146,16 @@ struct PhoneRecordingStage: View {
                 ZStack {
                     Circle().fill(filled ? Theme.record : Theme.onDark.opacity(0.14))
                     Image(systemName: symbol).font(.title2).foregroundStyle(Theme.onDark)
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .frame(width: 66, height: 66)
                 Text(title)
                     .font(.footnote)
                     .foregroundStyle(Theme.onDark.opacity(0.8))
+                    .contentTransition(.opacity)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityLabel(title)
     }
 }

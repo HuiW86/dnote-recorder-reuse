@@ -81,6 +81,13 @@ struct KnowledgeView: View {
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+        // The answer opening under the question, its sources arriving, 停止 turning into
+        // 清除回答. Search results are not animated: they change with every key typed.
+        .motion(Motion.standard, value: questions.isAsking)
+        .motion(Motion.standard, value: questions.answer?.id)
+        .motion(Motion.standard, value: questions.answer?.text.isEmpty)
+        .motion(Motion.standard, value: questions.answer?.sources.count)
+        .motion(Motion.standard, value: questions.answer?.isStreaming)
         .navigationBarTitleDisplayMode(.inline)
         .toast($questions.toast)
         .searchable(text: $query, prompt: "搜索标题、文字稿、纪要")
@@ -119,10 +126,11 @@ extension KnowledgeView {
                         .submitLabel(.send)
                         .onSubmit { questions.ask(question) }
                     if questions.isAsking {
-                        ProgressView()
+                        ProgressView().motionTransition(.fade)
                     } else {
                         Button("提问") { questions.ask(question) }
                             .disabled(question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .motionTransition(.fade)
                     }
                 }
                 if let answer = questions.answer {
@@ -149,8 +157,9 @@ extension KnowledgeView {
                             }
                         }
                     }
-                    Button(answer.isStreaming ? "停止" : "清除回答") { questions.clear() }
+                    Button(answer.isStreaming ? "停止" : "清除回答") { withMotion(Motion.standard) { questions.clear() } }
                         .font(.subheadline)
+                        .contentTransition(.opacity)
                 }
             } else {
                 NavigationLink(value: Route.assistant) {

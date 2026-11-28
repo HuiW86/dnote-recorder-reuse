@@ -24,7 +24,7 @@ extension View {
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
                     .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(Theme.line))
                     .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .motionTransition(.top)
                     .id(current.id)
                     .task(id: current.id) {
                         UIAccessibility.post(notification: .announcement, argument: current.text)
@@ -33,7 +33,7 @@ extension View {
                     }
             }
         }
-        .animation(.default, value: toast.wrappedValue?.id)
+        .motion(Motion.overlay, value: toast.wrappedValue?.id)
     }
 }
 

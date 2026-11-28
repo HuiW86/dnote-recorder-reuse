@@ -57,14 +57,18 @@ public final class OverviewModel {
         "来自「\(RecordingText.title(todo.recording))」"
     }
 
-    /// Ticks a todo from 总览; it leaves the list with the next change.
-    public func complete(_ todo: OpenTodo) {
+    /// Ticks a todo from 总览; it leaves the list with the next change. False when it could not
+    /// be saved, so the box can show it is still open.
+    @discardableResult
+    public func complete(_ todo: OpenTodo) -> Bool {
         do {
             let summary = try library.setTodoDone(recordingId: todo.recording.id, index: todo.index, done: true)
             lastCompleted = summary.map { (todo, $0.createdAt) }
             toast = Toast("已完成", action: "撤销")
+            return true
         } catch {
             toast = Toast("保存失败，请重试")
+            return false
         }
     }
 
