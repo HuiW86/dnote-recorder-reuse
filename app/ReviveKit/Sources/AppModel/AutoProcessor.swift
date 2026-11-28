@@ -1,3 +1,4 @@
+import AIRoute
 import Assistant
 import Foundation
 import Library
@@ -113,9 +114,19 @@ public final class AutoProcessor {
         }
         guard (try? library.summary(recordingId: id)) == nil,
               let transcript = try? library.transcript(recordingId: id),
-              let config = assistant?.current() else { return }
+              let config = assistant?.current(), summarizesWithOwnService(config) else { return }
         recording = (try? library.recording(id: id)) ?? recording
         await summarize(recording, transcript: transcript, config: config)
+    }
+
+    /// 录完自动整理 writes summaries with the way chosen for them (product-spec.md §7.3b): the
+    /// user's service. Never chosen yet, or the 闻笺 account (not done here yet), leaves it for
+    /// the recording page.
+    private func summarizesWithOwnService(_ config: ServiceConfig) -> Bool {
+        let situation = AccountAI.situation(for: .summarize, preferences: preferences, onDeviceSupported: false,
+                                            ownTranscription: false, ownService: true, accountSignedIn: nil,
+                                            hasTranscript: true)
+        return AIRoute.automatic(.summarize, in: situation) == .ownService
     }
 
     /// True when a transcript is stored afterwards.

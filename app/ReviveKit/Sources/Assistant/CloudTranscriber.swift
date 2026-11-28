@@ -42,10 +42,7 @@ public struct CloudTranscriber: SpeechTranscribing {
             throw TranscriptionError.failed("decode: \(error)")
         }
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let audio = try Data(contentsOf: file)
-        guard audio.count <= Self.maxUploadBytes else {
-            throw TranscriptionError.failed("录音太长，超过服务允许的上传大小")
-        }
+        let audio = try Self.readUpload(file)
         // Ask for sentence timings; a service that does not know the option gets a plain request.
         do {
             return try await send(url: url, audio: audio, language: language, detailed: true,
@@ -54,6 +51,24 @@ public struct CloudTranscriber: SpeechTranscribing {
             return try await send(url: url, audio: audio, language: language, detailed: false,
                                   durationMs: recording.durationMs)
         }
+    }
+
+    static func readUpload(_ url: URL) throws -> Data {
+        let file = try FileHandle(forReadingFrom: url)
+        defer { try? file.close() }
+        let tooLarge = TranscriptionError.failed("录音太长，超过服务允许的上传大小")
+        let size = try file.seekToEnd()
+        guard size <= UInt64(maxUploadBytes) else { throw tooLarge }
+        try file.seek(toOffset: 0)
+        var audio = Data()
+        audio.reserveCapacity(Int(size))
+        // Keep the bound even if the file grows after the initial size check.
+        while let chunk = try file.read(upToCount: min(256 * 1024, maxUploadBytes - audio.count + 1)),
+              !chunk.isEmpty {
+            guard chunk.count <= maxUploadBytes - audio.count else { throw tooLarge }
+            audio.append(chunk)
+        }
+        return audio
     }
 
     private func send(url: URL, audio: Data, language: String, detailed: Bool,

@@ -572,3 +572,26 @@ public struct SummarizedRecording: Equatable, Sendable, Identifiable {
         self.summary = summary
     }
 }
+
+/// A local recording's counterpart on our backend for one 闻笺 account (product-spec.md §7.3b).
+/// `hasAudio` is false for one made to carry only text (a summary from a transcript made on the
+/// phone); transcribing with the account then puts the audio up as a new server recording.
+public struct ServerRecordingLink: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public var accountId: UUID
+    public var recordingId: UUID
+    public var serverId: UUID
+    public var hasAudio: Bool
+    public var createdAt: Date
+
+    public init(accountId: UUID, recordingId: UUID, serverId: UUID, hasAudio: Bool, createdAt: Date = Date()) {
+        self.accountId = accountId
+        self.recordingId = recordingId
+        self.serverId = serverId
+        self.hasAudio = hasAudio
+        self.createdAt = createdAt
+    }
+
+    public static let databaseTableName = "remote_recording"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+}

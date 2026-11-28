@@ -57,7 +57,7 @@ struct WelcomeView: View {
                         .font(.title2.bold())
                         .foregroundStyle(Theme.ink)
                         .multilineTextAlignment(.center)
-                    Text("不用登录、不用联网，录音只保存在这部手机上")
+                    Text("不用登录、不用联网，录音存入本机录音库")
                         .font(.body)
                         .foregroundStyle(Theme.inkMuted)
                         .multilineTextAlignment(.center)

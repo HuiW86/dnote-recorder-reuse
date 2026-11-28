@@ -31,7 +31,8 @@
 规则：
 
 - **M1 各层不引用任何网络库**。M2 的同步与 AI 模块单独成层，只读写 Library，不被设备层调用（`CLAUDE.md` 硬规则 3）。
-- 联网的模块目前有三个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）、`LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）和 `Account`（闻笺账号，K1；只用 Foundation，钥匙串在有 Security 的平台上用，不依赖其他模块；它的页面状态 `AccountModel` 也放在这个模块里，好在 Linux 上测，App 目标直接引用，AppModel 不依赖它）。
+- 联网的模块目前有三个，都不在上图里，只由 AppModel 的相应页面和 App 目标引用，设备和离线模块不能引用（`scripts/check-m1-rules.sh`）：`Assistant`（用户自配 AI 服务，X11）、`LinkImport`（从播客链接下载音频，X12；只用 Foundation，不依赖其他模块，下载完由 AppModel 交给 Player 的 `AudioImporter` 和 Library 存入，来源记为 `import`，不改数据模型）和 `Account`（闻笺账号，K1；只用 Foundation，钥匙串在有 Security 的平台上用，不依赖其他模块；它的页面状态 `AccountModel` 也放在这个模块里，好在 Linux 上测，App 目标直接引用；2026-11-27 起 AppModel 的 `AccountAI` 也引用它，把闻笺账号这条路接到录音库上，§5.14）。
+- 转写和纪要走哪条路（本机、你的 AI 服务、闻笺账号）的规则在 `AIRoute`（`product-spec.md` §7.3b）：只用 Foundation，不联网，不依赖其他模块，只给出决定（直接用、先确认、先登录、去设置、让用户选），由 AppModel 按当时的情况（`AISituation`）调用。
 - 读写录音库给 AI 助手用的 `LibraryTools`（X19）和命令行 `revive` 只依赖 Library（`revive` 在 Mac 上另依赖 Player 转换音频），和 M1 模块一样不联网（`scripts/check-m1-rules.sh`）。`revive` 在另一个进程里打开 Mac 版的录音库（`AppDatabase.existing`，写锁最多等 5 秒），只新增录音，不改不删；库被更新的版本迁移过时只读（`isNewerThanThisBuild`）。
 - 协议细节（命令字、帧格式、JSON 字段）只出现在 CardProtocol，上层只看到 Swift 类型。固件版本差异也在这一层处理。
 - 协议层从 `ios-prototype/Sources/DNoteProtocol.swift` 起步，原型的单元测试和样本一并迁移。
@@ -431,6 +432,22 @@ bondId 不进数据库，存 Keychain，键为 `sn`。
 
 - 录音中 `recording` 行还不存在：标记先记在内存里，同时写进 CAF 旁边的 `phone-<开始时间毫秒>.caf.marks`（毫秒数的 JSON 数组），存入录音时和 `recording` 行在同一个事务里写进本表；App 被关掉后找回的录音也带着标记（§4 的手机录音文件布局）。
 - 与 `recording_mark` 相同：2 秒内的重复标记丢弃，超过录音时长的不显示，只存在手机上。显示时两张表合成同一种「播放标记」（`RecordingLibrary.playbackMarks`），列表的重点数、「有重点」筛选、详情页的重点列表和播放条刻度都用它。
+
+### 5.14 `remote_recording`（录音在闻笺服务器上的 id，迁移 `v17`，`product-spec.md` §7.3b，2026-11-27）
+
+用闻笺账号转写或生成纪要时，记下本机录音对应服务器上的哪条录音，免得同一条录音在服务器上建两次。按账号分开：这部手机换一个账号登录，各有各的对应。主键 `(account_id, recording_id)`，随本机录音删除（外键级联）。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `account_id` | UUID | 闻笺账号的 id |
+| `recording_id` | UUID FK | 本机录音 |
+| `server_id` | UUID | 服务器上的录音 id |
+| `has_audio` | BOOL | 服务器上那条录音有没有音频；只为发文字稿生成纪要而建的为 `false` |
+| `created_at` | DATETIME | — |
+
+- 用账号转写：上传音频（服务器按 SHA-256 认出已有的同一段音频），记下 `has_audio = true`，替换原来只有文字的那条对应（服务器上那条只有文字的录音留着，用户可以在账号里删）。
+- 只用文字生成纪要：有对应就用（有没有音频都行），没有就建一条不带音频的录音，`Idempotency-Key` 用 `text-<本机录音 id>`，回答丢了重发也不会建第二条；然后 `PUT /recordings/{id}/transcript` 放上本机的文字稿（每次都放，本机改过的字也带上），再生成纪要。服务器回答 `404 recording_not_found`（在别处删了）时忘掉这条对应、换一个新键重建一次。
+- 注销账号后删掉这个账号的全部对应；退出登录不删，同一个账号再登录还能用。
 
 ## 6. App 错误码（M1）
 

@@ -132,8 +132,15 @@ public struct AudioStore: Sendable {
     }
 
     public func availableCapacity() -> Int64 {
-        let values = try? root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        return values?.volumeAvailableCapacityForImportantUsage ?? 0
+        let important = try? root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
+        return Self.availableCapacity(important: important,
+                                      ordinary: try? root.resourceValues(forKeys: [.volumeAvailableCapacityKey]).volumeAvailableCapacity)
+    }
+
+    // Some volumes report zero for important usage even when ordinary free bytes are available.
+    static func availableCapacity(important: Int64?, ordinary: @autoclosure () -> Int?) -> Int64 {
+        if let important, important > 0 { return important }
+        return Int64(max(0, ordinary() ?? 0))
     }
 }
 

@@ -1,3 +1,4 @@
+import AIRoute
 import Foundation
 import Observation
 
@@ -19,6 +20,12 @@ public final class Preferences {
         static let assistantTranscriptionModel = Preferences.assistantTranscriptionModelKey
         static let assistantProfession = Preferences.assistantProfessionKey
         static let autoProcessSince = "revive.autoProcessSince"
+        static let defaultTranscriptionPath = "revive.ai.defaultTranscription"
+        static let defaultSummaryPath = "revive.ai.defaultSummary"
+        static let aiConsentsAccount = "revive.ai.consentsAccount"
+        static let autoTranscriptionSkipped = "revive.ai.autoTranscriptionSkipped"
+        static let earlierAIDefaultsAdopted = "revive.ai.earlierDefaultsAdopted"
+        static func consent(_ consent: AIConsent) -> String { "revive.ai.consent.\(consent.rawValue)" }
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
     }
 
@@ -156,6 +163,82 @@ public final class Preferences {
         access(keyPath: \.autoProcessSince)
         let seconds = defaults.double(forKey: Key.autoProcessSince)
         return seconds > 0 ? Date(timeIntervalSince1970: seconds) : nil
+    }
+
+    // MARK: AI paths (product-spec.md §7.3b)
+
+    /// P09 默认转写方式; nil until the user chose one (then this phone is used).
+    public var defaultTranscriptionPath: AIPath? {
+        get {
+            access(keyPath: \.defaultTranscriptionPath)
+            return defaults.string(forKey: Key.defaultTranscriptionPath).flatMap(AIPath.init(rawValue:))
+        }
+        set {
+            withMutation(keyPath: \.defaultTranscriptionPath) {
+                defaults.set(newValue?.rawValue, forKey: Key.defaultTranscriptionPath)
+            }
+        }
+    }
+
+    /// P09 默认纪要方式; nil until the user chose one (the first summary then asks). Never the phone.
+    public var defaultSummaryPath: AIPath? {
+        get {
+            access(keyPath: \.defaultSummaryPath)
+            return defaults.string(forKey: Key.defaultSummaryPath).flatMap(AIPath.init(rawValue:))
+                .flatMap { AIWork.summarize.paths.contains($0) ? $0 : nil }
+        }
+        set {
+            withMutation(keyPath: \.defaultSummaryPath) {
+                let kept = newValue.flatMap { AIWork.summarize.paths.contains($0) ? $0 : nil }
+                defaults.set(kept?.rawValue, forKey: Key.defaultSummaryPath)
+            }
+        }
+    }
+
+    /// What the user agreed to send the 闻笺 account (§7.3b 上传前的确认), each kept apart.
+    public var aiConsents: Set<AIConsent> {
+        access(keyPath: \.aiConsents)
+        return Set(AIConsent.allCases.filter { defaults.bool(forKey: Key.consent($0)) })
+    }
+
+    public func grant(_ consent: AIConsent) {
+        withMutation(keyPath: \.aiConsents) { defaults.set(true, forKey: Key.consent(consent)) }
+    }
+
+    /// The account signed out or was deleted: signing in again asks again (§7.3b).
+    public func forgetAIConsents() {
+        withMutation(keyPath: \.aiConsents) {
+            for consent in AIConsent.allCases { defaults.removeObject(forKey: Key.consent(consent)) }
+        }
+    }
+
+    /// An earlier phone's 录完自动整理 had no way to transcribe and skipped that step; it keeps
+    /// skipping until the user chooses a 默认转写方式 (then `defaultTranscriptionPath` is set).
+    public var autoTranscriptionSkippedBefore: Bool { defaults.bool(forKey: Key.autoTranscriptionSkipped) }
+
+    /// The consents belong to the account signed in when they were given: for any other account,
+    /// or none (a sign-in that ran out without 退出登录), they are forgotten.
+    public func keepAIConsents(for account: UUID?) {
+        let current = account?.uuidString
+        guard defaults.string(forKey: Key.aiConsentsAccount) != current else { return }
+        forgetAIConsents()
+        defaults.set(current, forKey: Key.aiConsentsAccount)
+    }
+
+    /// Once, on a phone that had the app before §7.3b: keeps the way it transcribed and
+    /// summarized (the old 本机转写（试验） switch, the user's service) as the defaults, so nothing
+    /// changes under the user. A new phone keeps no default and follows §7.3b.
+    public func adoptEarlierAIDefaults(ownTranscription: Bool, ownService: Bool) {
+        guard !defaults.bool(forKey: Key.earlierAIDefaultsAdopted) else { return }
+        defaults.set(true, forKey: Key.earlierAIDefaultsAdopted)
+        let earlier = AIRoute.earlierDefaults(onDeviceSwitch: onDeviceTranscriptEnabled,
+                                              ownTranscription: ownTranscription, ownService: ownService)
+        // 录完自动整理 was on and could not transcribe: it skipped that step (see below).
+        if autoProcessEnabled, earlier.transcribe == nil {
+            defaults.set(true, forKey: Key.autoTranscriptionSkipped)
+        }
+        if defaultTranscriptionPath == nil, let path = earlier.transcribe { defaultTranscriptionPath = path }
+        if defaultSummaryPath == nil, let path = earlier.summarize { defaultSummaryPath = path }
     }
 
     /// 外观 in settings (#89): follow the system, or always light or dark.

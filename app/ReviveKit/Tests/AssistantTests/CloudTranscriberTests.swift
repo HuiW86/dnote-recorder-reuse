@@ -8,6 +8,22 @@ import Transcription
 
 // X11: transcription by the user's own service.
 struct CloudTranscriberTests {
+    @Test func uploadAcceptsTheByteLimitAndRejectsOneMore() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data([0x4A]).write(to: url)
+        let writer = try FileHandle(forWritingTo: url)
+        defer { try? writer.close() }
+        let limit = CloudTranscriber.maxUploadBytes
+        try writer.truncate(atOffset: UInt64(limit))
+        let data = try CloudTranscriber.readUpload(url)
+        #expect(data.count == limit && data.first == 0x4A)
+        try writer.truncate(atOffset: UInt64(limit + 1))
+        #expect(throws: TranscriptionError.failed("录音太长，超过服务允许的上传大小")) {
+            try CloudTranscriber.readUpload(url)
+        }
+    }
+
     @Test func endpointSitsNextToChat() {
         #expect(CloudTranscriber.endpoint("https://api.example.com/v1/")?.absoluteString
                 == "https://api.example.com/v1/audio/transcriptions")

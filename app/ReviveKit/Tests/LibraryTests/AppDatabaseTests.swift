@@ -1,9 +1,25 @@
+import CryptoKit
 import Foundation
 import GRDB
 import Testing
 @testable import Library
 
 struct AppDatabaseTests {
+    @Test func capacityPrefersPositiveImportantUsage() {
+        func unexpectedFallback() -> Int? {
+            Issue.record("ordinary capacity should only be queried as a fallback")
+            return 99
+        }
+        #expect(AudioStore.availableCapacity(important: 5, ordinary: unexpectedFallback()) == 5)
+    }
+
+    @Test func capacityUsesAvailableBytesWhenImportantUsageCannotBeRead() {
+        #expect(AudioStore.availableCapacity(important: nil, ordinary: 20) == 20)
+        #expect(AudioStore.availableCapacity(important: 0, ordinary: 20) == 20)
+        #expect(AudioStore.availableCapacity(important: nil, ordinary: nil) == 0)
+        #expect(AudioStore.availableCapacity(important: 0, ordinary: 0) == 0)
+    }
+
     @Test func inMemoryDatabaseOpensAndMigrates() throws {
         let db = try AppDatabase.inMemory()
         let foreignKeys = try db.writer.read { try Bool.fetchOne($0, sql: "PRAGMA foreign_keys") }
@@ -125,7 +141,7 @@ struct RecordingLibraryTests {
         let db = try AppDatabase(queue)
         let applied = try db.writer.read { try AppDatabase.migrator.appliedIdentifiers($0) }
         #expect(applied == Set(AppDatabase.migrator.migrations))
-        for table in ["recording_mark", "discard_request", "transcript", "summary", "folder"] {
+        for table in ["recording_mark", "discard_request", "transcript", "summary", "folder", "remote_recording"] {
             #expect(try db.writer.read { try $0.tableExists(table) }, "table \(table)")
         }
         let recording = try #require(try db.writer.read { try Recording.fetchOne($0, key: recordingId) })
@@ -742,6 +758,23 @@ struct RecordingLibraryTests {
         #expect(!(try lib.recentSummaries().map(\.recording.id).contains(none)))
     }
 
+    /// Check persisted digests against a single-pass reference, including an exact block and a distinct tail.
+    @Test(arguments: [0, 1 << 20, (1 << 20) + 7])
+    func importedFileKeepsItsSHA256(byteCount: Int) throws {
+        let (library, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("prepared.m4a")
+        var bytes = Data(repeating: 0x31, count: byteCount)
+        if !bytes.isEmpty { bytes[byteCount - 1] = 0x7a }
+        try bytes.write(to: source)
+        let expected = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+
+        let stored = try library.addLocalRecording(file: source, source: .import, startedAt: Date(),
+                                                   durationMs: 1, title: nil)
+        #expect(try library.recording(id: stored.id)?.audioSha256 == expected)
+        #expect(try Data(contentsOf: library.store.url(forAudioPath: stored.audioPath)) == bytes)
+    }
+
     /// X18: a phone recording keeps its M4A, gets a default title, and an orphaned M4A (crash
     /// between the move and the insert) is removed at launch like an orphaned OGG.
     @Test func phoneRecordingsAreStoredAsM4A() throws {
@@ -852,6 +885,50 @@ struct RecordingLibraryTests {
 
         try lib.deleteRecording(id: id)
         #expect(try lib.summary(recordingId: id) == nil)
+    }
+
+    /// product-spec.md §7.3b: a recording's server id is kept per 闻笺 account, replaced when
+    /// the audio goes up later, forgotten one by one or for a whole account, and goes away with
+    /// the recording.
+    @Test func serverIdsAreKeptPerAccount() throws {
+        let (lib, root) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = try lib.upsertDevice(sn: "S") { $0.name = "card"; $0.firmware = "1.50" }
+        let ids = [UUID(), UUID()]
+        for (n, id) in ids.enumerated() {
+            let item = try lib.syncItem(deviceId: device.id, name: "\(n).opus", size: 10)
+            let path = try lib.store.storeAudio(Data("OggS".utf8), id: id)
+            _ = try lib.commitStored(recording(id, device: device.id, path: path), item: item, deleteAfterSync: false)
+        }
+        let (me, other) = (UUID(), UUID())
+        let created = Date(timeIntervalSince1970: 1_800_000_000)
+        let textOnly = ServerRecordingLink(accountId: me, recordingId: ids[0], serverId: UUID(), hasAudio: false,
+                                       createdAt: created)
+        try lib.saveServerRecordingLink(textOnly)
+        try lib.saveServerRecordingLink(ServerRecordingLink(accountId: other, recordingId: ids[0], serverId: UUID(),
+                                                    hasAudio: true, createdAt: created))
+        try lib.saveServerRecordingLink(ServerRecordingLink(accountId: me, recordingId: ids[1], serverId: UUID(),
+                                                    hasAudio: true, createdAt: created))
+        #expect(try lib.serverRecordingLink(recordingId: ids[0], accountId: me) == textOnly)
+        #expect(try lib.serverRecordingLink(recordingId: ids[0], accountId: other)?.hasAudio == true)
+        #expect(try lib.serverRecordingLink(recordingId: ids[0], accountId: UUID()) == nil)
+
+        // The audio went up later: one row per account and recording, now with audio.
+        let withAudio = ServerRecordingLink(accountId: me, recordingId: ids[0], serverId: UUID(), hasAudio: true,
+                                        createdAt: created)
+        try lib.saveServerRecordingLink(withAudio)
+        #expect(try lib.serverRecordingLink(recordingId: ids[0], accountId: me) == withAudio)
+        #expect(try lib.database.writer.read { try ServerRecordingLink.fetchCount($0) } == 3)
+
+        try lib.forgetServerRecordingLinks(accountId: me, recordingId: ids[1])
+        #expect(try lib.serverRecordingLink(recordingId: ids[1], accountId: me) == nil)
+        #expect(try lib.serverRecordingLink(recordingId: ids[0], accountId: me) == withAudio)
+        try lib.forgetServerRecordingLinks(accountId: me)
+        #expect(try lib.serverRecordingLink(recordingId: ids[0], accountId: me) == nil)
+        #expect(try lib.serverRecordingLink(recordingId: ids[0], accountId: other) != nil)
+
+        try lib.deleteRecording(id: ids[0])
+        #expect(try lib.database.writer.read { try ServerRecordingLink.fetchCount($0) } == 0)
     }
 
     @Test func recoveryResetsDownloadsAndRemovesOrphans() throws {

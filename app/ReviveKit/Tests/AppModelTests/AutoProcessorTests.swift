@@ -1,3 +1,4 @@
+import AIRoute
 import Assistant
 import Foundation
 import Library
@@ -81,6 +82,8 @@ private final class AutoFixture {
     func processor(_ transcriber: (any SpeechTranscribing)?, service: Bool = true) -> AutoProcessor {
         let reply = #"{"scene":"meeting","title":"定发布日","summary":"周三发布。","sections":[],"todos":["发通知"],"tags":[],"people":[]}"#
         let config = ServiceConfig(baseURL: "https://auto.invalid/v1", model: "m", apiKey: "")
+        // Summaries go the way the user chose for them (product-spec.md §7.3b).
+        if service, preferences.defaultSummaryPath == nil { preferences.defaultSummaryPath = .ownService }
         return AutoProcessor(library: library, preferences: preferences, transcriberSource: { transcriber },
                              assistant: service ? AssistantConfigSource { config } : nil,
                              summarizer: Summarizer(client: ChatClient(session: AutoReply.session(reply))),
@@ -144,6 +147,26 @@ struct AutoProcessorTests {
         await waitUntil("idle") { processor.current == nil }
         #expect(try f.library.summary(recordingId: r.id) == nil)
         processor.stop()
+    }
+
+    /// §7.3b: a summary waits for the way chosen for it; the 闻笺 account is left for the page.
+    @Test func summarizesOnlyTheWayChosenForSummaries() async throws {
+        for chosen in [nil, AIPath.account] {
+            let f = try AutoFixture()
+            f.preferences.autoProcessEnabled = true
+            f.preferences.defaultSummaryPath = chosen
+            f.preferences.grant(.autoProcess)
+            let withService = AutoProcessor(
+                library: f.library, preferences: f.preferences, transcriberSource: { nil },
+                assistant: AssistantConfigSource { ServiceConfig(baseURL: "https://auto.invalid/v1", model: "m", apiKey: "") },
+                jobs: TranscriptionJobs(defaults: UserDefaults(suiteName: "auto-rate-\(UUID().uuidString)")!))
+            withService.start()
+            let r = try #require(try f.library.addTextRecording(text: "周三发布。", title: "笔记", startedAt: Date()))
+            await waitUntil("idle") { withService.current == nil }
+            try await Task.sleep(for: .milliseconds(200))
+            #expect(try f.library.summary(recordingId: r.id) == nil)
+            withService.stop()
+        }
     }
 
     /// A text-only recording (E2) has its transcript already: only the summary is made.

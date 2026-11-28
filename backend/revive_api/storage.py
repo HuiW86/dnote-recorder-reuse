@@ -179,7 +179,13 @@ class LocalStore:
         return await asyncio.to_thread(join)
 
     async def abort_upload(self, key: str, upload_id: str) -> None:
-        await asyncio.to_thread(shutil.rmtree, self._upload(upload_id), True)
+        folder = self._upload(upload_id)
+        try:
+            await asyncio.to_thread(shutil.rmtree, folder)
+        except FileNotFoundError:
+            # A previous attempt may already have removed the entire upload.
+            if folder.exists():
+                raise
 
     def download_url(self, key: str, expires_at: datetime, filename: str) -> str:
         return self._url("GET", key, {"exp": str(int(expires_at.timestamp())), "name": filename})
