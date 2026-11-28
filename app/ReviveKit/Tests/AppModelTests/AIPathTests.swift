@@ -62,6 +62,14 @@ struct AIPathTests {
         switchOn.adoptEarlierAIDefaults(ownTranscription: true, ownService: false)
         #expect(switchOn.defaultTranscriptionPath == .onDevice && switchOn.defaultSummaryPath == nil)
 
+        #expect(!earlier.autoTranscriptionSkippedBefore)
+
+        // 录完自动整理 on with no way to transcribe: it keeps skipping transcription.
+        let skipping = preferences()
+        skipping.autoProcessEnabled = true
+        skipping.adoptEarlierAIDefaults(ownTranscription: false, ownService: true)
+        #expect(skipping.autoTranscriptionSkippedBefore && skipping.defaultTranscriptionPath == nil)
+
         // A new phone keeps no default, and setting up a service later does not make one.
         let new = preferences()
         new.adoptEarlierAIDefaults(ownTranscription: false, ownService: false)

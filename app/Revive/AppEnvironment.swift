@@ -41,6 +41,9 @@ final class AppEnvironment {
             onDeviceSupported: OnDeviceTranscriber.isSupported() && OnDeviceTranscriber.isAuthorized,
             ownTranscription: TranscriberChoice.cloudConfig(preferences: preferences, assistant: assistantConfig) != nil,
             ownService: assistantConfig.current() != nil, accountSignedIn: nil, hasTranscript: false)
+        // A phone that had 录完自动整理 on with no way to transcribe kept skipping that step; it
+        // keeps doing so until a 默认转写方式 is chosen, so the upgrade sends nothing new.
+        if preferences.defaultTranscriptionPath == nil, preferences.autoTranscriptionSkippedBefore { return nil }
         guard let path = AIRoute.automatic(.transcribe, in: situation) else { return nil }
         return aiPaths(library: library).transcriber(path)
     }

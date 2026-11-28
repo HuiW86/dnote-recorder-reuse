@@ -23,6 +23,7 @@ public final class Preferences {
         static let defaultTranscriptionPath = "revive.ai.defaultTranscription"
         static let defaultSummaryPath = "revive.ai.defaultSummary"
         static let aiConsentsAccount = "revive.ai.consentsAccount"
+        static let autoTranscriptionSkipped = "revive.ai.autoTranscriptionSkipped"
         static let earlierAIDefaultsAdopted = "revive.ai.earlierDefaultsAdopted"
         static func consent(_ consent: AIConsent) -> String { "revive.ai.consent.\(consent.rawValue)" }
         static func deleteAfterSync(_ id: UUID) -> String { "revive.deleteAfterSync.\(id.uuidString)" }
@@ -211,6 +212,10 @@ public final class Preferences {
         }
     }
 
+    /// An earlier phone's 录完自动整理 had no way to transcribe and skipped that step; it keeps
+    /// skipping until the user chooses a 默认转写方式 (then `defaultTranscriptionPath` is set).
+    public var autoTranscriptionSkippedBefore: Bool { defaults.bool(forKey: Key.autoTranscriptionSkipped) }
+
     /// The consents belong to the account signed in when they were given: for any other account,
     /// or none (a sign-in that ran out without 退出登录), they are forgotten.
     public func keepAIConsents(for account: UUID?) {
@@ -228,6 +233,10 @@ public final class Preferences {
         defaults.set(true, forKey: Key.earlierAIDefaultsAdopted)
         let earlier = AIRoute.earlierDefaults(onDeviceSwitch: onDeviceTranscriptEnabled,
                                               ownTranscription: ownTranscription, ownService: ownService)
+        // 录完自动整理 was on and could not transcribe: it skipped that step (see below).
+        if autoProcessEnabled, earlier.transcribe == nil {
+            defaults.set(true, forKey: Key.autoTranscriptionSkipped)
+        }
         if defaultTranscriptionPath == nil, let path = earlier.transcribe { defaultTranscriptionPath = path }
         if defaultSummaryPath == nil, let path = earlier.summarize { defaultSummaryPath = path }
     }

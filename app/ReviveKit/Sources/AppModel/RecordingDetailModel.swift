@@ -221,6 +221,16 @@ public final class RecordingDetailModel {
         }
     }
 
+    /// Under the summary: where the transcript goes with the way 生成纪要 takes (§7.3b).
+    public var summaryFootnote: String {
+        guard let paths else { return "生成纪要时，文字稿会发送给你在设置里填的 AI 服务；录音音频不会发送。" }
+        switch paths.preferences.defaultSummaryPath {
+        case .account?: return "生成纪要时，文字稿会发到闻笺的服务器；录音音频不会再发送。"
+        case .ownService?: return "生成纪要时，文字稿会发送给你在设置里填的 AI 服务；录音音频不会发送。"
+        default: return "第一次生成纪要时先选方式，选好后才发送文字稿。"
+        }
+    }
+
     /// 「⋯ → 选择转写方式」, or 「用其他方式重新转写」 once there is a transcript (§7.3b).
     public var choosePathTitle: String { transcript == nil ? "选择转写方式" : "用其他方式重新转写" }
 
@@ -316,7 +326,11 @@ public final class RecordingDetailModel {
         transcriptionPath = path
         Task { [jobs] in
             var succeeded = false
-            defer { jobs.end(recording.id, succeeded: succeeded) }
+            defer {
+                jobs.end(recording.id, succeeded: succeeded)
+                // The footnote reads the current pick or default again.
+                transcriptionPath = nil
+            }
             do {
                 // 纠错词库 (#75): words the user corrected before are fixed in the new text.
                 let segments = library.corrected(try await transcriber.transcribe(recording, language: language))

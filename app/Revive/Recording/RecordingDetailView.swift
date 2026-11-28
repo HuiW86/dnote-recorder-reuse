@@ -529,7 +529,7 @@ extension RecordingDetailContent {
         } header: {
             Text("纪要")
         } footer: {
-            Text("生成纪要时，文字稿会发送给你在设置里填的 AI 服务；录音音频不会发送。")
+            Text(model.summaryFootnote)
         }
         .listRowBackground(Color.clear)
     }
