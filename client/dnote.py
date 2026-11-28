@@ -327,6 +327,16 @@ async def cmd_list(args):
             print(f"  [{it['index']}] {it['name']}  {it['size']} bytes")
 
 
+def _write_exclusive(path, data):
+    """Create `path` with `data`; FileExistsError when the name is already taken. A crash part
+    way leaves a short file, which a later pull reports as different content instead of using."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o644)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+
+
 def _save_copy(path, data, *, require_exclusive=True):
     """Publish the complete recording once. Concurrent retries reuse identical bytes."""
     if not os.path.lexists(path):
@@ -349,10 +359,14 @@ def _save_copy(path, data, *, require_exclusive=True):
                     raise
                 if require_exclusive:
                     raise OSError(f"无法在此目录以硬链接安全保存文件，请选择支持硬链接的输出目录: {path}") from error
-                # Ordinary pulls keep the card copy. Preserve support for FAT/exFAT exports.
-                if not os.path.lexists(path):
-                    os.replace(pending.name, path)
+                # Ordinary pulls keep the card copy. Preserve support for FAT/exFAT exports:
+                # create the final name exclusively (O_EXCL fails if another pull got there
+                # first), never replace it, so a saved recording is not overwritten.
+                try:
+                    _write_exclusive(path, data)
                     return
+                except FileExistsError:
+                    pass  # Another pull published this name. Verify its bytes below.
         finally:
             try:
                 os.unlink(pending.name)

@@ -215,3 +215,42 @@ def test_ordinary_pull_on_volume_without_hardlinks(dnote, tmp_path, monkeypatch,
         assert target.read_bytes().startswith(b"OggS")
     assert not card.deleted
     assert list(tmp_path.iterdir()) == [target]
+
+
+def test_concurrent_exports_without_hardlinks_never_overwrite(dnote, tmp_path, monkeypatch):
+    # Two pulls of different same-name recordings to one exFAT folder: both pass the "name is
+    # free" check before either writes. The second must not replace the first.
+    import errno
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    if dnote.os.name == "nt":
+        pytest.skip("Windows uses exclusive rename")
+
+    ready = Barrier(2)
+
+    def unsupported_link(src, dst):
+        ready.wait(timeout=5)
+        raise OSError(errno.EOPNOTSUPP, "hard links unsupported")
+
+    monkeypatch.setattr(dnote.os, "link", unsupported_link)
+    path = tmp_path / "sample.ogg"
+    other = b"another card's recording"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = [pool.submit(dnote._save_copy, path, audio, require_exclusive=False) for audio in (AUDIO, other)]
+    errors = [result.exception() for result in results if result.exception()]
+    assert len(errors) == 1 and isinstance(errors[0], FileExistsError)
+    winner = AUDIO if results[0].exception() is None else other
+    assert path.read_bytes() == winner
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_client_never_publishes_by_replacing():
+    # Guard: os.replace and shutil.move overwrite an existing file, so a saved recording could be
+    # lost. Publish with os.link / O_EXCL (see dnote._save_copy) and verify an existing name instead.
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parents[1]
+    offenders = [f"{path.name}:{number}" for path in sorted(root.glob("*.py"))
+                 for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+                 if re.search(r"\b(os\.replace|shutil\.move)\(", line)]
+    assert not offenders, f"use dnote._save_copy instead of replacing files: {offenders}"
