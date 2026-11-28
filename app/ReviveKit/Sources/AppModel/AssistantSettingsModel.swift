@@ -138,12 +138,15 @@ public final class AssistantSettingsModel {
         persist()
     }
 
+    /// Kept without 保存 only when no stored service is being replaced: moving to another address
+    /// changes where transcripts, audio and 录完自动整理 go, so that takes 保存.
     private var mayKeepWithoutAsking: Bool {
-        let form = self.form
-        let keyFollowedNewAddress = form.baseURL != opened.baseURL && !opened.apiKey.isEmpty
-            && form.apiKey == opened.apiKey
-        return !keyFollowedNewAddress && stored == opened
+        let movesToAnotherService = !opened.baseURL.isEmpty && form.baseURL != opened.baseURL
+        return !movesToAnotherService && stored == opened
     }
+
+    /// The form names another service than the stored one; only 保存 switches to it.
+    public var switchesService: Bool { !opened.baseURL.isEmpty && form.baseURL != opened.baseURL }
 
     /// Removes the service: the app goes back to working without AI.
     public func clear() {
@@ -178,6 +181,8 @@ public final class AssistantSettingsModel {
                 // It works: keep it, unless the form was edited while the test ran.
                 if config == current, mayKeepWithoutAsking, persist() {
                     testResult = "连接成功，已保存"
+                } else if switchesService {
+                    testResult = "连接成功。点「保存」后改用这个服务"
                 } else {
                     testResult = "连接成功"
                 }

@@ -107,17 +107,23 @@ struct AssistantSettingsModelTests {
         first.apiKey = "sk-a"
         first.save()
 
-        // A new address with A's key still in the field: not kept on leaving.
+        // Another address, with A's key or a new one: leaving keeps A; only 保存 switches.
         let moved = AssistantSettingsModel(preferences: prefs, keyStore: keys)
         moved.baseURL = "https://b.invalid/v1"
-        #expect(moved.canSave)
+        #expect(moved.canSave && moved.switchesService)
         moved.saveOnLeave()
         #expect(prefs.assistantBaseURL == "https://a.invalid/v1")
-        // With a key typed for it, it is.
         moved.apiKey = "sk-b"
         moved.saveOnLeave()
+        #expect(prefs.assistantBaseURL == "https://a.invalid/v1")
+        #expect(try keys.read() == "sk-a")
+        moved.save()
         #expect(prefs.assistantBaseURL == "https://b.invalid/v1")
         #expect(try keys.read() == "sk-b")
+        // Same service, another model: kept on leaving.
+        moved.model = "m3"
+        moved.saveOnLeave()
+        #expect(prefs.assistantModel == "m3")
 
         // Two pages open; one clears; the other, untouched or edited, does not write it back.
         let stale = AssistantSettingsModel(preferences: prefs, keyStore: keys)

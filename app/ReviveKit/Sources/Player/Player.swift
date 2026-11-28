@@ -58,6 +58,8 @@ public final class RecordingPlayer: NSObject {
         if recordingId != recording.id || player == nil {
             try await load(recording)
         }
+        // Again after a decode that may have taken seconds: a phone recording may have started.
+        guard !microphoneInUse() else { throw PlayerError.microphoneBusy }
         try activateSession()
         player?.play()
         state = .playing
