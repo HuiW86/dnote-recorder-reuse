@@ -36,8 +36,8 @@ struct AIPathSheet: View {
     @ViewBuilder
     private var content: some View {
         switch prompt {
-        case let .choose(work, options, because, _):
-            ChooseList(work: work, options: options, because: because) { model.pick($0) }
+        case let .choose(work, options, because, remember):
+            ChooseList(work: work, options: options, because: because, remember: remember) { model.pick($0) }
         case let .confirm(_, _, consent):
             ConfirmPane(consent: consent) { model.agree() }
         case .signIn:
@@ -57,6 +57,7 @@ private struct ChooseList: View {
     let work: AIWork
     let options: [AIPathOption]
     let because: AIPathProblem?
+    let remember: Bool
     let pick: (AIPath) -> Void
 
     var body: some View {
@@ -68,24 +69,59 @@ private struct ChooseList: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(option.path.title).foregroundStyle(Theme.ink)
-                            Text(option.problem?.reason ?? option.path.detail(for: work))
+                            Text(option.problem == .unsupported
+                                 ? AIPathProblem.unsupported.reason
+                                 : option.path.detail(for: work))
                                 .font(.footnote)
                                 .foregroundStyle(Theme.inkMuted)
+                            if let hint = actionHint(for: option.problem) {
+                                Text(hint.text)
+                                    .font(.footnote)
+                                    .foregroundStyle(hint.actionable ? Theme.accent : Theme.inkMuted)
+                            }
                         }
                         .padding(.vertical, 2)
                     }
                 }
             } header: {
-                if let because { Text(because.reason) }
+                if let because { Text(headerText(for: because)) }
             } footer: {
-                Text(work == .summarize
-                     ? "选过之后会记住，可以在「设置」里修改默认纪要方式。"
-                     : "这次的选择只用于这条录音。长期修改在「设置」的默认转写方式。")
+                Text(footerText)
             }
             .surfaceRows()
         }
         .listStyle(.insetGrouped)
         .paperBackground()
+    }
+
+    private func headerText(for problem: AIPathProblem) -> String {
+        switch problem {
+        case .unsupported: "这部手机不支持离线识别这种语言，请换一种方式。"
+        case .notConfigured: "默认方式还没设置，请先设置或换一种方式。"
+        case .signedOut: "默认方式需要先登录闻笺账号，可点下方登录，或换一种方式。"
+        case .offline:
+            work == .transcribe
+                ? "现在没有网络，请联网后再试，或改用本机转写。"
+                : "现在没有网络，请联网后再试。"
+        }
+    }
+
+    private func actionHint(for problem: AIPathProblem?) -> (text: String, actionable: Bool)? {
+        switch problem {
+        case .signedOut: ("未登录，点此登录", true)
+        case .notConfigured: ("未设置，点此前往设置", true)
+        case .offline: ("现在没有网络，联网后可用", false)
+        case .unsupported, nil: nil
+        }
+    }
+
+    private var footerText: String {
+        if remember {
+            return "选择后会设为默认纪要方式，之后可在「设置」里修改。"
+        }
+        return work == .summarize
+            ? "这次选择仅用于本次生成；修改默认方式请到「设置」。"
+            : "仅用于这条录音；想长期更换请到「设置」修改默认转写方式。"
     }
 }
 

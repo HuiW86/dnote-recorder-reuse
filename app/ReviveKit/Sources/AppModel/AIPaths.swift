@@ -75,11 +75,11 @@ extension AIWork: CustomStringConvertible {
 public extension AIPath {
     func detail(for work: AIWork) -> String {
         switch (self, work) {
-        case (.onDevice, _): "在这部手机上识别，录音不离开手机"
-        case (.ownService, .transcribe): "录音会上传到你在「AI 服务」里填的服务"
-        case (.ownService, .summarize): "文字稿会发给你在「AI 服务」里填的服务"
-        case (.account, .transcribe): "录音会上传到闻笺的服务器"
-        case (.account, .summarize): "文字稿会发到闻笺的服务器"
+        case (.onDevice, _): "在这部手机上离线转写，录音不离开手机"
+        case (.ownService, .transcribe): "录音会上传到你设置的 AI 服务"
+        case (.ownService, .summarize): "只发送文字稿给你设置的 AI 服务"
+        case (.account, .transcribe): "录音会上传到闻笺服务器"
+        case (.account, .summarize): "只发送文字稿到闻笺服务器"
         }
     }
 }

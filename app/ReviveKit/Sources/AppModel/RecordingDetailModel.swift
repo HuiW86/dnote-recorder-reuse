@@ -214,20 +214,21 @@ public final class RecordingDetailModel {
 
     /// Under the transcript: where the audio goes with the way 转成文字 takes.
     public var transcriptionFootnote: String {
-        switch shownTranscriptionPath {
-        case .onDevice: "在这部手机上识别，不联网，不区分说话人。"
-        case .ownService: "转文字时，录音音频会上传给你在设置里填的 AI 服务。"
-        case .account: "转文字时，录音会上传到闻笺的服务器。"
+        let base: String = switch shownTranscriptionPath {
+        case .onDevice: "在这部手机上离线转写，不联网，不区分说话人。"
+        case .ownService: "转文字时，录音会上传到你设置的 AI 服务。"
+        case .account: "转文字时，录音会上传到闻笺服务器。"
         }
+        return choosesPaths && !isTranscribing ? base + "点右上角「⋯」可换方式。" : base
     }
 
     /// Under the summary: where the transcript goes with the way 生成纪要 takes (§7.3b).
     public var summaryFootnote: String {
-        guard let paths else { return "生成纪要时，文字稿会发送给你在设置里填的 AI 服务；录音音频不会发送。" }
+        guard let paths else { return "生成纪要时，只发送文字稿给你设置的 AI 服务，不传录音。" }
         switch paths.preferences.defaultSummaryPath {
-        case .account?: return "生成纪要时，文字稿会发到闻笺的服务器；录音音频不会再发送。"
-        case .ownService?: return "生成纪要时，文字稿会发送给你在设置里填的 AI 服务；录音音频不会发送。"
-        default: return "第一次生成纪要时先选方式，选好后才发送文字稿。"
+        case .account?: return "生成纪要时，只发送文字稿到闻笺服务器，不传录音。"
+        case .ownService?: return "生成纪要时，只发送文字稿给你设置的 AI 服务，不传录音。"
+        default: return "点「生成纪要」时会先让你选方式，选好后才发送文字稿。"
         }
     }
 

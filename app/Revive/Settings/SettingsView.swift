@@ -76,13 +76,15 @@ struct SettingsView: View {
                     ForEach(summaryPaths) { Text($0.title).tag(AIPath?.some($0)) }
                 }
             } footer: {
-                Text("本机转写在这部手机上完成，不联网，第一次使用时系统会询问语音识别权限。选「你的 AI 服务」或「闻笺账号」时，录音或文字稿会发给它。录音详情里的「⋯ → 选择转写方式」可以只给这一条换方式。")
+                Text(account != nil
+                     ? "「本机」离线完成，不联网；「你的 AI 服务」和「闻笺账号」会把录音或文字稿发给对应服务。单条录音可在详情页右上角「⋯」里单独换方式。"
+                     : "「本机」离线完成，不联网；「你的 AI 服务」会把录音或文字稿发给你设置的服务。单条录音可在详情页右上角「⋯」里单独换方式。")
             }
             .surfaceRows()
             Section {
                 Toggle("录完自动整理", isOn: autoProcessBinding)
             } footer: {
-                Text("打开后，之后存进手机的每条录音会自动按上面的默认方式转成文字，再整理成纪要，不用一条条去点。整理纪要要先选好默认纪要方式；哪一样用不了，那一步就跳过。打开之前已有的录音不会自动处理；只在闻笺运行时进行。")
+                Text("仅处理开启后新存入的录音，按上面的默认方式自动转文字并生成纪要（未选默认纪要方式或暂不可用时跳过）。只在闻笺运行时进行。")
             }
             .surfaceRows()
             Section {
@@ -114,13 +116,15 @@ struct SettingsView: View {
             notificationsRefused = true
         }
         .navigationTitle("设置")
-        .confirmationDialog(AIConsent.autoProcess.message, isPresented: $confirmingAutoProcess,
+        .confirmationDialog("开启录完自动整理？", isPresented: $confirmingAutoProcess,
                             titleVisibility: .visible) {
             Button(AIConsent.autoProcess.button) {
                 preferences.grant(.autoProcess)
                 preferences.autoProcessEnabled = true
             }
             Button("取消", role: .cancel) {}
+        } message: {
+            Text(AIConsent.autoProcess.message)
         }
         .navigationBarTitleDisplayMode(.inline)
     }
