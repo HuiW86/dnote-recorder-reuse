@@ -25,7 +25,7 @@
 | 构建 | 怎么装 | 用在哪里 | 为什么 |
 |---|---|---|---|
 | **A：DEBUG** | Mac 上 Xcode 直接装到 iPhone | 所有要「协议日志」的项（下表标 📜） | 收发帧日志 `card-debug.log` 和调试页只在 DEBUG 构建里（`app/Revive/Debug/`，`#if DEBUG`）；TestFlight 构建只有诊断文件 |
-| **B：TestFlight 0.1.0（构建号比 App Store Connect 上已有的大，现在是 109 之后）** | 归档上传，TestFlight 安装 | T-M1-56 升级、通知、先不连卡、外部测试者看到的样子 | 升级要从上一个 TestFlight 构建覆盖安装；审核员拿到的也是它 |
+| **B：TestFlight 0.1.0（构建号比 App Store Connect 上已有的大，下一个是 110）** | 归档上传，TestFlight 安装 | T-M1-56 升级、通知、先不连卡、外部测试者看到的样子 | 升级要从上一个 TestFlight 构建覆盖安装；审核员拿到的也是它 |
 
 两个构建 Bundle ID 相同，同一部手机上会互相覆盖。建议：先用 B 做升级（§2 第一轮），再换 A 做要日志的项，最后删掉 App 用 B 做先不连卡。
 
@@ -105,7 +105,7 @@ Mac 版走查的内容（T-M5-01、02，ADR-011）：在 Mac 上打开 `ReviveMa
 
 | 项 | 你做 | Claude 做 |
 |---|---|---|
-| T-M1-56 从上一个 TestFlight 构建升级 | 在装着旧 TestFlight 构建、库里有星标、文件夹、纪要、文字稿的手机上，直接从 TestFlight 升到 (7)；打开后逐项看还在不在，「导出诊断信息」 | 核对诊断里的迁移（已到 `v16`）、对照 `test-spec.md` 判定 |
+| T-M1-56 从上一个 TestFlight 构建升级 | 在装着旧 TestFlight 构建、库里有星标、文件夹、纪要、文字稿的手机上，直接从 TestFlight 升到下一个构建（110）；打开后逐项看还在不在，「导出诊断信息」 | 核对诊断里的迁移（已到 `v16`）、对照 `test-spec.md` 判定 |
 
 ### 第二轮：M1 验收（#42，外部测试前必须过；构建 A）
 
