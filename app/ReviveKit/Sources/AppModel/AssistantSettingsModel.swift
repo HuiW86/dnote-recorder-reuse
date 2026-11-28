@@ -155,8 +155,10 @@ public final class AssistantSettingsModel {
     private var mayKeepWithoutAsking: Bool {
         let form = self.form
         let movesToAnotherService = !opened.baseURL.isEmpty && form.baseURL != opened.baseURL
+        // With 录完自动整理 on, a first service would start receiving new recordings' text at once.
+        let startsAutoSending = opened.baseURL.isEmpty && !form.baseURL.isEmpty && preferences.autoProcessEnabled
         let startsUploadingAudio = opened.transcriptionModel.isEmpty && !form.transcriptionModel.isEmpty
-        return !movesToAnotherService && !startsUploadingAudio && stored == opened
+        return !movesToAnotherService && !startsAutoSending && !startsUploadingAudio && stored == opened
     }
 
     /// The form names another service than the stored one; only 保存 switches to it.

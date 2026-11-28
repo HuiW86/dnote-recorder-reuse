@@ -188,6 +188,22 @@ struct AssistantSettingsModelTests {
         #expect(edited.testResult == nil)
     }
 
+    /// With 录完自动整理 on, a first service would get new recordings' text at once: only 保存.
+    @Test func autoProcessingWaitsForSaveOnAFirstService() throws {
+        let prefs = preferences()
+        prefs.autoProcessEnabled = true
+        let keys = InMemoryKeyStore()
+        let model = AssistantSettingsModel(preferences: prefs, keyStore: keys)
+        model.baseURL = "https://b.invalid/v1"
+        model.model = "m"
+        model.apiKey = "sk-b"
+        model.saveOnLeave()
+        #expect(prefs.assistantBaseURL.isEmpty)
+        #expect(try keys.read() == nil)
+        model.save()
+        #expect(prefs.assistantBaseURL == "https://b.invalid/v1")
+    }
+
     @Test func errorsReadAsAdvice() {
         #expect(AssistantSettingsModel.text(for: .http(401, "")) == "密钥无效或没有权限")
         #expect(AssistantSettingsModel.text(for: .http(500, "")) == "服务返回错误 500")

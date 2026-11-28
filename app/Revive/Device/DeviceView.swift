@@ -199,11 +199,21 @@ private struct DeviceContent: View {
                 Button("重新连接") { model.reconnect() }
             }
             Button("解绑此卡", role: .destructive) { confirmingUnpair = true }
-                .disabled(model.unpairBlockedReason != nil || model.unpairing)
+                .disabled(model.unpairBlockedReason != nil || model.unpairing || phoneRecording)
         } footer: {
-            if let reason = model.unpairBlockedReason { Text(reason) }
+            if let reason = model.unpairBlockedReason {
+                Text(reason)
+            } else if phoneRecording {
+                // Unpairing the last card leaves the tabs, and the way back to 停止.
+                Text("正在用这部手机录音，录完再解绑。")
+            }
         }
         .surfaceRows()
+    }
+
+    private var phoneRecording: Bool {
+        guard let phone = env.phoneRecorder else { return false }
+        return phone.state != .idle || phone.isSaving
     }
 
     // MARK: Rows

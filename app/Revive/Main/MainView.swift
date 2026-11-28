@@ -264,8 +264,9 @@ private struct MainContent: View {
             showsStage = true
         case .idle:
             model.startTapped()
-        case .noDevice where env.phoneRecorder != nil:
-            // No card to ask about: the key records on the phone, as the empty pages say.
+        case _ where model.currentDevice == nil && env.phoneRecorder != nil:
+            // No card to ask about (Bluetooth off or not): the key records on the phone, as the
+            // empty pages say.
             startPhoneRecording()
         default:
             offersPhone = true
